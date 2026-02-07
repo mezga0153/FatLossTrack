@@ -1,0 +1,22 @@
+{
+  "name": "fatloss-track-backend",
+  "version": "0.1.0",
+  "description": "Auth + OpenAI proxy backend for FatLoss Track",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/rate-limit": "^10.2.1",
+    "firebase-admin": "^13.0.2",
+    "openai": "^4.79.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

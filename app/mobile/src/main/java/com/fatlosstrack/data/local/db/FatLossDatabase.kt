@@ -1,0 +1,25 @@
+package com.fatlosstrack.data.local.db
+
+import androidx.room.Database
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+
+@Database(
+    entities = [
+        WeightEntry::class,
+        MealEntry::class,
+        Goal::class,
+        DailyLog::class,
+        Insight::class,
+    ],
+    version = 1,
+    exportSchema = true,
+)
+@TypeConverters(Converters::class)
+abstract class FatLossDatabase : RoomDatabase() {
+    abstract fun weightDao(): WeightDao
+    abstract fun mealDao(): MealDao
+    abstract fun goalDao(): GoalDao
+    abstract fun dailyLogDao(): DailyLogDao
+    abstract fun insightDao(): InsightDao
+}
