@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.fatlosstrack.data.local.AppLogger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -20,6 +21,7 @@ import javax.inject.Singleton
 @Singleton
 class HealthConnectManager @Inject constructor(
     private val context: Context,
+    private val appLogger: AppLogger,
 ) {
     companion object {
         private const val TAG = "HealthConnect"
@@ -36,14 +38,20 @@ class HealthConnectManager @Inject constructor(
 
     private val client: HealthConnectClient? by lazy {
         try {
-            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
-                HealthConnectClient.getOrCreate(context)
+            val status = HealthConnectClient.getSdkStatus(context)
+            appLogger.hc("SDK status: $status (AVAILABLE=${HealthConnectClient.SDK_AVAILABLE}, UNAVAILABLE_PROVIDER_UPDATE_REQUIRED=${HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED})")
+            if (status == HealthConnectClient.SDK_AVAILABLE) {
+                val c = HealthConnectClient.getOrCreate(context)
+                appLogger.hc("HealthConnectClient created successfully")
+                c
             } else {
-                Log.w(TAG, "Health Connect SDK not available")
+                Log.w(TAG, "Health Connect SDK not available, status=$status")
+                appLogger.hc("HC SDK not available, status=$status")
                 null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create HealthConnectClient", e)
+            appLogger.hc("Failed to create HC client: ${e.message}")
             null
         }
     }
@@ -54,9 +62,12 @@ class HealthConnectManager @Inject constructor(
     /** Check which of our requested permissions are already granted */
     suspend fun getGrantedPermissions(): Set<String> {
         return try {
-            client?.permissionController?.getGrantedPermissions() ?: emptySet()
+            val granted = client?.permissionController?.getGrantedPermissions() ?: emptySet()
+            appLogger.hc("Granted permissions (${granted.size}): ${granted.joinToString(", ") { it.substringAfterLast('.') }}")
+            granted
         } catch (e: Exception) {
             Log.e(TAG, "getGrantedPermissions failed", e)
+            appLogger.hc("getGrantedPermissions failed: ${e.message}")
             emptySet()
         }
     }
@@ -64,7 +75,11 @@ class HealthConnectManager @Inject constructor(
     /** True if all required permissions are granted */
     suspend fun hasAllPermissions(): Boolean {
         val granted = getGrantedPermissions()
-        return PERMISSIONS.all { it in granted }
+        val missing = PERMISSIONS.filter { it !in granted }
+        if (missing.isNotEmpty()) {
+            appLogger.hc("Missing permissions: ${missing.joinToString(", ") { it.substringAfterLast('.') }}")
+        }
+        return missing.isEmpty()
     }
 
     // ── Read helpers ──
@@ -86,9 +101,12 @@ class HealthConnectManager @Inject constructor(
                     timeRangeFilter = dayRange(date),
                 )
             )
-            response.records.lastOrNull()?.weight?.inKilograms
+            val result = response.records.lastOrNull()?.weight?.inKilograms
+            appLogger.hc("  $date weight: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "getWeight failed", e)
+            appLogger.hc("  $date weight: ERROR ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
@@ -104,9 +122,12 @@ class HealthConnectManager @Inject constructor(
                 )
             )
             val total = response.records.sumOf { it.count }
-            if (total > 0) total.toInt() else null
+            val result = if (total > 0) total.toInt() else null
+            appLogger.hc("  $date steps: ${response.records.size} records → ${result ?: "null"}")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "getSteps failed", e)
+            appLogger.hc("  $date steps: ERROR ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
@@ -125,14 +146,20 @@ class HealthConnectManager @Inject constructor(
                     timeRangeFilter = TimeRangeFilter.between(start, end),
                 )
             )
-            if (response.records.isEmpty()) return null
-            val totalMs = response.records.sumOf { record ->
-                java.time.Duration.between(record.startTime, record.endTime).toMillis()
+            val result = if (response.records.isEmpty()) {
+                null
+            } else {
+                val totalMs = response.records.sumOf { record ->
+                    java.time.Duration.between(record.startTime, record.endTime).toMillis()
+                }
+                val hours = totalMs / 3_600_000.0
+                if (hours > 0) "%.1f".format(hours).toDouble() else null
             }
-            val hours = totalMs / 3_600_000.0
-            if (hours > 0) "%.1f".format(hours).toDouble() else null
+            appLogger.hc("  $date sleep: ${response.records.size} sessions → ${result?.let { "${it}h" } ?: "null"}")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "getSleepHours failed", e)
+            appLogger.hc("  $date sleep: ERROR ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
@@ -148,14 +175,20 @@ class HealthConnectManager @Inject constructor(
                 )
             )
             val allSamples = response.records.flatMap { it.samples }
-            if (allSamples.isEmpty()) return null
-            // Use minimum cluster as a proxy for resting HR
-            val sorted = allSamples.map { it.beatsPerMinute }.sorted()
-            // Take the bottom 20% average as resting HR estimate
-            val bottom = sorted.take(maxOf(1, sorted.size / 5))
-            bottom.average().toInt()
+            val result = if (allSamples.isEmpty()) {
+                null
+            } else {
+                // Use minimum cluster as a proxy for resting HR
+                val sorted = allSamples.map { it.beatsPerMinute }.sorted()
+                // Take the bottom 20% average as resting HR estimate
+                val bottom = sorted.take(maxOf(1, sorted.size / 5))
+                bottom.average().toInt()
+            }
+            appLogger.hc("  $date hr: ${response.records.size} records, ${allSamples.size} samples → ${result?.let { "$it bpm" } ?: "null"}")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "getRestingHr failed", e)
+            appLogger.hc("  $date hr: ERROR ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
@@ -170,7 +203,10 @@ class HealthConnectManager @Inject constructor(
                     timeRangeFilter = dayRange(date),
                 )
             )
-            if (response.records.isEmpty()) return null
+            if (response.records.isEmpty()) {
+                appLogger.hc("  $date exercises: 0 sessions")
+                return null
+            }
 
             // Also get active calories for the day
             val calResponse = c.readRecords(
@@ -192,21 +228,25 @@ class HealthConnectManager @Inject constructor(
             }
 
             // If we have just one exercise and active cals, assign cals to it
-            if (exercises.size == 1 && totalActiveCal > 0) {
+            val result = if (exercises.size == 1 && totalActiveCal > 0) {
                 val single = exercises[0].replace("\"kcal\":0", "\"kcal\":$totalActiveCal")
-                return "[$single]"
+                "[$single]"
+            } else {
+                "[${exercises.joinToString(",")}]"
             }
-
-            "[${exercises.joinToString(",")}]"
+            appLogger.hc("  $date exercises: ${response.records.size} sessions, ${totalActiveCal} active kcal")
+            result
         } catch (e: Exception) {
             Log.e(TAG, "getExercises failed", e)
+            appLogger.hc("  $date exercises: ERROR ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
 
     /** Pull all health data for a single date into a DaySummary */
     suspend fun getDaySummary(date: LocalDate): DaySummary {
-        return DaySummary(
+        appLogger.hc("Reading HC data for $date …")
+        val summary = DaySummary(
             date = date,
             weightKg = getWeight(date),
             steps = getSteps(date),
@@ -214,6 +254,11 @@ class HealthConnectManager @Inject constructor(
             restingHr = getRestingHr(date),
             exercisesJson = getExercises(date),
         )
+        val hasAny = summary.weightKg != null || summary.steps != null ||
+                summary.sleepHours != null || summary.restingHr != null ||
+                summary.exercisesJson != null
+        appLogger.hc("$date summary: ${if (hasAny) "HAS DATA" else "EMPTY"}")
+        return summary
     }
 
     /** Pull summaries for a date range (inclusive) */

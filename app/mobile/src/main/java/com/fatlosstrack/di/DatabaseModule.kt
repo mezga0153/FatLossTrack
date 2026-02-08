@@ -34,8 +34,8 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideHealthConnectManager(@ApplicationContext context: Context): HealthConnectManager {
-        return HealthConnectManager(context)
+    fun provideHealthConnectManager(@ApplicationContext context: Context, appLogger: AppLogger): HealthConnectManager {
+        return HealthConnectManager(context, appLogger)
     }
 
     @Provides
