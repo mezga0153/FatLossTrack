@@ -1,5 +1,8 @@
 package com.fatlosstrack.ui.camera
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -11,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,36 +22,116 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.fatlosstrack.ui.mock.MockAiResponses
-import com.fatlosstrack.ui.mock.MockAiResponses.AnalysisResult
+import com.fatlosstrack.data.local.CapturedPhotoStore
+import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.*
+
+// ── Data models ──
+
+data class NutritionRow(
+    val name: String,
+    val amount: String,
+    val unit: String,
+)
+
+data class MealItem(
+    val name: String,
+    val portion: String,
+    val nutrition: List<NutritionRow>,
+)
+
+data class AnalysisResult(
+    val description: String,
+    val items: List<MealItem>,
+    val totalCalories: Int,
+    val aiNote: String,
+)
 
 /**
- * Shows the mock AI analysis result after "processing" photos.
- * Includes an analyzing spinner, then reveals description + nutrition table.
+ * Calls OpenAI vision API with captured photos. Parses structured JSON response
+ * into meal items with nutrition data.
  */
 @Composable
 fun AnalysisResultScreen(
     mode: CaptureMode,
     photoCount: Int,
+    openAiService: OpenAiService,
     onDone: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var analyzing by remember { mutableStateOf(true) }
-    val result = remember {
-        when (mode) {
-            CaptureMode.LogMeal -> MockAiResponses.logMealResults.random()
-            CaptureMode.SuggestMeal -> MockAiResponses.suggestMealResults.random()
-        }
-    }
+    var result by remember { mutableStateOf<AnalysisResult?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Fake analysis delay
+    // Run analysis on launch
     LaunchedEffect(Unit) {
-        delay(2200)
-        analyzing = false
+        scope.launch {
+            try {
+                val photoUris = CapturedPhotoStore.consume()
+                if (photoUris.isEmpty()) {
+                    errorMessage = "No photos to analyze."
+                    analyzing = false
+                    return@launch
+                }
+
+                // Load URIs → Bitmaps on IO thread
+                val bitmaps = withContext(Dispatchers.IO) {
+                    photoUris.mapNotNull { uri ->
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { stream ->
+                                BitmapFactory.decodeStream(stream)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("Analysis", "Failed to load photo: $uri", e)
+                            null
+                        }
+                    }
+                }
+
+                if (bitmaps.isEmpty()) {
+                    errorMessage = "Could not load photos."
+                    analyzing = false
+                    return@launch
+                }
+
+                val modeStr = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
+                val apiResult = openAiService.analyzeMeal(bitmaps, modeStr)
+
+                apiResult.fold(
+                    onSuccess = { raw ->
+                        try {
+                            result = parseAnalysisJson(raw)
+                        } catch (e: Exception) {
+                            Log.e("Analysis", "JSON parse failed, raw: $raw", e)
+                            // Fallback: show raw text as description
+                            result = AnalysisResult(
+                                description = raw,
+                                items = emptyList(),
+                                totalCalories = 0,
+                                aiNote = "",
+                            )
+                        }
+                        analyzing = false
+                    },
+                    onFailure = { e ->
+                        errorMessage = e.message ?: "Analysis failed"
+                        analyzing = false
+                    },
+                )
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Unexpected error"
+                analyzing = false
+            }
+        }
     }
 
     Column(
@@ -78,13 +162,59 @@ fun AnalysisResultScreen(
             )
         }
 
-        if (analyzing) {
-            AnalyzingState(photoCount)
-        } else {
-            ResultContent(result = result, mode = mode, onDone = onDone)
+        when {
+            analyzing -> AnalyzingState(photoCount)
+            errorMessage != null -> ErrorState(errorMessage!!, onBack)
+            result != null -> ResultContent(result = result!!, mode = mode, onDone = onDone)
         }
     }
 }
+
+// ── JSON parsing ──
+
+private fun parseAnalysisJson(raw: String): AnalysisResult {
+    // Strip markdown code fences if present
+    val cleaned = raw
+        .replace(Regex("^```json\\s*", RegexOption.MULTILINE), "")
+        .replace(Regex("^```\\s*", RegexOption.MULTILINE), "")
+        .trim()
+
+    val json = Json.parseToJsonElement(cleaned).jsonObject
+
+    val description = json["description"]?.jsonPrimitive?.content ?: ""
+    val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
+    val aiNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
+
+    val items = json["items"]?.jsonArray?.map { itemEl ->
+        val item = itemEl.jsonObject
+        val name = item["name"]?.jsonPrimitive?.content ?: "Unknown"
+        val portion = item["portion"]?.jsonPrimitive?.content ?: ""
+        val calories = item["calories"]?.jsonPrimitive?.int ?: 0
+        val protein = item["protein_g"]?.jsonPrimitive?.intOrNull ?: item["protein_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
+        val fat = item["fat_g"]?.jsonPrimitive?.intOrNull ?: item["fat_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
+        val carbs = item["carbs_g"]?.jsonPrimitive?.intOrNull ?: item["carbs_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
+
+        MealItem(
+            name = name,
+            portion = portion,
+            nutrition = listOf(
+                NutritionRow("Calories", "$calories", "kcal"),
+                NutritionRow("Protein", "$protein", "g"),
+                NutritionRow("Fat", "$fat", "g"),
+                NutritionRow("Carbs", "$carbs", "g"),
+            ),
+        )
+    } ?: emptyList()
+
+    return AnalysisResult(
+        description = description,
+        items = items,
+        totalCalories = totalCalories,
+        aiNote = aiNote,
+    )
+}
+
+// ── UI states ──
 
 @Composable
 private fun AnalyzingState(photoCount: Int) {
@@ -117,10 +247,46 @@ private fun AnalyzingState(photoCount: Int) {
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Identifying food items and estimating portions",
+                text = "Sending to AI for identification",
                 style = MaterialTheme.typography.bodyMedium,
                 color = OnSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onBack: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp),
+        ) {
+            Icon(
+                Icons.Default.ErrorOutline,
+                contentDescription = null,
+                tint = Tertiary,
+                modifier = Modifier.size(48.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Analysis failed",
+                style = MaterialTheme.typography.titleMedium,
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(24.dp))
+            OutlinedButton(onClick = onBack) {
+                Text("Go back", color = Primary)
+            }
         }
     }
 }
@@ -172,53 +338,59 @@ private fun ResultContent(
             }
 
             // Items + nutrition
-            result.items.forEach { item ->
-                NutritionCard(item)
-            }
+            if (result.items.isNotEmpty()) {
+                result.items.forEach { item ->
+                    NutritionCard(item)
+                }
 
-            // Total calories
-            Card(
-                colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Total",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface,
-                    )
-                    Text(
-                        text = "${result.totalCalories} kcal",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Primary,
-                    )
+                // Total calories
+                if (result.totalCalories > 0) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Total",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = OnSurface,
+                            )
+                            Text(
+                                text = "${result.totalCalories} kcal",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Primary,
+                            )
+                        }
+                    }
                 }
             }
 
             // AI note
-            Card(
-                colors = CardDefaults.cardColors(containerColor = CardSurface),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.border(1.dp, Accent.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-            ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Coach says",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Accent,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = result.aiNote,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = OnSurface,
-                    )
+            if (result.aiNote.isNotBlank()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardSurface),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.border(1.dp, Accent.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Coach says",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Accent,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = result.aiNote,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = OnSurface,
+                        )
+                    }
                 }
             }
 
@@ -258,7 +430,7 @@ private fun ResultContent(
 }
 
 @Composable
-private fun NutritionCard(item: MockAiResponses.MealItem) {
+private fun NutritionCard(item: MealItem) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardSurface),
         shape = RoundedCornerShape(12.dp),
