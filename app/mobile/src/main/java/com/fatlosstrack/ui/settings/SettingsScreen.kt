@@ -50,7 +50,18 @@ fun SettingsScreen(
     val authState by authManager?.authState?.collectAsState()
         ?: remember { mutableStateOf(null) }
 
+    // Goal data
+    val savedCurrentWeight by preferencesManager?.currentWeight?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
+    val savedGoalWeight by preferencesManager?.goalWeight?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
+    val savedRate by preferencesManager?.weeklyRate?.collectAsState(initial = 0.5f)
+        ?: remember { mutableStateOf(0.5f) }
+    val savedTone by preferencesManager?.coachTone?.collectAsState(initial = "honest")
+        ?: remember { mutableStateOf("honest") }
+
     var toneHonest by remember { mutableStateOf(true) }
+    LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
     var healthConnectEnabled by remember { mutableStateOf(true) }
     var backupEnabled by remember { mutableStateOf(false) }
 
@@ -75,9 +86,14 @@ fun SettingsScreen(
 
         // -- Profile --
         SettingsSection("Profile") {
-            SettingsRow("Goal weight", "80.0 kg")
-            SettingsRow("Rate", "0.5 kg / week")
-            SettingsRow("Daily deficit target", "~550 kcal")
+            val goalWStr = savedGoalWeight?.let { "%.1f kg".format(it) } ?: "Not set"
+            val rateStr = savedRate?.let { "%.2f kg / week".format(it).trimEnd('0').trimEnd('.') + " kg / week" } ?: "0.5 kg / week"
+            val rateVal = savedRate ?: 0.5f
+            val deficitStr = "~${(rateVal * 1100).toInt()} kcal"
+            SettingsRow("Current weight", savedCurrentWeight?.let { "%.1f kg".format(it) } ?: "Not set")
+            SettingsRow("Goal weight", goalWStr)
+            SettingsRow("Rate", "$rateVal kg / week")
+            SettingsRow("Daily deficit target", deficitStr)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onEditGoal) {
                 Text("Edit goal", color = Primary)
@@ -104,8 +120,14 @@ fun SettingsScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ToneChip("Honest", toneHonest) { toneHonest = true }
-                ToneChip("Supportive", !toneHonest) { toneHonest = false }
+                ToneChip("Honest", toneHonest) {
+                    toneHonest = true
+                    scope.launch { preferencesManager?.setCoachTone("honest") }
+                }
+                ToneChip("Supportive", !toneHonest) {
+                    toneHonest = false
+                    scope.launch { preferencesManager?.setCoachTone("supportive") }
+                }
             }
         }
 

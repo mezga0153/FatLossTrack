@@ -25,30 +25,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * Set Goal screen — edit weight target, weekly rate, and AI guidance notes.
- *
- * Fields:
- * 1. Current weight (kg)
- * 2. Goal weight (kg)
- * 3. Weekly loss rate (kg/week) with preset chips
- * 4. Calculated daily deficit
- * 5. Freeform AI guidance (allergies, preferences, exercise, etc.)
+ * Persists all values to DataStore via PreferencesManager.
  */
 @Composable
 fun SetGoalScreen(
     onBack: () -> Unit,
+    preferencesManager: PreferencesManager,
 ) {
-    // Mock initial values — would come from DataStore/Room in production
-    var currentWeight by remember { mutableStateOf("84.2") }
-    var goalWeight by remember { mutableStateOf("80.0") }
-    var weeklyRate by remember { mutableStateOf("0.5") }
-    var aiGuidance by remember {
-        mutableStateOf(
-            "No dairy (lactose intolerant)\nPrefer high-protein meals\nCan do 3× gym per week + daily walks"
-        )
+    val scope = rememberCoroutineScope()
+
+    // Load saved values
+    val savedCurrentWeight by preferencesManager.currentWeight.collectAsState(initial = null)
+    val savedGoalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
+    val savedRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
+    val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = "")
+
+    var currentWeight by remember { mutableStateOf("") }
+    var goalWeight by remember { mutableStateOf("") }
+    var weeklyRate by remember { mutableStateOf("") }
+    var aiGuidance by remember { mutableStateOf("") }
+    var initialized by remember { mutableStateOf(false) }
+
+    // Seed fields once from saved values
+    LaunchedEffect(savedCurrentWeight, savedGoalWeight, savedRate, savedGuidance) {
+        if (!initialized) {
+            currentWeight = savedCurrentWeight?.let { "%.1f".format(it) } ?: ""
+            goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
+            weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
+            aiGuidance = savedGuidance
+            initialized = true
+        }
     }
 
     // Derived deficit
@@ -277,7 +289,14 @@ fun SetGoalScreen(
             // ── Save button ──
             Button(
                 onClick = {
-                    // TODO: persist to DataStore/Room
+                    scope.launch {
+                        preferencesManager.setGoal(
+                            currentWeight = currentWeight.toFloatOrNull() ?: 0f,
+                            goalWeight = goalWeight.toFloatOrNull() ?: 0f,
+                            weeklyRate = weeklyRate.toFloatOrNull() ?: 0.5f,
+                            aiGuidance = aiGuidance.trim(),
+                        )
+                    }
                     onBack()
                 },
                 modifier = Modifier

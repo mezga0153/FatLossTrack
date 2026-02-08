@@ -119,7 +119,10 @@ fun FatLossTrackNavGraph(
 
                 // Set Goal
                 composable("set_goal") {
-                    SetGoalScreen(onBack = { navController.popBackStack() })
+                    SetGoalScreen(
+                        onBack = { navController.popBackStack() },
+                        preferencesManager = preferencesManager,
+                    )
                 }
 
                 // Camera capture
