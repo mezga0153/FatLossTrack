@@ -9,8 +9,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
@@ -28,11 +29,14 @@ import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Set Goal screen — edit weight target, weekly rate, and AI guidance notes.
  * Persists all values to DataStore via PreferencesManager.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SetGoalScreen(
     onBack: () -> Unit,
@@ -41,27 +45,38 @@ fun SetGoalScreen(
     val scope = rememberCoroutineScope()
 
     // Load saved values
-    val savedCurrentWeight by preferencesManager.currentWeight.collectAsState(initial = null)
+    val savedStartWeight by preferencesManager.startWeight.collectAsState(initial = null)
     val savedGoalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
     val savedRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
     val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = "")
+    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
+    val savedStartDate by preferencesManager.startDate.collectAsState(initial = null)
 
-    var currentWeight by remember { mutableStateOf("") }
+    var startWeight by remember { mutableStateOf("") }
     var goalWeight by remember { mutableStateOf("") }
     var weeklyRate by remember { mutableStateOf("") }
     var aiGuidance by remember { mutableStateOf("") }
+    var heightCm by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf(LocalDate.now()) }
     var initialized by remember { mutableStateOf(false) }
 
     // Seed fields once from saved values
-    LaunchedEffect(savedCurrentWeight, savedGoalWeight, savedRate, savedGuidance) {
+    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedHeight, savedStartDate) {
         if (!initialized) {
-            currentWeight = savedCurrentWeight?.let { "%.1f".format(it) } ?: ""
+            startWeight = savedStartWeight?.let { "%.1f".format(it) } ?: ""
             goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
             weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
             aiGuidance = savedGuidance
+            heightCm = savedHeight?.toString() ?: ""
+            startDate = savedStartDate?.let {
+                try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
+            } ?: LocalDate.now()
             initialized = true
         }
     }
+
+    // Date picker state
+    var showDatePicker by remember { mutableStateOf(false) }
 
     // Derived deficit
     val deficit = remember(weeklyRate) {
@@ -71,9 +86,9 @@ fun SetGoalScreen(
     }
 
     // Estimated weeks to goal
-    val weeksToGoal = remember(currentWeight, goalWeight, weeklyRate) {
-        val cw = currentWeight.toFloatOrNull() ?: 84f
-        val gw = goalWeight.toFloatOrNull() ?: 80f
+    val weeksToGoal = remember(startWeight, goalWeight, weeklyRate) {
+        val cw = startWeight.toFloatOrNull() ?: 0f
+        val gw = goalWeight.toFloatOrNull() ?: 0f
         val rate = weeklyRate.toFloatOrNull() ?: 0.5f
         if (rate > 0 && cw > gw) ((cw - gw) / rate).toInt() else null
     }
@@ -115,6 +130,16 @@ fun SetGoalScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
+            // ── Height section ──
+            GoalSection(icon = Icons.Default.Height, title = "Height") {
+                GoalTextField(
+                    value = heightCm,
+                    onValueChange = { heightCm = it },
+                    label = "cm",
+                    modifier = Modifier.fillMaxWidth(0.5f),
+                )
+            }
+
             // ── Weight section ──
             GoalSection(icon = Icons.Default.Scale, title = "Weight") {
                 Row(
@@ -122,9 +147,9 @@ fun SetGoalScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     GoalTextField(
-                        value = currentWeight,
-                        onValueChange = { currentWeight = it },
-                        label = "Current (kg)",
+                        value = startWeight,
+                        onValueChange = { startWeight = it },
+                        label = "Starting (kg)",
                         modifier = Modifier.weight(1f),
                     )
                     GoalTextField(
@@ -138,9 +163,29 @@ fun SetGoalScreen(
                 if (weeksToGoal != null && weeksToGoal > 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "That's ${currentWeight.toFloatOrNull()?.minus(goalWeight.toFloatOrNull() ?: 0f)?.let { "%.1f".format(it) } ?: "?"} kg to lose",
+                        text = "That's ${startWeight.toFloatOrNull()?.minus(goalWeight.toFloatOrNull() ?: 0f)?.let { "%.1f".format(it) } ?: "?"} kg to lose",
                         style = MaterialTheme.typography.bodyMedium,
                         color = OnSurfaceVariant,
+                    )
+                }
+            }
+
+            // ── Start date section ──
+            GoalSection(icon = Icons.Default.CalendarMonth, title = "Start date") {
+                Text(
+                    text = "When does your fat loss journey begin? Daily log entries will be tracked from this date.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text(
+                        startDate.format(DateTimeFormatter.ofPattern("d MMM yyyy")),
+                        color = Primary,
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
@@ -291,10 +336,12 @@ fun SetGoalScreen(
                 onClick = {
                     scope.launch {
                         preferencesManager.setGoal(
-                            currentWeight = currentWeight.toFloatOrNull() ?: 0f,
+                            startWeight = startWeight.toFloatOrNull() ?: 0f,
                             goalWeight = goalWeight.toFloatOrNull() ?: 0f,
                             weeklyRate = weeklyRate.toFloatOrNull() ?: 0.5f,
                             aiGuidance = aiGuidance.trim(),
+                            heightCm = heightCm.toIntOrNull(),
+                            startDate = startDate.toString(),
                         )
                     }
                     onBack()
@@ -313,6 +360,31 @@ fun SetGoalScreen(
             }
 
             Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    // ── Date picker dialog ──
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = startDate.toEpochDay() * 86_400_000L,
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        startDate = LocalDate.ofEpochDay(millis / 86_400_000L)
+                    }
+                    showDatePicker = false
+                }) { Text("OK", color = Primary) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = OnSurfaceVariant)
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

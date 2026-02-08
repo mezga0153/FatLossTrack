@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.ui.theme.*
@@ -29,64 +30,82 @@ import java.util.Locale
 
 /**
  * Log tab — shows logged meals from Room database, grouped by date.
+ * Gated on goal start date being set.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LogScreen(mealDao: MealDao) {
+fun LogScreen(mealDao: MealDao, preferencesManager: PreferencesManager) {
+    val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
+    val startDate = startDateStr?.let {
+        try { LocalDate.parse(it) } catch (_: Exception) { null }
+    }
+
+    if (startDate == null) {
+        // No goal set — show gate message
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 32.dp),
+            ) {
+                Icon(
+                    Icons.Default.Restaurant,
+                    contentDescription = null,
+                    tint = OnSurfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.size(64.dp),
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Set your goal to start logging",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Go to Settings → Edit goal to set your start date, then daily logs will appear here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant.copy(alpha = 0.6f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+        return
+    }
+
     val meals by mealDao.getAllMeals().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
 
-    // Group by date
-    val grouped = meals.groupBy { it.date }.toSortedMap(compareByDescending { it })
+    // Group by date — include all dates from startDate to today
+    val today = LocalDate.now()
+    val allDates = generateSequence(startDate) { it.plusDays(1) }
+        .takeWhile { !it.isAfter(today) }
+        .toList()
+        .reversed() // newest first
+    val mealsByDate = meals.groupBy { it.date }
+    val grouped = allDates.associateWith { date -> mealsByDate[date] ?: emptyList() }
 
     Box(Modifier.fillMaxSize()) {
-        if (meals.isEmpty()) {
-            // Empty state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.Restaurant,
-                        contentDescription = null,
-                        tint = OnSurfaceVariant.copy(alpha = 0.3f),
-                        modifier = Modifier.size(64.dp),
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        "No meals logged yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = OnSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Take a photo of your meal to get started",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceVariant.copy(alpha = 0.6f),
-                    )
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = "Meal Log",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = OnSurface,
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Meal Log",
+                style = MaterialTheme.typography.headlineMedium,
+                color = OnSurface,
+            )
 
-                // Stats summary
-                val todayMeals = meals.filter { it.date == LocalDate.now() }
-                val todayKcal = todayMeals.sumOf { it.totalKcal }
-                if (todayMeals.isNotEmpty()) {
+            // Stats summary
+            val todayMeals = mealsByDate[today] ?: emptyList()
+            val todayKcal = todayMeals.sumOf { it.totalKcal }
+            if (todayMeals.isNotEmpty()) {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
                         shape = RoundedCornerShape(12.dp),
@@ -134,6 +153,21 @@ fun LogScreen(mealDao: MealDao) {
                         modifier = Modifier.padding(top = 8.dp),
                     )
 
+                if (dayMeals.isEmpty()) {
+                    // Empty day card
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardSurface),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = "No meals logged",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                } else {
                     dayMeals.forEach { meal ->
                         MealCard(
                             meal = meal,
@@ -141,9 +175,9 @@ fun LogScreen(mealDao: MealDao) {
                         )
                     }
                 }
-
-                Spacer(Modifier.height(80.dp))
             }
+
+            Spacer(Modifier.height(80.dp))
         }
 
         // Meal detail bottom sheet

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,11 +23,13 @@ class PreferencesManager @Inject constructor(
     companion object {
         private val KEY_OPENAI_API_KEY = stringPreferencesKey("openai_api_key")
         private val KEY_OPENAI_MODEL = stringPreferencesKey("openai_model")
-        private val KEY_CURRENT_WEIGHT = floatPreferencesKey("current_weight")
+        private val KEY_START_WEIGHT = floatPreferencesKey("start_weight")
         private val KEY_GOAL_WEIGHT = floatPreferencesKey("goal_weight")
         private val KEY_WEEKLY_RATE = floatPreferencesKey("weekly_rate")
         private val KEY_AI_GUIDANCE = stringPreferencesKey("ai_guidance")
         private val KEY_COACH_TONE = stringPreferencesKey("coach_tone")
+        private val KEY_HEIGHT_CM = intPreferencesKey("height_cm")
+        private val KEY_START_DATE = stringPreferencesKey("start_date") // ISO format yyyy-MM-dd
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -37,8 +40,8 @@ class PreferencesManager @Inject constructor(
         prefs[KEY_OPENAI_MODEL] ?: "gpt-5.2"
     }
 
-    val currentWeight: Flow<Float?> = context.dataStore.data.map { prefs ->
-        prefs[KEY_CURRENT_WEIGHT]
+    val startWeight: Flow<Float?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_START_WEIGHT]
     }
 
     val goalWeight: Flow<Float?> = context.dataStore.data.map { prefs ->
@@ -57,6 +60,14 @@ class PreferencesManager @Inject constructor(
         prefs[KEY_COACH_TONE] ?: "honest"
     }
 
+    val heightCm: Flow<Int?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_HEIGHT_CM]
+    }
+
+    val startDate: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_START_DATE]
+    }
+
     suspend fun setOpenAiApiKey(key: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_OPENAI_API_KEY] = key
@@ -70,16 +81,20 @@ class PreferencesManager @Inject constructor(
     }
 
     suspend fun setGoal(
-        currentWeight: Float,
+        startWeight: Float,
         goalWeight: Float,
         weeklyRate: Float,
         aiGuidance: String,
+        heightCm: Int?,
+        startDate: String,
     ) {
         context.dataStore.edit { prefs ->
-            prefs[KEY_CURRENT_WEIGHT] = currentWeight
+            prefs[KEY_START_WEIGHT] = startWeight
             prefs[KEY_GOAL_WEIGHT] = goalWeight
             prefs[KEY_WEEKLY_RATE] = weeklyRate
             prefs[KEY_AI_GUIDANCE] = aiGuidance
+            if (heightCm != null) prefs[KEY_HEIGHT_CM] = heightCm
+            prefs[KEY_START_DATE] = startDate
         }
     }
 

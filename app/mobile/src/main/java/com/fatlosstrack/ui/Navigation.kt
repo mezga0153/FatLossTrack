@@ -108,7 +108,7 @@ fun FatLossTrackNavGraph(
             ) {
                 composable(Tab.Home.route) { HomeScreen() }
                 composable(Tab.Trends.route) { TrendsScreen() }
-                composable(Tab.Log.route) { LogScreen(mealDao = mealDao) }
+                composable(Tab.Log.route) { LogScreen(mealDao = mealDao, preferencesManager = preferencesManager) }
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },

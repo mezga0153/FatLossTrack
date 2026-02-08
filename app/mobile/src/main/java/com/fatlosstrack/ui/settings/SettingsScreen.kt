@@ -51,7 +51,7 @@ fun SettingsScreen(
         ?: remember { mutableStateOf(null) }
 
     // Goal data
-    val savedCurrentWeight by preferencesManager?.currentWeight?.collectAsState(initial = null)
+    val savedStartWeight by preferencesManager?.startWeight?.collectAsState(initial = null)
         ?: remember { mutableStateOf(null) }
     val savedGoalWeight by preferencesManager?.goalWeight?.collectAsState(initial = null)
         ?: remember { mutableStateOf(null) }
@@ -59,6 +59,10 @@ fun SettingsScreen(
         ?: remember { mutableStateOf(0.5f) }
     val savedTone by preferencesManager?.coachTone?.collectAsState(initial = "honest")
         ?: remember { mutableStateOf("honest") }
+    val savedHeight by preferencesManager?.heightCm?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
+    val savedStartDate by preferencesManager?.startDate?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
 
     var toneHonest by remember { mutableStateOf(true) }
     LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
@@ -86,14 +90,13 @@ fun SettingsScreen(
 
         // -- Profile --
         SettingsSection("Profile") {
-            val goalWStr = savedGoalWeight?.let { "%.1f kg".format(it) } ?: "Not set"
-            val rateStr = savedRate?.let { "%.2f kg / week".format(it).trimEnd('0').trimEnd('.') + " kg / week" } ?: "0.5 kg / week"
+            if (savedHeight != null) SettingsRow("Height", "$savedHeight cm")
+            SettingsRow("Starting weight", savedStartWeight?.let { "%.1f kg".format(it) } ?: "Not set")
+            SettingsRow("Goal weight", savedGoalWeight?.let { "%.1f kg".format(it) } ?: "Not set")
             val rateVal = savedRate ?: 0.5f
-            val deficitStr = "~${(rateVal * 1100).toInt()} kcal"
-            SettingsRow("Current weight", savedCurrentWeight?.let { "%.1f kg".format(it) } ?: "Not set")
-            SettingsRow("Goal weight", goalWStr)
             SettingsRow("Rate", "$rateVal kg / week")
-            SettingsRow("Daily deficit target", deficitStr)
+            SettingsRow("Daily deficit target", "~${(rateVal * 1100).toInt()} kcal")
+            if (savedStartDate != null) SettingsRow("Start date", savedStartDate!!)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onEditGoal) {
                 Text("Edit goal", color = Primary)
