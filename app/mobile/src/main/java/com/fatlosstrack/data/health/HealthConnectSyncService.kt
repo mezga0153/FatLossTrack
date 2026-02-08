@@ -81,11 +81,11 @@ class HealthConnectSyncService @Inject constructor(
             val existing = dailyLogDao.getForDate(summary.date)
             val merged = if (existing != null) {
                 existing.copy(
-                    weightKg = existing.weightKg ?: summary.weightKg,
-                    steps = existing.steps ?: summary.steps,
-                    sleepHours = existing.sleepHours ?: summary.sleepHours,
-                    restingHr = existing.restingHr ?: summary.restingHr,
-                    exercisesJson = existing.exercisesJson ?: summary.exercisesJson,
+                    weightKg = summary.weightKg ?: existing.weightKg,
+                    steps = summary.steps ?: existing.steps,
+                    sleepHours = summary.sleepHours ?: existing.sleepHours,
+                    restingHr = summary.restingHr ?: existing.restingHr,
+                    exercisesJson = summary.exercisesJson ?: existing.exercisesJson,
                 )
             } else {
                 DailyLog(
