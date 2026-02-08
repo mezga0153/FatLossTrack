@@ -63,6 +63,7 @@ fun LogScreen(
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
     preferencesManager: PreferencesManager,
+    onCameraForDate: (LocalDate) -> Unit = {},
 ) {
     val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
     val startDate = startDateStr?.let {
@@ -185,6 +186,11 @@ fun LogScreen(
                 date = addMealForDate!!,
                 onSave = { newMeal -> scope.launch { mealDao.insert(newMeal); addMealForDate = null } },
                 onDismiss = { addMealForDate = null },
+                onCamera = {
+                    val date = addMealForDate!!
+                    addMealForDate = null
+                    onCameraForDate(date)
+                },
             )
         }
     }
@@ -364,6 +370,7 @@ private fun AddMealSheet(
     date: LocalDate,
     onSave: (MealEntry) -> Unit,
     onDismiss: () -> Unit,
+    onCamera: (() -> Unit)? = null,
 ) {
     var description by remember { mutableStateOf("") }
     var kcalStr by remember { mutableStateOf("") }
@@ -380,7 +387,14 @@ private fun AddMealSheet(
         // Header
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Add Meal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onCamera != null) {
+                    IconButton(onClick = onCamera) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Log with camera", tint = Primary)
+                    }
+                }
+                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
+            }
         }
 
         Text(

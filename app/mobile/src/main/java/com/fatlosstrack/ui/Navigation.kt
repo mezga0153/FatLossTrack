@@ -110,7 +110,16 @@ fun FatLossTrackNavGraph(
             ) {
                 composable(Tab.Home.route) { HomeScreen() }
                 composable(Tab.Trends.route) { TrendsScreen() }
-                composable(Tab.Log.route) { LogScreen(mealDao = mealDao, dailyLogDao = dailyLogDao, preferencesManager = preferencesManager) }
+                composable(Tab.Log.route) {
+                    LogScreen(
+                        mealDao = mealDao,
+                        dailyLogDao = dailyLogDao,
+                        preferencesManager = preferencesManager,
+                        onCameraForDate = { date ->
+                            navController.navigate("capture/log?targetDate=$date")
+                        },
+                    )
+                }
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },
@@ -129,15 +138,20 @@ fun FatLossTrackNavGraph(
 
                 // Camera capture
                 composable(
-                    route = "capture/{mode}",
-                    arguments = listOf(navArgument("mode") { type = NavType.StringType }),
+                    route = "capture/{mode}?targetDate={targetDate}",
+                    arguments = listOf(
+                        navArgument("mode") { type = NavType.StringType },
+                        navArgument("targetDate") { type = NavType.StringType; defaultValue = "" },
+                    ),
                 ) { entry ->
                     val modeStr = entry.arguments?.getString("mode") ?: "log"
+                    val targetDate = entry.arguments?.getString("targetDate") ?: ""
                     val mode = if (modeStr == "suggest") CaptureMode.SuggestMeal else CaptureMode.LogMeal
                     MealCaptureScreen(
                         mode = mode,
                         onAnalyze = { m, count ->
-                            navController.navigate("analysis/${m.name}/$count") {
+                            val dateParam = if (targetDate.isNotEmpty()) "?targetDate=$targetDate" else ""
+                            navController.navigate("analysis/${m.name}/$count$dateParam") {
                                 popUpTo("capture/$modeStr") { inclusive = true }
                             }
                         },
@@ -147,20 +161,26 @@ fun FatLossTrackNavGraph(
 
                 // Analysis result
                 composable(
-                    route = "analysis/{mode}/{count}",
+                    route = "analysis/{mode}/{count}?targetDate={targetDate}",
                     arguments = listOf(
                         navArgument("mode") { type = NavType.StringType },
                         navArgument("count") { type = NavType.IntType },
+                        navArgument("targetDate") { type = NavType.StringType; defaultValue = "" },
                     ),
                 ) { entry ->
                     val modeStr = entry.arguments?.getString("mode") ?: "LogMeal"
                     val count = entry.arguments?.getInt("count") ?: 1
+                    val targetDateStr = entry.arguments?.getString("targetDate") ?: ""
+                    val targetDate = if (targetDateStr.isNotEmpty()) {
+                        try { java.time.LocalDate.parse(targetDateStr) } catch (_: Exception) { java.time.LocalDate.now() }
+                    } else java.time.LocalDate.now()
                     val mode = if (modeStr == "SuggestMeal") CaptureMode.SuggestMeal else CaptureMode.LogMeal
                     AnalysisResultScreen(
                         mode = mode,
                         photoCount = count,
                         openAiService = openAiService,
                         mealDao = mealDao,
+                        targetDate = targetDate,
                         onDone = {
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },

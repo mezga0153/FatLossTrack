@@ -70,6 +70,7 @@ fun AnalysisResultScreen(
     photoCount: Int,
     openAiService: OpenAiService,
     mealDao: MealDao,
+    targetDate: java.time.LocalDate = java.time.LocalDate.now(),
     onDone: () -> Unit,
     onLogged: () -> Unit,
     onBack: () -> Unit,
@@ -214,7 +215,7 @@ fun AnalysisResultScreen(
                         }.toString()
                         mealDao.insert(
                             MealEntry(
-                                date = java.time.LocalDate.now(),
+                                date = targetDate,
                                 description = analysisResult.description,
                                 itemsJson = itemsJson,
                                 totalKcal = analysisResult.totalCalories,
