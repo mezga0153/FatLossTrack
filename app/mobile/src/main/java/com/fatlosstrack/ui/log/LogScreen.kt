@@ -800,9 +800,9 @@ private fun DailyLogEditSheet(
     onSave: (DailyLog) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var weightStr by remember { mutableStateOf(existingLog?.weightKg?.let { "%.1f".format(it) } ?: "") }
+    var weightStr by remember { mutableStateOf(existingLog?.weightKg?.let { String.format(Locale.US, "%.1f", it) } ?: "") }
     var stepsStr by remember { mutableStateOf(existingLog?.steps?.toString() ?: "") }
-    var sleepStr by remember { mutableStateOf(existingLog?.sleepHours?.let { "%.1f".format(it) } ?: "") }
+    var sleepStr by remember { mutableStateOf(existingLog?.sleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "") }
     var hrStr by remember { mutableStateOf(existingLog?.restingHr?.toString() ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
 
@@ -880,7 +880,17 @@ private fun DailyLogEditSheet(
                 val exercisesJson = if (exercises.isEmpty()) null else buildJsonArray {
                     exercises.forEach { ex -> add(buildJsonObject { put("name", ex.name); put("durationMin", ex.durationMin); put("kcal", ex.kcal) }) }
                 }.toString()
-                onSave(DailyLog(date = date, weightKg = weightStr.toDoubleOrNull(), steps = stepsStr.toIntOrNull(), sleepHours = sleepStr.toDoubleOrNull(), restingHr = hrStr.toIntOrNull(), exercisesJson = exercisesJson, notes = notes.ifBlank { null }, offPlan = existingLog?.offPlan ?: false))
+                onSave(DailyLog(
+                    date = date,
+                    weightKg = weightStr.replace(',', '.').toDoubleOrNull(),
+                    steps = stepsStr.toIntOrNull(),
+                    sleepHours = sleepStr.replace(',', '.').toDoubleOrNull(),
+                    restingHr = hrStr.toIntOrNull(),
+                    exercisesJson = exercisesJson,
+                    notes = notes.ifBlank { null },
+                    offPlan = existingLog?.offPlan ?: false,
+                    daySummary = existingLog?.daySummary,
+                ))
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
