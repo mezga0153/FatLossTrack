@@ -13,7 +13,7 @@ echo ""
 
 # Step 1: Pair (one-time)
 read -rp "Already paired before? [y/N] " paired
-if [[ "${paired,,}" != "y" ]]; then
+if [[ "$paired" != "y" && "$paired" != "Y" ]]; then
   echo ""
   echo "Tap 'Pair device with pairing code' on the phone."
   read -rp "Pairing IP:PORT (e.g. 192.168.1.42:37123): " pair_addr
