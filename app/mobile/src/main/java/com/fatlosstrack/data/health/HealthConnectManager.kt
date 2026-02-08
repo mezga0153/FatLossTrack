@@ -3,20 +3,21 @@ package com.fatlosstrack.data.health
 import android.content.Context
 import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.aggregate.AggregationResult
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
-import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.fatlosstrack.data.local.AppLogger
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Wraps Health Connect client. Reads weight, steps, sleep, resting HR,
- * exercise sessions, and active calories for a given date range.
+ * Wraps Health Connect client. Uses the **aggregate API** to avoid an Android 16
+ * platform bug where readRecords() crashes with "width and height must be > 0"
+ * when processing data-source app icons.
  */
 @Singleton
 class HealthConnectManager @Inject constructor(
@@ -39,7 +40,7 @@ class HealthConnectManager @Inject constructor(
     private val client: HealthConnectClient? by lazy {
         try {
             val status = HealthConnectClient.getSdkStatus(context)
-            appLogger.hc("SDK status: $status (AVAILABLE=${HealthConnectClient.SDK_AVAILABLE}, UNAVAILABLE_PROVIDER_UPDATE_REQUIRED=${HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED})")
+            appLogger.hc("SDK status: $status (AVAILABLE=${HealthConnectClient.SDK_AVAILABLE})")
             if (status == HealthConnectClient.SDK_AVAILABLE) {
                 val c = HealthConnectClient.getOrCreate(context)
                 appLogger.hc("HealthConnectClient created successfully")
@@ -56,10 +57,8 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
-    /** Whether the HC SDK is installed and available */
     fun isAvailable(): Boolean = client != null
 
-    /** Check which of our requested permissions are already granted */
     suspend fun getGrantedPermissions(): Set<String> {
         return try {
             val granted = client?.permissionController?.getGrantedPermissions() ?: emptySet()
@@ -72,7 +71,6 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
-    /** True if all required permissions are granted */
     suspend fun hasAllPermissions(): Boolean {
         val granted = getGrantedPermissions()
         val missing = PERMISSIONS.filter { it !in granted }
@@ -82,7 +80,7 @@ class HealthConnectManager @Inject constructor(
         return missing.isEmpty()
     }
 
-    // ── Read helpers ──
+    // ── Helpers ──
 
     private fun dayRange(date: LocalDate): TimeRangeFilter {
         val zone = ZoneId.systemDefault()
@@ -91,177 +89,121 @@ class HealthConnectManager @Inject constructor(
         return TimeRangeFilter.between(start, end)
     }
 
-    /** Latest weight (kg) recorded on [date], or null */
-    suspend fun getWeight(date: LocalDate): Double? {
-        val c = client ?: return null
-        return try {
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = WeightRecord::class,
-                    timeRangeFilter = dayRange(date),
-                )
-            )
-            val result = response.records.lastOrNull()?.weight?.inKilograms
-            appLogger.hc("  $date weight: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "getWeight failed", e)
-            appLogger.hc("  $date weight: ERROR ${e.javaClass.simpleName}: ${e.message}")
-            appLogger.error("HC", "getWeight($date)", e)
-            null
-        }
+    private fun sleepRange(date: LocalDate): TimeRangeFilter {
+        val zone = ZoneId.systemDefault()
+        val start = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
+        val end = date.atTime(14, 0).atZone(zone).toInstant()
+        return TimeRangeFilter.between(start, end)
     }
 
-    /** Total step count for [date] */
-    suspend fun getSteps(date: LocalDate): Int? {
-        val c = client ?: return null
-        return try {
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = dayRange(date),
-                )
-            )
-            val total = response.records.sumOf { it.count }
-            val result = if (total > 0) total.toInt() else null
-            appLogger.hc("  $date steps: ${response.records.size} records → ${result ?: "null"}")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "getSteps failed", e)
-            appLogger.hc("  $date steps: ERROR ${e.javaClass.simpleName}: ${e.message}")
-            appLogger.error("HC", "getSteps($date)", e)
-            null
-        }
-    }
+    // ── Aggregate-based reads (bypasses Android 16 readRecords icon bug) ──
 
-    /** Total sleep hours for the night ending on [date] (looks at prior 18h window) */
-    suspend fun getSleepHours(date: LocalDate): Double? {
-        val c = client ?: return null
-        return try {
-            val zone = ZoneId.systemDefault()
-            // Sleep ending on this date — look from prior day 6 PM to today noon
-            val start = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
-            val end = date.atTime(14, 0).atZone(zone).toInstant()
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = SleepSessionRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(start, end),
-                )
-            )
-            val result = if (response.records.isEmpty()) {
-                null
-            } else {
-                val totalMs = response.records.sumOf { record ->
-                    java.time.Duration.between(record.startTime, record.endTime).toMillis()
-                }
-                val hours = totalMs / 3_600_000.0
-                if (hours > 0) "%.1f".format(hours).toDouble() else null
-            }
-            appLogger.hc("  $date sleep: ${response.records.size} sessions → ${result?.let { "${it}h" } ?: "null"}")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "getSleepHours failed", e)
-            appLogger.hc("  $date sleep: ERROR ${e.javaClass.simpleName}: ${e.message}")
-            appLogger.error("HC", "getSleepHours($date)", e)
-            null
-        }
-    }
-
-    /** Average resting heart rate for [date], or null */
-    suspend fun getRestingHr(date: LocalDate): Int? {
-        val c = client ?: return null
-        return try {
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = HeartRateRecord::class,
-                    timeRangeFilter = dayRange(date),
-                )
-            )
-            val allSamples = response.records.flatMap { it.samples }
-            val result = if (allSamples.isEmpty()) {
-                null
-            } else {
-                // Use minimum cluster as a proxy for resting HR
-                val sorted = allSamples.map { it.beatsPerMinute }.sorted()
-                // Take the bottom 20% average as resting HR estimate
-                val bottom = sorted.take(maxOf(1, sorted.size / 5))
-                bottom.average().toInt()
-            }
-            appLogger.hc("  $date hr: ${response.records.size} records, ${allSamples.size} samples → ${result?.let { "$it bpm" } ?: "null"}")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "getRestingHr failed", e)
-            appLogger.hc("  $date hr: ERROR ${e.javaClass.simpleName}: ${e.message}")
-            appLogger.error("HC", "getRestingHr($date)", e)
-            null
-        }
-    }
-
-    /** Exercise sessions for [date] — returns JSON array string */
-    suspend fun getExercises(date: LocalDate): String? {
-        val c = client ?: return null
-        return try {
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = ExerciseSessionRecord::class,
-                    timeRangeFilter = dayRange(date),
-                )
-            )
-            if (response.records.isEmpty()) {
-                appLogger.hc("  $date exercises: 0 sessions")
-                return null
-            }
-
-            // Also get active calories for the day
-            val calResponse = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = ActiveCaloriesBurnedRecord::class,
-                    timeRangeFilter = dayRange(date),
-                )
-            )
-            val totalActiveCal = calResponse.records.sumOf {
-                it.energy.inKilocalories
-            }.toInt()
-
-            val exercises = response.records.map { session ->
-                val durationMin = java.time.Duration.between(
-                    session.startTime, session.endTime
-                ).toMinutes().toInt()
-                val name = exerciseTypeName(session.exerciseType)
-                """{"name":"$name","durationMin":$durationMin,"kcal":0}"""
-            }
-
-            // If we have just one exercise and active cals, assign cals to it
-            val result = if (exercises.size == 1 && totalActiveCal > 0) {
-                val single = exercises[0].replace("\"kcal\":0", "\"kcal\":$totalActiveCal")
-                "[$single]"
-            } else {
-                "[${exercises.joinToString(",")}]"
-            }
-            appLogger.hc("  $date exercises: ${response.records.size} sessions, ${totalActiveCal} active kcal")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "getExercises failed", e)
-            appLogger.hc("  $date exercises: ERROR ${e.javaClass.simpleName}: ${e.message}")
-            appLogger.error("HC", "getExercises($date)", e)
-            null
-        }
-    }
-
-    /** Pull all health data for a single date into a DaySummary */
+    /**
+     * Pull all health data for a single date using aggregate API.
+     * This avoids the platform bug with readRecords on Android 16.
+     */
     suspend fun getDaySummary(date: LocalDate): DaySummary {
-        appLogger.hc("Reading HC data for $date …")
+        val c = client ?: return DaySummary(date = date)
+        appLogger.hc("Reading HC data for $date (aggregate API) …")
+
+        var weightKg: Double? = null
+        var steps: Int? = null
+        var sleepHours: Double? = null
+        var restingHr: Int? = null
+        var exercisesJson: String? = null
+
+        // ── Weight + Steps + HR in one aggregate call ──
+        try {
+            val dayAgg = c.aggregate(
+                AggregateRequest(
+                    metrics = setOf(
+                        WeightRecord.WEIGHT_AVG,
+                        StepsRecord.COUNT_TOTAL,
+                        HeartRateRecord.BPM_MIN,
+                        HeartRateRecord.BPM_AVG,
+                        HeartRateRecord.MEASUREMENTS_COUNT,
+                        ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                    ),
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+
+            dayAgg[WeightRecord.WEIGHT_AVG]?.let { mass ->
+                weightKg = mass.inKilograms
+                appLogger.hc("  $date weight: %.1f kg (avg)".format(weightKg))
+            }
+
+            dayAgg[StepsRecord.COUNT_TOTAL]?.let { count ->
+                if (count > 0) {
+                    steps = count.toInt()
+                    appLogger.hc("  $date steps: $steps")
+                }
+            }
+
+            // Use BPM_MIN as resting HR proxy (better than bottom-20% from samples)
+            dayAgg[HeartRateRecord.BPM_MIN]?.let { min ->
+                // BPM_MIN can be too low if there's noise; average of min and avg
+                val avg = dayAgg[HeartRateRecord.BPM_AVG]
+                restingHr = if (avg != null) {
+                    // Resting is roughly between min and avg — lean towards min
+                    ((min * 2 + avg) / 3).toInt()
+                } else {
+                    min.toInt()
+                }
+                val count = dayAgg[HeartRateRecord.MEASUREMENTS_COUNT] ?: 0
+                appLogger.hc("  $date hr: min=$min avg=$avg count=$count → resting≈$restingHr bpm")
+            }
+
+            val activeCal = dayAgg[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
+            if (activeCal != null) {
+                val kcal = activeCal.inKilocalories.toInt()
+                if (kcal > 0) {
+                    // Store as a generic exercise entry if we have active calories
+                    exercisesJson = """[{"name":"Activity","durationMin":0,"kcal":$kcal}]"""
+                    appLogger.hc("  $date active calories: $kcal kcal")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Day aggregate failed for $date", e)
+            appLogger.hc("  $date day-aggregate: ERROR ${e.javaClass.simpleName}: ${e.message}")
+        }
+
+        // ── Sleep in separate aggregate (different time range) ──
+        try {
+            val sleepAgg = c.aggregate(
+                AggregateRequest(
+                    metrics = setOf(SleepSessionRecord.SLEEP_DURATION_TOTAL),
+                    timeRangeFilter = sleepRange(date),
+                )
+            )
+            sleepAgg[SleepSessionRecord.SLEEP_DURATION_TOTAL]?.let { duration ->
+                val hours = duration.toMinutes() / 60.0
+                if (hours > 0) {
+                    sleepHours = "%.1f".format(hours).toDouble()
+                    appLogger.hc("  $date sleep: ${sleepHours}h")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Sleep aggregate failed for $date", e)
+            appLogger.hc("  $date sleep-aggregate: ERROR ${e.javaClass.simpleName}: ${e.message}")
+        }
+
+        if (weightKg == null) appLogger.hc("  $date weight: null")
+        if (steps == null) appLogger.hc("  $date steps: null")
+        if (sleepHours == null) appLogger.hc("  $date sleep: null")
+        if (restingHr == null) appLogger.hc("  $date hr: null")
+        if (exercisesJson == null) appLogger.hc("  $date exercises: null")
+
         val summary = DaySummary(
             date = date,
-            weightKg = getWeight(date),
-            steps = getSteps(date),
-            sleepHours = getSleepHours(date),
-            restingHr = getRestingHr(date),
-            exercisesJson = getExercises(date),
+            weightKg = weightKg,
+            steps = steps,
+            sleepHours = sleepHours,
+            restingHr = restingHr,
+            exercisesJson = exercisesJson,
         )
-        val hasAny = summary.weightKg != null || summary.steps != null ||
-                summary.sleepHours != null || summary.restingHr != null ||
-                summary.exercisesJson != null
+        val hasAny = weightKg != null || steps != null || sleepHours != null ||
+                restingHr != null || exercisesJson != null
         appLogger.hc("$date summary: ${if (hasAny) "HAS DATA" else "EMPTY"}")
         return summary
     }
@@ -287,31 +229,3 @@ data class DaySummary(
     val restingHr: Int? = null,
     val exercisesJson: String? = null,
 )
-
-/** Map Health Connect exercise type int to a readable name */
-private fun exerciseTypeName(type: Int): String = when (type) {
-    ExerciseSessionRecord.EXERCISE_TYPE_RUNNING -> "Running"
-    ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "Walking"
-    ExerciseSessionRecord.EXERCISE_TYPE_BIKING -> "Cycling"
-    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER,
-    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL -> "Swimming"
-    ExerciseSessionRecord.EXERCISE_TYPE_HIKING -> "Hiking"
-    ExerciseSessionRecord.EXERCISE_TYPE_YOGA -> "Yoga"
-    ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING -> "Weight Training"
-    ExerciseSessionRecord.EXERCISE_TYPE_ROWING -> "Rowing"
-    ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE -> "Rowing Machine"
-    ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING -> "Stair Climbing"
-    ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING_MACHINE -> "Stair Machine"
-    ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL -> "Elliptical"
-    ExerciseSessionRecord.EXERCISE_TYPE_PILATES -> "Pilates"
-    ExerciseSessionRecord.EXERCISE_TYPE_DANCING -> "Dancing"
-    ExerciseSessionRecord.EXERCISE_TYPE_MARTIAL_ARTS -> "Martial Arts"
-    ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN -> "Football"
-    ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL -> "Basketball"
-    ExerciseSessionRecord.EXERCISE_TYPE_TENNIS -> "Tennis"
-    ExerciseSessionRecord.EXERCISE_TYPE_GOLF -> "Golf"
-    ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS -> "Calisthenics"
-    ExerciseSessionRecord.EXERCISE_TYPE_STRETCHING -> "Stretching"
-    ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING -> "HIIT"
-    else -> "Workout"
-}
