@@ -20,6 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.CameraModeSheet
 import com.fatlosstrack.ui.camera.CaptureMode
@@ -43,7 +46,11 @@ enum class Tab(val route: String, val label: String, val icon: ImageVector) {
 // ---- Root scaffold with bottom nav + floating AI bar ----
 
 @Composable
-fun FatLossTrackNavGraph() {
+fun FatLossTrackNavGraph(
+    authManager: AuthManager,
+    openAiService: OpenAiService,
+    preferencesManager: PreferencesManager,
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -103,6 +110,8 @@ fun FatLossTrackNavGraph() {
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },
+                        authManager = authManager,
+                        preferencesManager = preferencesManager,
                     )
                 }
 
@@ -143,6 +152,7 @@ fun FatLossTrackNavGraph() {
                     AnalysisResultScreen(
                         mode = mode,
                         photoCount = count,
+                        openAiService = openAiService,
                         onDone = {
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },
@@ -155,6 +165,7 @@ fun FatLossTrackNavGraph() {
             if (!hideChrome) {
                 AiBar(
                     modifier = Modifier.align(Alignment.BottomCenter),
+                    openAiService = openAiService,
                     onCameraClick = { showCameraModeSheet = true },
                 )
             }

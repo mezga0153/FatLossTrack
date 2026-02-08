@@ -9,15 +9,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.ui.theme.Accent
 import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.Primary
+import com.fatlosstrack.ui.theme.Secondary
+import com.fatlosstrack.ui.theme.Tertiary
+import kotlinx.coroutines.launch
 
 /**
  * Settings screen — configuration & preferences.
@@ -32,10 +43,22 @@ import com.fatlosstrack.ui.theme.Primary
 @Composable
 fun SettingsScreen(
     onEditGoal: () -> Unit = {},
+    authManager: AuthManager? = null,
+    preferencesManager: PreferencesManager? = null,
 ) {
+    val scope = rememberCoroutineScope()
+    val authState by authManager?.authState?.collectAsState()
+        ?: remember { mutableStateOf(null) }
+
     var toneHonest by remember { mutableStateOf(true) }
     var healthConnectEnabled by remember { mutableStateOf(true) }
     var backupEnabled by remember { mutableStateOf(false) }
+
+    // AI settings
+    val storedApiKey by preferencesManager?.openAiApiKey?.collectAsState(initial = "")
+        ?: remember { mutableStateOf("") }
+    val storedModel by preferencesManager?.openAiModel?.collectAsState(initial = "gpt-5.2")
+        ?: remember { mutableStateOf("gpt-5.2") }
 
     Column(
         modifier = Modifier
@@ -112,6 +135,93 @@ fun SettingsScreen(
             }
         }
 
+        // -- AI --
+        SettingsSection("AI") {
+            var apiKeyInput by remember(storedApiKey) { mutableStateOf(storedApiKey ?: "") }
+            var showKey by remember { mutableStateOf(false) }
+            var selectedModel by remember(storedModel) { mutableStateOf(storedModel ?: "gpt-5.2") }
+            val isKeySaved = (storedApiKey ?: "").isNotBlank() && apiKeyInput == storedApiKey
+
+            Text(
+                text = "OpenAI API Key",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Used for meal analysis, chat, and coaching. Your key is stored on-device only.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = apiKeyInput,
+                onValueChange = { apiKeyInput = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("sk-...") },
+                singleLine = true,
+                visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showKey = !showKey }) {
+                        Icon(
+                            if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showKey) "Hide" else "Show",
+                        )
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Primary,
+                    cursorColor = Primary,
+                ),
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isKeySaved) {
+                    Text(
+                        text = "✓ Key saved",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Secondary,
+                    )
+                } else {
+                    Spacer(Modifier.width(1.dp))
+                }
+                Button(
+                    onClick = {
+                        scope.launch {
+                            preferencesManager?.setOpenAiApiKey(apiKeyInput.trim())
+                        }
+                    },
+                    enabled = apiKeyInput.isNotBlank() && apiKeyInput != storedApiKey,
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    Text("Save key", color = MaterialTheme.colorScheme.onPrimary)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Model",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("gpt-5.2", "gpt-5.2-codex", "gpt-5.2-pro").forEach { model ->
+                    ToneChip(
+                        label = model.removePrefix("gpt-"),
+                        selected = selectedModel == model,
+                    ) {
+                        selectedModel = model
+                        scope.launch { preferencesManager?.setOpenAiModel(model) }
+                    }
+                }
+            }
+        }
+
         // -- About --
         SettingsSection("About") {
             SettingsRow("Version", "0.1.0-alpha")
@@ -133,6 +243,34 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
+            }
+        }
+
+        // -- Account --
+        if (authManager != null) {
+            val signedInState = authState as? AuthManager.AuthState.SignedIn
+            SettingsSection("Account") {
+                if (signedInState != null) {
+                    SettingsRow("Signed in as", signedInState.user.email ?: "Google user")
+                    SettingsRow("Name", signedInState.user.displayName ?: "—")
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        authManager.signOut()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Tertiary,
+                    ),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Sign out", color = Tertiary)
+                }
             }
         }
 
