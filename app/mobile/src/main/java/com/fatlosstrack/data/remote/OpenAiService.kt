@@ -68,6 +68,13 @@ class OpenAiService @Inject constructor(
             .jsonObject["content"]!!.jsonPrimitive.content
     }
 
+    /**
+     * Parse a natural-language meal description into structured JSON.
+     * Returns the raw JSON string from AI with day_offset, items, etc.
+     */
+    suspend fun parseTextMeal(userMessage: String): Result<String> =
+        chat(userMessage, TEXT_MEAL_LOG_PROMPT)
+
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
     suspend fun analyzeMeal(
         photos: List<Bitmap>,
@@ -201,3 +208,40 @@ Respond in this exact JSON format:
   "coach_note": "Why this meal is good for fat loss and how to prepare it quickly"
 }
 Prioritize high-protein, moderate-calorie meals."""
+
+private const val TEXT_MEAL_LOG_PROMPT = """You are a calorie-tracking assistant inside FatLoss Track.
+The user will describe what they ate in natural language. They may mention timing like "this morning", "yesterday evening", "for lunch", etc.
+
+First decide: is this a meal log or a general question?
+
+If it IS a meal description, respond with ONLY this JSON (no markdown fences, no extra text):
+{
+  "is_meal": true,
+  "day_offset": 0,
+  "description": "Brief summary of the meal",
+  "source": "home|restaurant|fast_food",
+  "items": [
+    {
+      "name": "Item name",
+      "portion": "Estimated portion",
+      "calories": 0,
+      "protein_g": 0,
+      "fat_g": 0,
+      "carbs_g": 0
+    }
+  ],
+  "total_calories": 0,
+  "coach_note": "Brief coaching comment about this meal"
+}
+
+Rules for day_offset:
+- "today", "this morning", "for lunch", "just now", or no time mention → 0
+- "yesterday", "last night", "yesterday evening" → -1
+- "two days ago" → -2
+- and so on
+
+If it is NOT a meal description (general question, greeting, etc.), respond with:
+{"is_meal": false}
+
+Estimate portions generously. Err on the side of slightly overestimating calories.
+"""

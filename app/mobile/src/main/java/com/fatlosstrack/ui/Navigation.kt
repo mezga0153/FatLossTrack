@@ -204,6 +204,7 @@ fun FatLossTrackNavGraph(
                 AiBar(
                     modifier = Modifier.align(Alignment.BottomCenter),
                     openAiService = openAiService,
+                    mealDao = mealDao,
                     onCameraClick = { showCameraModeSheet = true },
                 )
             }
