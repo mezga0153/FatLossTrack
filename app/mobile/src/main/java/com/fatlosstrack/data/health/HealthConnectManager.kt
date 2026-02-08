@@ -107,6 +107,7 @@ class HealthConnectManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getWeight failed", e)
             appLogger.hc("  $date weight: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            appLogger.error("HC", "getWeight($date)", e)
             null
         }
     }
@@ -128,6 +129,7 @@ class HealthConnectManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getSteps failed", e)
             appLogger.hc("  $date steps: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            appLogger.error("HC", "getSteps($date)", e)
             null
         }
     }
@@ -160,6 +162,7 @@ class HealthConnectManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getSleepHours failed", e)
             appLogger.hc("  $date sleep: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            appLogger.error("HC", "getSleepHours($date)", e)
             null
         }
     }
@@ -189,6 +192,7 @@ class HealthConnectManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getRestingHr failed", e)
             appLogger.hc("  $date hr: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            appLogger.error("HC", "getRestingHr($date)", e)
             null
         }
     }
@@ -239,6 +243,7 @@ class HealthConnectManager @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getExercises failed", e)
             appLogger.hc("  $date exercises: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            appLogger.error("HC", "getExercises($date)", e)
             null
         }
     }

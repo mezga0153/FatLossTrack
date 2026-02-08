@@ -81,5 +81,11 @@ class AppLogger @Inject constructor(
     fun error(tag: String, message: String, e: Throwable? = null) {
         val msg = if (e != null) "$message — ${e::class.simpleName}: ${e.message}" else message
         log("ERR/$tag", msg)
+        if (e != null) {
+            // Log full stack trace + cause chain
+            val sw = java.io.StringWriter()
+            e.printStackTrace(java.io.PrintWriter(sw))
+            log("ERR/$tag", "Stack trace:\n$sw")
+        }
     }
 }
