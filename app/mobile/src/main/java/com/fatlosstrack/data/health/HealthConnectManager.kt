@@ -1,0 +1,267 @@
+package com.fatlosstrack.data.health
+
+import android.content.Context
+import android.util.Log
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.*
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Wraps Health Connect client. Reads weight, steps, sleep, resting HR,
+ * exercise sessions, and active calories for a given date range.
+ */
+@Singleton
+class HealthConnectManager @Inject constructor(
+    private val context: Context,
+) {
+    companion object {
+        private const val TAG = "HealthConnect"
+
+        val PERMISSIONS = setOf(
+            HealthPermission.getReadPermission(WeightRecord::class),
+            HealthPermission.getReadPermission(StepsRecord::class),
+            HealthPermission.getReadPermission(SleepSessionRecord::class),
+            HealthPermission.getReadPermission(HeartRateRecord::class),
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        )
+    }
+
+    private val client: HealthConnectClient? by lazy {
+        try {
+            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+                HealthConnectClient.getOrCreate(context)
+            } else {
+                Log.w(TAG, "Health Connect SDK not available")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create HealthConnectClient", e)
+            null
+        }
+    }
+
+    /** Whether the HC SDK is installed and available */
+    fun isAvailable(): Boolean = client != null
+
+    /** Check which of our requested permissions are already granted */
+    suspend fun getGrantedPermissions(): Set<String> {
+        return try {
+            client?.permissionController?.getGrantedPermissions() ?: emptySet()
+        } catch (e: Exception) {
+            Log.e(TAG, "getGrantedPermissions failed", e)
+            emptySet()
+        }
+    }
+
+    /** True if all required permissions are granted */
+    suspend fun hasAllPermissions(): Boolean {
+        val granted = getGrantedPermissions()
+        return PERMISSIONS.all { it in granted }
+    }
+
+    // ── Read helpers ──
+
+    private fun dayRange(date: LocalDate): TimeRangeFilter {
+        val zone = ZoneId.systemDefault()
+        val start = date.atStartOfDay(zone).toInstant()
+        val end = date.plusDays(1).atStartOfDay(zone).toInstant()
+        return TimeRangeFilter.between(start, end)
+    }
+
+    /** Latest weight (kg) recorded on [date], or null */
+    suspend fun getWeight(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = WeightRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            response.records.lastOrNull()?.weight?.inKilograms
+        } catch (e: Exception) {
+            Log.e(TAG, "getWeight failed", e)
+            null
+        }
+    }
+
+    /** Total step count for [date] */
+    suspend fun getSteps(date: LocalDate): Int? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = StepsRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val total = response.records.sumOf { it.count }
+            if (total > 0) total.toInt() else null
+        } catch (e: Exception) {
+            Log.e(TAG, "getSteps failed", e)
+            null
+        }
+    }
+
+    /** Total sleep hours for the night ending on [date] (looks at prior 18h window) */
+    suspend fun getSleepHours(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val zone = ZoneId.systemDefault()
+            // Sleep ending on this date — look from prior day 6 PM to today noon
+            val start = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
+            val end = date.atTime(14, 0).atZone(zone).toInstant()
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = SleepSessionRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                )
+            )
+            if (response.records.isEmpty()) return null
+            val totalMs = response.records.sumOf { record ->
+                java.time.Duration.between(record.startTime, record.endTime).toMillis()
+            }
+            val hours = totalMs / 3_600_000.0
+            if (hours > 0) "%.1f".format(hours).toDouble() else null
+        } catch (e: Exception) {
+            Log.e(TAG, "getSleepHours failed", e)
+            null
+        }
+    }
+
+    /** Average resting heart rate for [date], or null */
+    suspend fun getRestingHr(date: LocalDate): Int? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = HeartRateRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val allSamples = response.records.flatMap { it.samples }
+            if (allSamples.isEmpty()) return null
+            // Use minimum cluster as a proxy for resting HR
+            val sorted = allSamples.map { it.beatsPerMinute }.sorted()
+            // Take the bottom 20% average as resting HR estimate
+            val bottom = sorted.take(maxOf(1, sorted.size / 5))
+            bottom.average().toInt()
+        } catch (e: Exception) {
+            Log.e(TAG, "getRestingHr failed", e)
+            null
+        }
+    }
+
+    /** Exercise sessions for [date] — returns JSON array string */
+    suspend fun getExercises(date: LocalDate): String? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = ExerciseSessionRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            if (response.records.isEmpty()) return null
+
+            // Also get active calories for the day
+            val calResponse = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = ActiveCaloriesBurnedRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val totalActiveCal = calResponse.records.sumOf {
+                it.energy.inKilocalories
+            }.toInt()
+
+            val exercises = response.records.map { session ->
+                val durationMin = java.time.Duration.between(
+                    session.startTime, session.endTime
+                ).toMinutes().toInt()
+                val name = exerciseTypeName(session.exerciseType)
+                """{"name":"$name","durationMin":$durationMin,"kcal":0}"""
+            }
+
+            // If we have just one exercise and active cals, assign cals to it
+            if (exercises.size == 1 && totalActiveCal > 0) {
+                val single = exercises[0].replace("\"kcal\":0", "\"kcal\":$totalActiveCal")
+                return "[$single]"
+            }
+
+            "[${exercises.joinToString(",")}]"
+        } catch (e: Exception) {
+            Log.e(TAG, "getExercises failed", e)
+            null
+        }
+    }
+
+    /** Pull all health data for a single date into a DaySummary */
+    suspend fun getDaySummary(date: LocalDate): DaySummary {
+        return DaySummary(
+            date = date,
+            weightKg = getWeight(date),
+            steps = getSteps(date),
+            sleepHours = getSleepHours(date),
+            restingHr = getRestingHr(date),
+            exercisesJson = getExercises(date),
+        )
+    }
+
+    /** Pull summaries for a date range (inclusive) */
+    suspend fun getSummaries(from: LocalDate, to: LocalDate): List<DaySummary> {
+        val summaries = mutableListOf<DaySummary>()
+        var d = from
+        while (!d.isAfter(to)) {
+            summaries.add(getDaySummary(d))
+            d = d.plusDays(1)
+        }
+        return summaries
+    }
+}
+
+/** Container for a day's health data from Health Connect */
+data class DaySummary(
+    val date: LocalDate,
+    val weightKg: Double? = null,
+    val steps: Int? = null,
+    val sleepHours: Double? = null,
+    val restingHr: Int? = null,
+    val exercisesJson: String? = null,
+)
+
+/** Map Health Connect exercise type int to a readable name */
+private fun exerciseTypeName(type: Int): String = when (type) {
+    ExerciseSessionRecord.EXERCISE_TYPE_RUNNING -> "Running"
+    ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "Walking"
+    ExerciseSessionRecord.EXERCISE_TYPE_BIKING -> "Cycling"
+    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER,
+    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL -> "Swimming"
+    ExerciseSessionRecord.EXERCISE_TYPE_HIKING -> "Hiking"
+    ExerciseSessionRecord.EXERCISE_TYPE_YOGA -> "Yoga"
+    ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING -> "Weight Training"
+    ExerciseSessionRecord.EXERCISE_TYPE_ROWING -> "Rowing"
+    ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE -> "Rowing Machine"
+    ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING -> "Stair Climbing"
+    ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING_MACHINE -> "Stair Machine"
+    ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL -> "Elliptical"
+    ExerciseSessionRecord.EXERCISE_TYPE_PILATES -> "Pilates"
+    ExerciseSessionRecord.EXERCISE_TYPE_DANCING -> "Dancing"
+    ExerciseSessionRecord.EXERCISE_TYPE_MARTIAL_ARTS -> "Martial Arts"
+    ExerciseSessionRecord.EXERCISE_TYPE_FOOTBALL_AMERICAN -> "Football"
+    ExerciseSessionRecord.EXERCISE_TYPE_BASKETBALL -> "Basketball"
+    ExerciseSessionRecord.EXERCISE_TYPE_TENNIS -> "Tennis"
+    ExerciseSessionRecord.EXERCISE_TYPE_GOLF -> "Golf"
+    ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS -> "Calisthenics"
+    ExerciseSessionRecord.EXERCISE_TYPE_STRETCHING -> "Stretching"
+    ExerciseSessionRecord.EXERCISE_TYPE_HIGH_INTENSITY_INTERVAL_TRAINING -> "HIIT"
+    else -> "Workout"
+}

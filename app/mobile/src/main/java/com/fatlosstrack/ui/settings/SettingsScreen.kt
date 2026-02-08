@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.Accent
 import com.fatlosstrack.ui.theme.CardSurface
@@ -45,6 +47,8 @@ fun SettingsScreen(
     onEditGoal: () -> Unit = {},
     authManager: AuthManager? = null,
     preferencesManager: PreferencesManager? = null,
+    healthConnectManager: HealthConnectManager? = null,
+    onSyncHealthConnect: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val authState by authManager?.authState?.collectAsState()
@@ -66,7 +70,30 @@ fun SettingsScreen(
 
     var toneHonest by remember { mutableStateOf(true) }
     LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
-    var healthConnectEnabled by remember { mutableStateOf(true) }
+
+    // Health Connect state
+    val hcAvailable = healthConnectManager?.isAvailable() ?: false
+    var hcPermGranted by remember { mutableStateOf(false) }
+    var hcSyncing by remember { mutableStateOf(false) }
+    var hcLastSyncMsg by remember { mutableStateOf<String?>(null) }
+
+    // Check permissions on launch
+    LaunchedEffect(hcAvailable) {
+        if (hcAvailable && healthConnectManager != null) {
+            hcPermGranted = healthConnectManager.hasAllPermissions()
+        }
+    }
+
+    // Permission request launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
+    ) { granted ->
+        hcPermGranted = granted.containsAll(HealthConnectManager.PERMISSIONS)
+        if (hcPermGranted) {
+            hcLastSyncMsg = "Permissions granted — tap Sync now"
+        }
+    }
+
     var backupEnabled by remember { mutableStateOf(false) }
 
     // AI settings
@@ -135,9 +162,83 @@ fun SettingsScreen(
         }
 
         // -- Data sources --
-        SettingsSection("Data sources") {
-            SwitchRow("Health Connect (weight, steps, sleep)", healthConnectEnabled) {
-                healthConnectEnabled = it
+        SettingsSection("Health Connect") {
+            if (!hcAvailable) {
+                Text(
+                    "Health Connect is not available on this device.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Install Health Connect from Google Play to sync weight, steps, sleep, heart rate, and exercises.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                // Permission status
+                SettingsRow(
+                    "Status",
+                    if (hcPermGranted) "Connected" else "Not connected",
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Reads: weight, steps, sleep, heart rate, exercises, active calories",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+
+                if (!hcPermGranted) {
+                    Button(
+                        onClick = {
+                            permissionLauncher.launch(HealthConnectManager.PERMISSIONS)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    ) {
+                        Text("Grant permissions", color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = {
+                                hcSyncing = true
+                                onSyncHealthConnect?.invoke()
+                                // The caller will handle the sync and we'll get a message back
+                                scope.launch {
+                                    kotlinx.coroutines.delay(500)
+                                    hcSyncing = false
+                                    hcLastSyncMsg = "Sync started"
+                                }
+                            },
+                            enabled = !hcSyncing,
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        ) {
+                            if (hcSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text("Sync now", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+                }
+
+                if (hcLastSyncMsg != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        hcLastSyncMsg!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Secondary,
+                    )
+                }
             }
         }
 

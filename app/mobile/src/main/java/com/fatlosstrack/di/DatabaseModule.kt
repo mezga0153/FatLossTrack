@@ -3,6 +3,7 @@ package com.fatlosstrack.di
 import android.content.Context
 import androidx.room.Room
 import com.fatlosstrack.data.local.db.*
+import com.fatlosstrack.data.health.HealthConnectManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,4 +30,10 @@ object DatabaseModule {
     @Provides fun provideGoalDao(db: FatLossDatabase): GoalDao = db.goalDao()
     @Provides fun provideDailyLogDao(db: FatLossDatabase): DailyLogDao = db.dailyLogDao()
     @Provides fun provideInsightDao(db: FatLossDatabase): InsightDao = db.insightDao()
+
+    @Provides
+    @Singleton
+    fun provideHealthConnectManager(@ApplicationContext context: Context): HealthConnectManager {
+        return HealthConnectManager(context)
+    }
 }

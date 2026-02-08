@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.health.HealthConnectManager
+import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
@@ -33,6 +35,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var dailyLogDao: DailyLogDao
 
+    @Inject
+    lateinit var healthConnectManager: HealthConnectManager
+
+    @Inject
+    lateinit var healthConnectSyncService: HealthConnectSyncService
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -58,6 +66,8 @@ class MainActivity : ComponentActivity() {
                             preferencesManager = preferencesManager,
                             mealDao = mealDao,
                             dailyLogDao = dailyLogDao,
+                            healthConnectManager = healthConnectManager,
+                            healthConnectSyncService = healthConnectSyncService,
                         )
                     }
                 }

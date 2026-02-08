@@ -21,6 +21,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.health.HealthConnectManager
+import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
@@ -35,6 +37,7 @@ import com.fatlosstrack.ui.log.LogScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
+import kotlinx.coroutines.launch
 
 // ---- Navigation destinations ----
 
@@ -54,6 +57,8 @@ fun FatLossTrackNavGraph(
     preferencesManager: PreferencesManager,
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
+    healthConnectManager: HealthConnectManager? = null,
+    healthConnectSyncService: HealthConnectSyncService? = null,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -62,6 +67,12 @@ fun FatLossTrackNavGraph(
 
     // Camera mode picker sheet
     var showCameraModeSheet by remember { mutableStateOf(false) }
+
+    // Auto-sync Health Connect on first composition
+    val syncScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        healthConnectSyncService?.syncRecentDays(7)
+    }
 
     // Hide bottom bar + AI bar on camera/analysis/goal screens
     val hideChrome = currentRoute?.startsWith("capture") == true ||
@@ -125,6 +136,12 @@ fun FatLossTrackNavGraph(
                         onEditGoal = { navController.navigate("set_goal") },
                         authManager = authManager,
                         preferencesManager = preferencesManager,
+                        healthConnectManager = healthConnectManager,
+                        onSyncHealthConnect = {
+                            syncScope.launch {
+                                healthConnectSyncService?.syncRecentDays(7)
+                            }
+                        },
                     )
                 }
 
