@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
@@ -52,6 +53,7 @@ fun FatLossTrackNavGraph(
     openAiService: OpenAiService,
     preferencesManager: PreferencesManager,
     mealDao: MealDao,
+    dailyLogDao: DailyLogDao,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -108,7 +110,7 @@ fun FatLossTrackNavGraph(
             ) {
                 composable(Tab.Home.route) { HomeScreen() }
                 composable(Tab.Trends.route) { TrendsScreen() }
-                composable(Tab.Log.route) { LogScreen(mealDao = mealDao, preferencesManager = preferencesManager) }
+                composable(Tab.Log.route) { LogScreen(mealDao = mealDao, dailyLogDao = dailyLogDao, preferencesManager = preferencesManager) }
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },

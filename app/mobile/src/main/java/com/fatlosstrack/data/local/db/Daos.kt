@@ -49,10 +49,16 @@ interface GoalDao {
 @Dao
 interface DailyLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(log: DailyLog)
+    suspend fun upsert(log: DailyLog)
 
-    @Query("SELECT * FROM daily_logs WHERE date >= :since ORDER BY date ASC")
+    @Query("SELECT * FROM daily_logs WHERE date = :date")
+    suspend fun getForDate(date: LocalDate): DailyLog?
+
+    @Query("SELECT * FROM daily_logs WHERE date >= :since ORDER BY date DESC")
     fun getLogsSince(since: LocalDate): Flow<List<DailyLog>>
+
+    @Query("SELECT * FROM daily_logs ORDER BY date DESC")
+    fun getAllLogs(): Flow<List<DailyLog>>
 }
 
 @Dao

@@ -46,9 +46,13 @@ data class Goal(
 @Entity(tableName = "daily_logs")
 data class DailyLog(
     @PrimaryKey val date: LocalDate,
-    val offPlan: Boolean = false,
+    val weightKg: Double? = null,
     val steps: Int? = null,
     val sleepHours: Double? = null,
+    val restingHr: Int? = null,
+    val exercisesJson: String? = null,   // JSON array: [{"name":"Running","durationMin":30,"kcal":250}]
+    val notes: String? = null,
+    val offPlan: Boolean = false,
 )
 
 @Entity(tableName = "insights")
