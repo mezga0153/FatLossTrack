@@ -165,6 +165,7 @@ Format responses in a mobile-friendly way — short paragraphs, bullet points wh
 private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in this exact JSON format:
 {
   "description": "Brief description of what you see",
+  "source": "home|restaurant|fast_food",
   "items": [
     {
       "name": "Item name",
@@ -178,12 +179,14 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in th
   "total_calories": 0,
   "coach_note": "Brief coaching comment about this meal in context of a fat loss diet"
 }
+For "source", determine if the meal is: "home" (home-cooked), "restaurant" (dine-in/takeout from a restaurant), or "fast_food" (fast food chain). Look at plating, packaging, and food style to decide.
 Be specific with portions. Err on the side of slightly overestimating calories."""
 
 private const val MEAL_SUGGEST_PROMPT = """Look at the available ingredients in this photo(s) and suggest a meal.
 Respond in this exact JSON format:
 {
   "description": "What ingredients you see and what meal you suggest",
+  "source": "home",
   "items": [
     {
       "name": "Dish component",

@@ -33,6 +33,9 @@ interface MealDao {
     @Query("SELECT * FROM meal_entries ORDER BY date DESC, createdAt DESC")
     fun getAllMeals(): Flow<List<MealEntry>>
 
+    @Update
+    suspend fun update(entry: MealEntry)
+
     @Delete
     suspend fun delete(entry: MealEntry)
 }

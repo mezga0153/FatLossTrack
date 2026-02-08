@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.local.CapturedPhotoStore
+import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.remote.OpenAiService
@@ -56,6 +57,7 @@ data class AnalysisResult(
     val items: List<MealItem>,
     val totalCalories: Int,
     val aiNote: String,
+    val source: MealCategory = MealCategory.HOME,
 )
 
 /**
@@ -217,6 +219,7 @@ fun AnalysisResultScreen(
                                 itemsJson = itemsJson,
                                 totalKcal = analysisResult.totalCalories,
                                 coachNote = analysisResult.aiNote,
+                                category = analysisResult.source,
                             )
                         )
                         CapturedPhotoStore.clear()
@@ -243,6 +246,12 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
     val description = json["description"]?.jsonPrimitive?.content ?: ""
     val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
     val aiNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
+    val sourceStr = json["source"]?.jsonPrimitive?.content ?: "home"
+    val source = when (sourceStr.lowercase()) {
+        "restaurant" -> MealCategory.RESTAURANT
+        "fast_food", "fastfood", "fast food" -> MealCategory.FAST_FOOD
+        else -> MealCategory.HOME
+    }
 
     val items = json["items"]?.jsonArray?.map { itemEl ->
         val item = itemEl.jsonObject
@@ -270,6 +279,7 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         items = items,
         totalCalories = totalCalories,
         aiNote = aiNote,
+        source = source,
     )
 }
 
