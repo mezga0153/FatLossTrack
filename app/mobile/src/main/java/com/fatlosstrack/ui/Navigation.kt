@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.CameraModeSheet
@@ -50,6 +51,7 @@ fun FatLossTrackNavGraph(
     authManager: AuthManager,
     openAiService: OpenAiService,
     preferencesManager: PreferencesManager,
+    mealDao: MealDao,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -106,7 +108,7 @@ fun FatLossTrackNavGraph(
             ) {
                 composable(Tab.Home.route) { HomeScreen() }
                 composable(Tab.Trends.route) { TrendsScreen() }
-                composable(Tab.Log.route) { LogScreen() }
+                composable(Tab.Log.route) { LogScreen(mealDao = mealDao) }
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },
@@ -153,8 +155,18 @@ fun FatLossTrackNavGraph(
                         mode = mode,
                         photoCount = count,
                         openAiService = openAiService,
+                        mealDao = mealDao,
                         onDone = {
                             navController.popBackStack(Tab.Home.route, inclusive = false)
+                        },
+                        onLogged = {
+                            navController.navigate(Tab.Log.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         },
                         onBack = { navController.popBackStack() },
                     )

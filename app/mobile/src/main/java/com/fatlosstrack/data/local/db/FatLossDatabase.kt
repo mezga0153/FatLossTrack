@@ -12,8 +12,8 @@ import androidx.room.TypeConverters
         DailyLog::class,
         Insight::class,
     ],
-    version = 1,
-    exportSchema = true,
+    version = 2,
+    exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class FatLossDatabase : RoomDatabase() {

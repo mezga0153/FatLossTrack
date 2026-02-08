@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.login.LoginScreen
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
@@ -24,6 +25,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var preferencesManager: PreferencesManager
+
+    @Inject
+    lateinit var mealDao: MealDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +52,7 @@ class MainActivity : ComponentActivity() {
                             authManager = authManager,
                             openAiService = openAiService,
                             preferencesManager = preferencesManager,
+                            mealDao = mealDao,
                         )
                     }
                 }

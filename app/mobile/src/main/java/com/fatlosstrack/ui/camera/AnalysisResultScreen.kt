@@ -28,6 +28,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.local.CapturedPhotoStore
+import com.fatlosstrack.data.local.db.MealDao
+import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +67,9 @@ fun AnalysisResultScreen(
     mode: CaptureMode,
     photoCount: Int,
     openAiService: OpenAiService,
+    mealDao: MealDao,
     onDone: () -> Unit,
+    onLogged: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -187,6 +191,37 @@ fun AnalysisResultScreen(
                 onDone = {
                     CapturedPhotoStore.clear()
                     onDone()
+                },
+                onLog = { analysisResult ->
+                    scope.launch {
+                        val itemsJson = kotlinx.serialization.json.buildJsonArray {
+                            analysisResult.items.forEach { item ->
+                                add(kotlinx.serialization.json.buildJsonObject {
+                                    put("name", item.name)
+                                    put("portion", item.portion)
+                                    item.nutrition.forEach { n ->
+                                        when (n.name) {
+                                            "Calories" -> put("calories", n.amount.toIntOrNull() ?: 0)
+                                            "Protein" -> put("protein_g", n.amount.toIntOrNull() ?: 0)
+                                            "Fat" -> put("fat_g", n.amount.toIntOrNull() ?: 0)
+                                            "Carbs" -> put("carbs_g", n.amount.toIntOrNull() ?: 0)
+                                        }
+                                    }
+                                })
+                            }
+                        }.toString()
+                        mealDao.insert(
+                            MealEntry(
+                                date = java.time.LocalDate.now(),
+                                description = analysisResult.description,
+                                itemsJson = itemsJson,
+                                totalKcal = analysisResult.totalCalories,
+                                coachNote = analysisResult.aiNote,
+                            )
+                        )
+                        CapturedPhotoStore.clear()
+                        onLogged()
+                    }
                 },
                 onCorrection = { correction -> runAnalysis(correction) },
             )
@@ -320,6 +355,7 @@ private fun ResultContent(
     result: AnalysisResult,
     mode: CaptureMode,
     onDone: () -> Unit,
+    onLog: (AnalysisResult) -> Unit,
     onCorrection: (String) -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -495,7 +531,7 @@ private fun ResultContent(
             ) {
                 if (mode == CaptureMode.LogMeal) {
                     Button(
-                        onClick = onDone,
+                        onClick = { onLog(result) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     ) {

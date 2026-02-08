@@ -22,13 +22,19 @@ interface WeightDao {
 @Dao
 interface MealDao {
     @Insert
-    suspend fun insert(entry: MealEntry)
+    suspend fun insert(entry: MealEntry): Long
 
     @Query("SELECT * FROM meal_entries WHERE date = :date ORDER BY createdAt ASC")
     fun getMealsForDate(date: LocalDate): Flow<List<MealEntry>>
 
-    @Query("SELECT * FROM meal_entries WHERE date >= :since ORDER BY date ASC")
+    @Query("SELECT * FROM meal_entries WHERE date >= :since ORDER BY date DESC, createdAt DESC")
     fun getMealsSince(since: LocalDate): Flow<List<MealEntry>>
+
+    @Query("SELECT * FROM meal_entries ORDER BY date DESC, createdAt DESC")
+    fun getAllMeals(): Flow<List<MealEntry>>
+
+    @Delete
+    suspend fun delete(entry: MealEntry)
 }
 
 @Dao

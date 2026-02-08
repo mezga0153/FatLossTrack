@@ -20,18 +20,18 @@ enum class WeightSource { MANUAL, HEALTH_CONNECT }
 data class MealEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: LocalDate,
-    val category: MealCategory,
+    val description: String = "",
+    val itemsJson: String? = null,
+    val totalKcal: Int = 0,
+    val coachNote: String? = null,
+    val category: MealCategory = MealCategory.HOME,
     val hasAlcohol: Boolean = false,
-    val kcalLow: Int? = null,
-    val kcalHigh: Int? = null,
-    val confidence: Confidence? = null,
     val photoUri: String? = null,
     val note: String? = null,
     val createdAt: Instant = Instant.now(),
 )
 
 enum class MealCategory { HOME, RESTAURANT, FAST_FOOD }
-enum class Confidence { LOW, MEDIUM, HIGH }
 
 @Entity(tableName = "goals")
 data class Goal(
