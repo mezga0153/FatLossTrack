@@ -23,6 +23,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
@@ -181,7 +184,7 @@ fun LogScreen(
                     it.sleepHours?.let { s -> parts += "sleep=${s}h" }
                     it.restingHr?.let { h -> parts += "hr=$h" }
                     AppLogger.instance?.user("DailyLog saved ${it.date}: ${parts.joinToString(", ")}")
-                    daySummaryGenerator?.generateForDate(it.date)
+                    launchSummary(it.date, dailyLogDao, daySummaryGenerator)
                     editingDate = null
                 } },
                 onDismiss = { editingDate = null },
@@ -197,14 +200,14 @@ fun LogScreen(
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
                     AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, date=${updated.date}")
-                    daySummaryGenerator?.generateForDate(updated.date)
+                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator)
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
                     val meal = selectedMeal!!
                     AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
                     mealDao.delete(meal)
-                    daySummaryGenerator?.generateForDate(meal.date)
+                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator)
                     selectedMeal = null
                 } },
                 onDismiss = { selectedMeal = null },
@@ -220,7 +223,7 @@ fun LogScreen(
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
                     AppLogger.instance?.meal("Manual add: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
-                    daySummaryGenerator?.generateForDate(newMeal.date)
+                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator)
                     addMealForDate = null
                 } },
                 onDismiss = { addMealForDate = null },
@@ -393,26 +396,35 @@ private fun DayCard(
             // AI day summary
             if (!log?.daySummary.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
+                val isLoading = log!!.daySummary == SUMMARY_PLACEHOLDER
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
                         .background(Primary.copy(alpha = 0.08f))
                         .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.Default.AutoAwesome,
                         contentDescription = "AI summary",
                         tint = Primary,
-                        modifier = Modifier.size(14.dp).padding(top = 2.dp),
+                        modifier = Modifier.size(14.dp),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text(
-                        log!!.daySummary!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnSurface,
-                    )
+                    if (isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                            color = Primary.copy(alpha = 0.5f),
+                            trackColor = Primary.copy(alpha = 0.1f),
+                        )
+                    } else {
+                        Text(
+                            log.daySummary!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurface,
+                        )
+                    }
                 }
             }
         }
@@ -466,6 +478,7 @@ private fun AddMealSheet(
                 if (onCamera != null) {
                     IconButton(onClick = onCamera) {
                         Icon(Icons.Default.CameraAlt, contentDescription = "Log with camera", tint = Primary)
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(12.dp).offset(x = (-4).dp, y = (-8).dp))
                     }
                 }
                 IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
@@ -928,4 +941,20 @@ private fun parseItems(json: String?): List<ParsedMealItem> {
             )
         }
     } catch (_: Exception) { emptyList() }
+}
+
+private const val SUMMARY_PLACEHOLDER = "⏳"
+private val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+/**
+ * Writes a placeholder to the daySummary field immediately so the UI shows
+ * a loading indicator, then generates the real summary in the background.
+ */
+private fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?) {
+    if (generator == null) return
+    summaryScope.launch {
+        val existing = dailyLogDao.getForDate(date) ?: DailyLog(date = date)
+        dailyLogDao.upsert(existing.copy(daySummary = SUMMARY_PLACEHOLDER))
+        generator.generateForDate(date)
+    }
 }

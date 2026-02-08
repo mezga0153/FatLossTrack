@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -25,6 +26,9 @@ import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.remote.OpenAiService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
@@ -217,7 +221,9 @@ fun AiBar(
                                                     category = parsed.source,
                                                 )
                                             )
-                                            daySummaryGenerator?.generateForDate(targetDate)
+                                            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                                                daySummaryGenerator?.generateForDate(targetDate)
+                                            }
                                             isLoading = false
                                             mealLogged = true
                                             aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +
@@ -261,11 +267,19 @@ fun AiBar(
                 }
             } else {
                 IconButton(onClick = onCameraClick) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = "Camera",
-                        tint = Accent.copy(alpha = 0.7f),
-                    )
+                    Box {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = "Camera",
+                            tint = Accent.copy(alpha = 0.7f),
+                        )
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(12.dp).align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp),
+                        )
+                    }
                 }
             }
         }

@@ -78,7 +78,9 @@ fun FatLossTrackNavGraph(
     LaunchedEffect(Unit) {
         val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
         if (changedDates.isNotEmpty()) {
-            daySummaryGenerator?.generateForDates(changedDates)
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                daySummaryGenerator?.generateForDates(changedDates)
+            }
         }
     }
 
@@ -151,7 +153,9 @@ fun FatLossTrackNavGraph(
                             syncScope.launch {
                                 val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
                                 if (changedDates.isNotEmpty()) {
-                                    daySummaryGenerator?.generateForDates(changedDates)
+                                    launch {
+                                        daySummaryGenerator?.generateForDates(changedDates)
+                                    }
                                 }
                             }
                         },
