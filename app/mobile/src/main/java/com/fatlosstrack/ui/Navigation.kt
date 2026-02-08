@@ -27,6 +27,7 @@ import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
+import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 
@@ -51,9 +52,10 @@ fun FatLossTrackNavGraph() {
     // Camera mode picker sheet
     var showCameraModeSheet by remember { mutableStateOf(false) }
 
-    // Hide bottom bar + AI bar on camera/analysis screens
+    // Hide bottom bar + AI bar on camera/analysis/goal screens
     val hideChrome = currentRoute?.startsWith("capture") == true ||
-            currentRoute?.startsWith("analysis") == true
+            currentRoute?.startsWith("analysis") == true ||
+            currentRoute == "set_goal"
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -98,7 +100,16 @@ fun FatLossTrackNavGraph() {
                 composable(Tab.Home.route) { HomeScreen() }
                 composable(Tab.Trends.route) { TrendsScreen() }
                 composable(Tab.Log.route) { LogScreen() }
-                composable(Tab.Settings.route) { SettingsScreen() }
+                composable(Tab.Settings.route) {
+                    SettingsScreen(
+                        onEditGoal = { navController.navigate("set_goal") },
+                    )
+                }
+
+                // Set Goal
+                composable("set_goal") {
+                    SetGoalScreen(onBack = { navController.popBackStack() })
+                }
 
                 // Camera capture
                 composable(

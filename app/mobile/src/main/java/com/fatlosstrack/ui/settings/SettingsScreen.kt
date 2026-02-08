@@ -30,7 +30,9 @@ import com.fatlosstrack.ui.theme.Primary
  * 5. About / version
  */
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    onEditGoal: () -> Unit = {},
+) {
     var toneHonest by remember { mutableStateOf(true) }
     var healthConnectEnabled by remember { mutableStateOf(true) }
     var backupEnabled by remember { mutableStateOf(false) }
@@ -54,7 +56,7 @@ fun SettingsScreen() {
             SettingsRow("Rate", "0.5 kg / week")
             SettingsRow("Daily deficit target", "~550 kcal")
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = { }) {
+            OutlinedButton(onClick = onEditGoal) {
                 Text("Edit goal", color = Primary)
             }
         }
