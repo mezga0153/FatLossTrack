@@ -138,6 +138,11 @@ fun FatLossTrackNavGraph(
                         mealDao = mealDao,
                         weightDao = weightDao,
                         preferencesManager = preferencesManager,
+                        daySummaryGenerator = daySummaryGenerator,
+                        openAiService = openAiService,
+                        onCameraForDate = { date ->
+                            navController.navigate("capture/log?targetDate=$date")
+                        },
                     )
                 }
                 composable(Tab.Trends.route) {

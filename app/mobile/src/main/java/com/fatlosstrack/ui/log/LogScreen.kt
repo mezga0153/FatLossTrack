@@ -43,25 +43,25 @@ import java.util.Locale
 
 // ── Helpers ──
 
-private fun categoryLabel(c: MealCategory) = when (c) {
+internal fun categoryLabel(c: MealCategory) = when (c) {
     MealCategory.HOME -> "Home"
     MealCategory.RESTAURANT -> "Restaurant"
     MealCategory.FAST_FOOD -> "Fast food"
 }
 
-private fun categoryIcon(c: MealCategory) = when (c) {
+internal fun categoryIcon(c: MealCategory) = when (c) {
     MealCategory.HOME -> Icons.Default.Home
     MealCategory.RESTAURANT -> Icons.Default.Restaurant
     MealCategory.FAST_FOOD -> Icons.Default.Fastfood
 }
 
-private fun categoryColor(c: MealCategory) = when (c) {
+internal fun categoryColor(c: MealCategory) = when (c) {
     MealCategory.HOME -> Secondary
     MealCategory.RESTAURANT -> Accent
     MealCategory.FAST_FOOD -> Tertiary
 }
 
-private fun mealTypeLabel(t: MealType) = when (t) {
+internal fun mealTypeLabel(t: MealType) = when (t) {
     MealType.BREAKFAST -> "Breakfast"
     MealType.BRUNCH -> "Brunch"
     MealType.LUNCH -> "Lunch"
@@ -251,7 +251,7 @@ private fun MiniStat(label: String, value: String, unit: String) {
 // ── Day Card ──
 
 @Composable
-private fun DayCard(
+internal fun DayCard(
     date: LocalDate,
     log: DailyLog?,
     meals: List<MealEntry>,
@@ -432,7 +432,7 @@ private fun DayCard(
 }
 
 @Composable
-private fun RowScope.StatChip(icon: ImageVector, value: String?, label: String) {
+internal fun RowScope.StatChip(icon: ImageVector, value: String?, label: String) {
     Column(
         modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(Surface).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -452,7 +452,7 @@ private fun RowScope.StatChip(icon: ImageVector, value: String?, label: String) 
 // ══════════════════════════════════════════════════
 
 @Composable
-private fun AddMealSheet(
+internal fun AddMealSheet(
     date: LocalDate,
     onSave: (MealEntry) -> Unit,
     onDismiss: () -> Unit,
@@ -477,7 +477,7 @@ private fun AddMealSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onCamera != null) {
                     IconButton(onClick = onCamera) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Log with camera", tint = Primary)
+                        Icon(Icons.Default.CameraAlt, contentDescription = "Log with camera", tint = Accent)
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(12.dp).offset(x = (-4).dp, y = (-8).dp))
                     }
                 }
@@ -590,7 +590,7 @@ private fun AddMealSheet(
 // ══════════════════════════════════════════════════
 
 @Composable
-private fun MealEditSheet(
+internal fun MealEditSheet(
     meal: MealEntry,
     onSave: (MealEntry) -> Unit,
     onDelete: () -> Unit,
@@ -794,7 +794,7 @@ private fun MealEditSheet(
 // ══════════════════════════════════════════════════
 
 @Composable
-private fun DailyLogEditSheet(
+internal fun DailyLogEditSheet(
     date: LocalDate,
     existingLog: DailyLog?,
     onSave: (DailyLog) -> Unit,
@@ -904,7 +904,7 @@ private fun DailyLogEditSheet(
 // ── Shared field composables ──
 
 @Composable
-private fun EditField(icon: ImageVector, label: String, value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
+internal fun EditField(icon: ImageVector, label: String, value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
     OutlinedTextField(
         value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), label = { Text(label) },
         leadingIcon = { Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp)) },
@@ -914,7 +914,7 @@ private fun EditField(icon: ImageVector, label: String, value: String, onValueCh
 }
 
 @Composable
-private fun editFieldColors() = OutlinedTextFieldDefaults.colors(
+internal fun editFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = SurfaceVariant, unfocusedContainerColor = SurfaceVariant,
     focusedBorderColor = Primary.copy(alpha = 0.5f), unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
     cursorColor = Primary,
@@ -922,10 +922,10 @@ private fun editFieldColors() = OutlinedTextFieldDefaults.colors(
 
 // ── JSON helpers ──
 
-private data class ExerciseItem(val name: String, val durationMin: Int, val kcal: Int)
+internal data class ExerciseItem(val name: String, val durationMin: Int, val kcal: Int)
 private data class ParsedMealItem(val name: String, val portion: String, val calories: Int)
 
-private fun parseExercises(json: String?): List<ExerciseItem> {
+internal fun parseExercises(json: String?): List<ExerciseItem> {
     if (json.isNullOrBlank()) return emptyList()
     return try {
         Json.parseToJsonElement(json).jsonArray.map { el ->
@@ -953,14 +953,14 @@ private fun parseItems(json: String?): List<ParsedMealItem> {
     } catch (_: Exception) { emptyList() }
 }
 
-private const val SUMMARY_PLACEHOLDER = "⏳"
-private val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+internal const val SUMMARY_PLACEHOLDER = "⏳"
+internal val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /**
  * Writes a placeholder to the daySummary field immediately so the UI shows
  * a loading indicator, then generates the real summary in the background.
  */
-private fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?) {
+internal fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?) {
     if (generator == null) return
     summaryScope.launch {
         val existing = dailyLogDao.getForDate(date) ?: DailyLog(date = date)

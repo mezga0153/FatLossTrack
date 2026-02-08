@@ -16,42 +16,74 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
+import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.TrendChart
+import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
- * Home screen — "Am I on track this week?"
+ * Home screen — "Am I on track?"
  *
  * 1. Goal progress header
- * 2. 7-Day weight trend chart
- * 3. This-week stats (avg weight, meals, steps, sleep)
- * 4. Today & Yesterday summaries
+ * 2. Weight trend chart (compact)
+ * 3. Last-N-days stats + AI period summary
+ * 4. Today & Yesterday cards (same as Log tab, with edit/add)
  */
+
+/** Module-level cache: (dataFingerprint, summary). Survives recomposition & navigation. */
+private var periodSummaryCache: Pair<String?, String?> = null to null
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     dailyLogDao: DailyLogDao,
     mealDao: MealDao,
     weightDao: WeightDao,
     preferencesManager: PreferencesManager,
+    daySummaryGenerator: DaySummaryGenerator? = null,
+    openAiService: OpenAiService? = null,
+    onCameraForDate: (LocalDate) -> Unit = {},
 ) {
-    val since7 = LocalDate.now().minusDays(6)
-    val logs by dailyLogDao.getLogsSince(since7).collectAsState(initial = emptyList())
-    val meals by mealDao.getMealsSince(since7).collectAsState(initial = emptyList())
-    val weightEntries by weightDao.getEntriesSince(since7).collectAsState(initial = emptyList())
-
     val goalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
     val startWeight by preferencesManager.startWeight.collectAsState(initial = null)
     val weeklyRate by preferencesManager.weeklyRate.collectAsState(initial = null)
+    val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
+
+    val startDate = startDateStr?.let {
+        try { LocalDate.parse(it) } catch (_: Exception) { null }
+    }
 
     val today = LocalDate.now()
-    val todayLog = logs.find { it.date == today }
-    val todayMeals = meals.filter { it.date == today }
+    val daysSinceStart = startDate?.let { ChronoUnit.DAYS.between(it, today).toInt().coerceAtLeast(1) }
+    val lookbackDays = maxOf(7, daysSinceStart ?: 7)
 
-    // Weight data for chart — prefer DailyLog weights, supplement with WeightEntry
+    val since = today.minusDays((lookbackDays - 1).toLong())
+    val logs by dailyLogDao.getLogsSince(since).collectAsState(initial = emptyList())
+    val meals by mealDao.getMealsSince(since).collectAsState(initial = emptyList())
+    val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
+
+    val scope = rememberCoroutineScope()
+
+    // Sheet states
+    val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val mealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val addMealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var editingDate by remember { mutableStateOf<LocalDate?>(null) }
+    var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
+    var addMealForDate by remember { mutableStateOf<LocalDate?>(null) }
+
+    // Weight data for chart
     val weightData = remember(logs, weightEntries) {
         val map = mutableMapOf<LocalDate, Double>()
         weightEntries.forEach { map[it.date] = it.valueKg }
@@ -59,13 +91,13 @@ fun HomeScreen(
         map.entries.sortedBy { it.key }.map { it.key to it.value }
     }
 
-    // Stats
-    val weights7d = weightData.map { it.second }
-    val avg7d = if (weights7d.isNotEmpty()) weights7d.average() else null
+    val weights = weightData.map { it.second }
     val latestWeight = weightData.lastOrNull()?.second
-    val totalMeals7d = meals.size
-    val totalKcal7d = meals.sumOf { it.totalKcal }
-    val avgKcalPerDay = if (meals.isNotEmpty()) totalKcal7d / 7 else null
+
+    // Stats
+    val totalMeals = meals.size
+    val totalKcal = meals.sumOf { it.totalKcal }
+    val avgKcalPerDay = if (meals.isNotEmpty()) totalKcal / lookbackDays else null
     val avgSteps = logs.mapNotNull { it.steps }.let { if (it.isNotEmpty()) it.average().toInt() else null }
     val avgSleep = logs.mapNotNull { it.sleepHours }.let { if (it.isNotEmpty()) it.average() else null }
     val daysLogged = logs.count { log ->
@@ -83,6 +115,85 @@ fun HomeScreen(
     val weeksToGoal = if (goalW != null && latestWeight != null && weeklyRate != null && weeklyRate!! > 0 && latestWeight > goalW) {
         ((latestWeight - goalW) / weeklyRate!!).toInt()
     } else null
+
+    // AI period summary — cached by data fingerprint
+    // Build a fingerprint from the actual data so we only regenerate when content changes
+    val dataFingerprint = remember(logs, meals) {
+        val logSig = logs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) + (it.daySummary?.hashCode() ?: 0) }
+        val mealSig = meals.sumOf { it.totalKcal + it.description.hashCode() }
+        "${logs.size}-${meals.size}-$logSig-$mealSig"
+    }
+
+    var periodSummary by remember { mutableStateOf(periodSummaryCache.second) }
+    var periodSummaryLoading by remember { mutableStateOf(false) }
+    var lastFingerprint by remember { mutableStateOf(periodSummaryCache.first) }
+
+    LaunchedEffect(dataFingerprint) {
+        // If fingerprint hasn't changed and we have a cached summary, skip
+        if (dataFingerprint == lastFingerprint && periodSummary != null) return@LaunchedEffect
+        // If the module-level cache matches, use it without calling AI
+        if (dataFingerprint == periodSummaryCache.first && periodSummaryCache.second != null) {
+            periodSummary = periodSummaryCache.second
+            lastFingerprint = dataFingerprint
+            return@LaunchedEffect
+        }
+        if (openAiService == null || logs.isEmpty()) return@LaunchedEffect
+        periodSummaryLoading = true
+        withContext(Dispatchers.IO) {
+            try {
+                if (!openAiService.hasApiKey()) {
+                    periodSummaryLoading = false
+                    return@withContext
+                }
+                val prompt = buildString {
+                    appendLine("Summarize the user's last $lookbackDays days of progress toward their fat loss goal.")
+                    if (startDate != null) appendLine("Goal start date: $startDate (${daysSinceStart ?: 0} days ago)")
+                    appendLine("Today: $today")
+                    if (goalW != null) appendLine("Goal weight: %.1f kg".format(goalW))
+                    if (startW != null) appendLine("Start weight: %.1f kg".format(startW))
+                    if (latestWeight != null) appendLine("Current weight: %.1f kg".format(latestWeight))
+                    if (weeklyRate != null) appendLine("Target rate: %.1f kg/week".format(weeklyRate))
+                    appendLine()
+                    appendLine("Period stats ($lookbackDays days):")
+                    appendLine("- Meals logged: $totalMeals")
+                    if (avgKcalPerDay != null) appendLine("- Avg kcal/day: $avgKcalPerDay")
+                    if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
+                    if (avgSleep != null) appendLine("- Avg sleep: %.1fh".format(avgSleep))
+                    appendLine("- Days with data: $daysLogged / $lookbackDays")
+                    if (weights.size >= 2) {
+                        appendLine("- Weight change: %.1f → %.1f kg".format(weights.first(), weights.last()))
+                    }
+                }
+                val systemPrompt = """You are FatLoss Track's weekly coach. Given a user's multi-day stats and their goal, write a SHORT motivational coaching summary (2-3 sentences, under 200 characters).
+
+Rules:
+- Be specific about how these days helped or hurt their goal
+- Reference actual numbers when relevant
+- Supportive but honest tone
+- Plain text only, no markdown, no quotes
+- Focus on the trend and what to do next"""
+
+                val result = openAiService.chat(prompt, systemPrompt)
+                result.onSuccess { summary ->
+                    val trimmed = summary.trim().removeSurrounding("\"")
+                    periodSummary = trimmed
+                    lastFingerprint = dataFingerprint
+                    periodSummaryCache = dataFingerprint to trimmed
+                }
+            } catch (_: Exception) { }
+            periodSummaryLoading = false
+        }
+    }
+
+    // Today & yesterday data
+    val todayLog = logs.find { it.date == today }
+    val todayMeals = meals.filter { it.date == today }
+    val yesterday = today.minusDays(1)
+    val yesterdayLog = logs.find { it.date == yesterday }
+    val yesterdayMeals = meals.filter { it.date == yesterday }
+
+    val mealsByDate = meals.groupBy { it.date }
+    val logsByDate = logs.associateBy { it.date }
 
     Column(
         modifier = Modifier
@@ -139,110 +250,49 @@ fun HomeScreen(
             }
         }
 
-        // ── 7-Day Weight Trend ──
+        // ── Weight Trend (compact) ──
         if (weightData.size >= 2) {
-            InfoCard(label = "7-Day Trend") {
+            InfoCard(label = "Weight Trend") {
                 val dataPoints = weightData.mapIndexed { i, (_, w) -> i to w }
+                val avg = if (weights.isNotEmpty()) weights.average() else 0.0
                 TrendChart(
                     dataPoints = dataPoints,
-                    avg7d = avg7d ?: 0.0,
+                    avg7d = avg,
                     targetKg = goalW?.toDouble() ?: 80.0,
-                    confidenceLow = (avg7d ?: 0.0) - 0.5,
-                    confidenceHigh = (avg7d ?: 0.0) + 0.5,
-                )
-                Spacer(Modifier.height(8.dp))
-                if (avg7d != null) {
-                    Text(
-                        "7-day avg: %.1f kg".format(avg7d),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = OnSurface,
-                    )
-                }
-            }
-        } else {
-            InfoCard(label = "7-Day Trend") {
-                Text(
-                    "Not enough weight data yet. Log weight or sync Health Connect.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurfaceVariant,
+                    confidenceLow = avg - 0.5,
+                    confidenceHigh = avg + 0.5,
+                    modifier = Modifier.height(120.dp),
                 )
             }
         }
 
-        // ── Weekly Stats ──
-        InfoCard(label = "This Week") {
+        // ── Period Stats ──
+        InfoCard(label = "Last $lookbackDays days") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                MiniStat(Icons.Default.Restaurant, "$totalMeals7d", "meals")
+                MiniStat(Icons.Default.Restaurant, "$totalMeals", "meals")
                 if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", "kcal/day")
                 if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, "${avgSteps / 1000}k", "steps/day")
                 if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), "sleep/day")
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
-                "Logged data on $daysLogged of 7 days",
+                "Logged data on $daysLogged of $lookbackDays days",
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceVariant,
             )
-        }
 
-        // ── Today Card ──
-        DaySummaryCard("Today", todayLog, todayMeals)
-
-        // ── Yesterday Card ──
-        val yesterday = today.minusDays(1)
-        val yesterdayLog = logs.find { it.date == yesterday }
-        val yesterdayMeals = meals.filter { it.date == yesterday }
-        if (yesterdayLog != null || yesterdayMeals.isNotEmpty()) {
-            DaySummaryCard("Yesterday", yesterdayLog, yesterdayMeals)
-        }
-
-        Spacer(Modifier.height(80.dp))
-    }
-}
-
-@Composable
-private fun DaySummaryCard(label: String, log: DailyLog?, meals: List<MealEntry>) {
-    InfoCard(label = label) {
-        if (log == null && meals.isEmpty()) {
-            Text(
-                "No data logged yet.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = OnSurfaceVariant,
-            )
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    if (log?.weightKg != null) "%.1f kg".format(log.weightKg) else "—",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = OnSurface,
+            // AI period summary
+            if (periodSummaryLoading) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                    color = Primary.copy(alpha = 0.5f),
+                    trackColor = Primary.copy(alpha = 0.1f),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (meals.isNotEmpty()) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${meals.size}", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                            Text("meals", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${meals.sumOf { it.totalKcal }}", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                            Text("kcal", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-                        }
-                    }
-                    if (log?.steps != null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("${log.steps / 1000}k", style = MaterialTheme.typography.titleMedium, color = OnSurface)
-                            Text("steps", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-                        }
-                    }
-                }
-            }
-
-            if (!log?.daySummary.isNullOrBlank() && log?.daySummary != "⏳") {
+            } else if (!periodSummary.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
@@ -250,13 +300,92 @@ private fun DaySummaryCard(label: String, log: DailyLog?, meals: List<MealEntry>
                         .clip(RoundedCornerShape(8.dp))
                         .background(Primary.copy(alpha = 0.08f))
                         .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                 ) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(log!!.daySummary!!, style = MaterialTheme.typography.bodySmall, color = OnSurface)
+                    Text(periodSummary!!, style = MaterialTheme.typography.bodySmall, color = OnSurface)
                 }
             }
+        }
+
+        // ── Today Card ──
+        DayCard(
+            date = today,
+            log = todayLog,
+            meals = todayMeals,
+            onEdit = { editingDate = today },
+            onMealClick = { selectedMeal = it },
+            onAddMeal = { addMealForDate = today },
+        )
+
+        // ── Yesterday Card ──
+        if (yesterdayLog != null || yesterdayMeals.isNotEmpty()) {
+            DayCard(
+                date = yesterday,
+                log = yesterdayLog,
+                meals = yesterdayMeals,
+                onEdit = { editingDate = yesterday },
+                onMealClick = { selectedMeal = it },
+                onAddMeal = { addMealForDate = yesterday },
+            )
+        }
+
+        Spacer(Modifier.height(80.dp))
+    }
+
+    // ── Edit sheets (same as Log tab) ──
+    if (editingDate != null) {
+        ModalBottomSheet(onDismissRequest = { editingDate = null }, sheetState = editSheetState, containerColor = CardSurface) {
+            DailyLogEditSheet(
+                date = editingDate!!,
+                existingLog = logsByDate[editingDate!!],
+                onSave = { scope.launch {
+                    dailyLogDao.upsert(it)
+                    launchSummary(it.date, dailyLogDao, daySummaryGenerator)
+                    editingDate = null
+                } },
+                onDismiss = { editingDate = null },
+            )
+        }
+    }
+
+    if (selectedMeal != null) {
+        ModalBottomSheet(onDismissRequest = { selectedMeal = null }, sheetState = mealSheetState, containerColor = CardSurface) {
+            MealEditSheet(
+                meal = selectedMeal!!,
+                onSave = { updated -> scope.launch {
+                    mealDao.update(updated)
+                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator)
+                    selectedMeal = null
+                } },
+                onDelete = { scope.launch {
+                    val meal = selectedMeal!!
+                    mealDao.delete(meal)
+                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator)
+                    selectedMeal = null
+                } },
+                onDismiss = { selectedMeal = null },
+            )
+        }
+    }
+
+    if (addMealForDate != null) {
+        ModalBottomSheet(onDismissRequest = { addMealForDate = null }, sheetState = addMealSheetState, containerColor = CardSurface) {
+            AddMealSheet(
+                date = addMealForDate!!,
+                onSave = { newMeal -> scope.launch {
+                    mealDao.insert(newMeal)
+                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator)
+                    addMealForDate = null
+                } },
+                onDismiss = { addMealForDate = null },
+                onCamera = {
+                    val date = addMealForDate!!
+                    addMealForDate = null
+                    onCameraForDate(date)
+                },
+            )
         }
     }
 }

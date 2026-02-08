@@ -171,6 +171,13 @@ fun AiBar(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Primary,
+                modifier = Modifier.size(18.dp).padding(start = 6.dp),
+            )
+            Spacer(Modifier.width(4.dp))
             TextField(
                 value = text,
                 onValueChange = { text = it },
@@ -182,7 +189,8 @@ fun AiBar(
                     focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                     unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 ),
-                singleLine = true,
+                singleLine = false,
+                maxLines = 5,
                 textStyle = MaterialTheme.typography.bodyLarge,
             )
             // Send button (shows when text is entered)
