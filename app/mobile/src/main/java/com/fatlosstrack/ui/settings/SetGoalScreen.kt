@@ -48,8 +48,8 @@ fun SetGoalScreen(
     // Load saved values
     val savedStartWeight by preferencesManager.startWeight.collectAsState(initial = null)
     val savedGoalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
-    val savedRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
-    val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = "")
+    val savedRate by preferencesManager.weeklyRate.collectAsState(initial = null)
+    val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = null)
     val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
     val savedStartDate by preferencesManager.startDate.collectAsState(initial = null)
 
@@ -61,13 +61,13 @@ fun SetGoalScreen(
     var startDate by remember { mutableStateOf(LocalDate.now()) }
     var initialized by remember { mutableStateOf(false) }
 
-    // Seed fields once from saved values
+    // Seed fields once from saved values — wait until rate is loaded (non-null) to avoid race
     LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedHeight, savedStartDate) {
-        if (!initialized) {
+        if (!initialized && savedRate != null) {
             startWeight = savedStartWeight?.let { "%.1f".format(it) } ?: ""
             goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
             weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
-            aiGuidance = savedGuidance
+            aiGuidance = savedGuidance ?: ""
             heightCm = savedHeight?.toString() ?: ""
             startDate = savedStartDate?.let {
                 try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
