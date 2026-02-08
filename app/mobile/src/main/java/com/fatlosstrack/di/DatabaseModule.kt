@@ -2,6 +2,8 @@ package com.fatlosstrack.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.AppLogger
@@ -16,6 +18,12 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE daily_logs ADD COLUMN daySummary TEXT DEFAULT NULL")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FatLossDatabase {
@@ -23,7 +31,7 @@ object DatabaseModule {
             context,
             FatLossDatabase::class.java,
             "fatloss_track.db"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(MIGRATION_4_5).build()
     }
 
     @Provides fun provideWeightDao(db: FatLossDatabase): WeightDao = db.weightDao()
