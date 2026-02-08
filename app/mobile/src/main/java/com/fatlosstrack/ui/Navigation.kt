@@ -151,9 +151,8 @@ fun FatLossTrackNavGraph(
                         mode = mode,
                         onAnalyze = { m, count ->
                             val dateParam = if (targetDate.isNotEmpty()) "?targetDate=$targetDate" else ""
-                            navController.navigate("analysis/${m.name}/$count$dateParam") {
-                                popUpTo("capture/$modeStr") { inclusive = true }
-                            }
+                            navController.popBackStack()
+                            navController.navigate("analysis/${m.name}/$count$dateParam")
                         },
                         onBack = { navController.popBackStack() },
                     )
@@ -185,12 +184,14 @@ fun FatLossTrackNavGraph(
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },
                         onLogged = {
-                            navController.navigate(Tab.Log.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                            if (!navController.popBackStack(Tab.Log.route, inclusive = false)) {
+                                navController.navigate(Tab.Log.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
                         },
                         onBack = { navController.popBackStack() },
