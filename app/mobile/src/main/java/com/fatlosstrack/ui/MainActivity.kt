@@ -13,6 +13,7 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
+import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.login.LoginScreen
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
@@ -36,6 +37,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var dailyLogDao: DailyLogDao
+
+    @Inject
+    lateinit var weightDao: WeightDao
 
     @Inject
     lateinit var healthConnectManager: HealthConnectManager
@@ -74,6 +78,7 @@ class MainActivity : ComponentActivity() {
                             preferencesManager = preferencesManager,
                             mealDao = mealDao,
                             dailyLogDao = dailyLogDao,
+                            weightDao = weightDao,
                             healthConnectManager = healthConnectManager,
                             healthConnectSyncService = healthConnectSyncService,
                             daySummaryGenerator = daySummaryGenerator,

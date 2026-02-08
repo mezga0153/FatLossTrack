@@ -28,6 +28,7 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
+import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.CameraModeSheet
@@ -60,6 +61,7 @@ fun FatLossTrackNavGraph(
     preferencesManager: PreferencesManager,
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
+    weightDao: WeightDao,
     healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
     daySummaryGenerator: DaySummaryGenerator? = null,
@@ -130,8 +132,22 @@ fun FatLossTrackNavGraph(
                 navController = navController,
                 startDestination = Tab.Home.route,
             ) {
-                composable(Tab.Home.route) { HomeScreen() }
-                composable(Tab.Trends.route) { TrendsScreen() }
+                composable(Tab.Home.route) {
+                    HomeScreen(
+                        dailyLogDao = dailyLogDao,
+                        mealDao = mealDao,
+                        weightDao = weightDao,
+                        preferencesManager = preferencesManager,
+                    )
+                }
+                composable(Tab.Trends.route) {
+                    TrendsScreen(
+                        dailyLogDao = dailyLogDao,
+                        mealDao = mealDao,
+                        weightDao = weightDao,
+                        preferencesManager = preferencesManager,
+                    )
+                }
                 composable(Tab.Log.route) {
                     LogScreen(
                         mealDao = mealDao,
