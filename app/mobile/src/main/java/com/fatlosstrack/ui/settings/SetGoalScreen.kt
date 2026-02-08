@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
@@ -343,6 +344,7 @@ fun SetGoalScreen(
                             heightCm = heightCm.toIntOrNull(),
                             startDate = startDate.toString(),
                         )
+                        AppLogger.instance?.user("Goal saved: start=${startWeight}kg, goal=${goalWeight}kg, rate=${weeklyRate}kg/wk, height=${heightCm}cm, startDate=$startDate")
                     }
                     onBack()
                 },

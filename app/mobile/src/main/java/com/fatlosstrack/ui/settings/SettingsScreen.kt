@@ -49,6 +49,7 @@ fun SettingsScreen(
     preferencesManager: PreferencesManager? = null,
     healthConnectManager: HealthConnectManager? = null,
     onSyncHealthConnect: (() -> Unit)? = null,
+    onViewLog: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val authState by authManager?.authState?.collectAsState()
@@ -396,6 +397,21 @@ fun SettingsScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text("Sign out", color = Tertiary)
+                }
+            }
+        }
+
+        // -- Activity Log --
+        if (onViewLog != null) {
+            SettingsSection("Debug") {
+                Text(
+                    "View internal activity log — HC sync, AI calls, meal entries, and more.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onViewLog) {
+                    Text("View activity log", color = Primary)
                 }
             }
         }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.data.health.HealthConnectManager
+import com.fatlosstrack.data.local.AppLogger
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,5 +36,11 @@ object DatabaseModule {
     @Singleton
     fun provideHealthConnectManager(@ApplicationContext context: Context): HealthConnectManager {
         return HealthConnectManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppLogger(@ApplicationContext context: Context): AppLogger {
+        return AppLogger(context)
     }
 }

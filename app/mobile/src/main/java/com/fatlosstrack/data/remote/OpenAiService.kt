@@ -2,6 +2,7 @@ package com.fatlosstrack.data.remote
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 class OpenAiService @Inject constructor(
     private val client: HttpClient,
     private val prefs: PreferencesManager,
+    private val appLogger: AppLogger,
 ) {
     companion object {
         private const val API_URL = "https://api.openai.com/v1/chat/completions"
@@ -32,6 +34,7 @@ class OpenAiService @Inject constructor(
         userMessage: String,
         systemPrompt: String = SYSTEM_PROMPT,
     ): Result<String> = runCatching {
+        appLogger.ai("Chat request: ${userMessage.take(80)}${if (userMessage.length > 80) "…" else ""}")
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
@@ -60,20 +63,25 @@ class OpenAiService @Inject constructor(
 
         if (response.status != HttpStatusCode.OK) {
             val errorBody = response.bodyAsText()
+            appLogger.error("AI", "Chat API error ${response.status}: ${errorBody.take(200)}")
             error("OpenAI API error ${response.status}: $errorBody")
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        json["choices"]!!.jsonArray[0].jsonObject["message"]!!
+        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
             .jsonObject["content"]!!.jsonPrimitive.content
+        appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
+        content
     }
 
     /**
      * Parse a natural-language meal description into structured JSON.
      * Returns the raw JSON string from AI with day_offset, items, etc.
      */
-    suspend fun parseTextMeal(userMessage: String): Result<String> =
-        chat(userMessage, TEXT_MEAL_LOG_PROMPT)
+    suspend fun parseTextMeal(userMessage: String): Result<String> {
+        appLogger.ai("Text meal parse: ${userMessage.take(80)}")
+        return chat(userMessage, TEXT_MEAL_LOG_PROMPT)
+    }
 
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
     suspend fun analyzeMeal(
@@ -81,6 +89,7 @@ class OpenAiService @Inject constructor(
         mode: String, // "log" or "suggest"
         correction: String? = null,
     ): Result<String> = runCatching {
+        appLogger.ai("Vision analysis: ${photos.size} photos, mode=$mode${if (correction != null) ", correction" else ""}")
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
@@ -134,12 +143,15 @@ class OpenAiService @Inject constructor(
 
         if (response.status != HttpStatusCode.OK) {
             val errorBody = response.bodyAsText()
+            appLogger.error("AI", "Vision API error ${response.status}: ${errorBody.take(200)}")
             error("OpenAI API error ${response.status}: $errorBody")
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        json["choices"]!!.jsonArray[0].jsonObject["message"]!!
+        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
             .jsonObject["content"]!!.jsonPrimitive.content
+        appLogger.ai("Vision response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "\u2026" else ""}")
+        content
     }
 
     private fun bitmapToBase64(bitmap: Bitmap): String {

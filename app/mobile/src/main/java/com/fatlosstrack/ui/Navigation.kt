@@ -23,6 +23,7 @@ import androidx.navigation.navArgument
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
@@ -34,6 +35,7 @@ import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
+import com.fatlosstrack.ui.settings.LogViewerScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
@@ -59,6 +61,7 @@ fun FatLossTrackNavGraph(
     dailyLogDao: DailyLogDao,
     healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
+    appLogger: AppLogger? = null,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -74,10 +77,11 @@ fun FatLossTrackNavGraph(
         healthConnectSyncService?.syncRecentDays(7)
     }
 
-    // Hide bottom bar + AI bar on camera/analysis/goal screens
+    // Hide bottom bar + AI bar on camera/analysis/goal/log viewer screens
     val hideChrome = currentRoute?.startsWith("capture") == true ||
             currentRoute?.startsWith("analysis") == true ||
-            currentRoute == "set_goal"
+            currentRoute == "set_goal" ||
+            currentRoute == "log_viewer"
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -142,6 +146,9 @@ fun FatLossTrackNavGraph(
                                 healthConnectSyncService?.syncRecentDays(7)
                             }
                         },
+                        onViewLog = if (appLogger != null) {
+                            { navController.navigate("log_viewer") }
+                        } else null,
                     )
                 }
 
@@ -151,6 +158,16 @@ fun FatLossTrackNavGraph(
                         onBack = { navController.popBackStack() },
                         preferencesManager = preferencesManager,
                     )
+                }
+
+                // Log Viewer
+                if (appLogger != null) {
+                    composable("log_viewer") {
+                        LogViewerScreen(
+                            appLogger = appLogger,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
                 }
 
                 // Camera capture

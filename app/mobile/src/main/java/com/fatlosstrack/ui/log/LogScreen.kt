@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
@@ -170,7 +171,16 @@ fun LogScreen(
             DailyLogEditSheet(
                 date = editingDate!!,
                 existingLog = logsByDate[editingDate!!],
-                onSave = { scope.launch { dailyLogDao.upsert(it); editingDate = null } },
+                onSave = { scope.launch {
+                    dailyLogDao.upsert(it)
+                    val parts = mutableListOf<String>()
+                    it.weightKg?.let { w -> parts += "weight=%.1f".format(w) }
+                    it.steps?.let { s -> parts += "steps=$s" }
+                    it.sleepHours?.let { s -> parts += "sleep=${s}h" }
+                    it.restingHr?.let { h -> parts += "hr=$h" }
+                    AppLogger.instance?.user("DailyLog saved ${it.date}: ${parts.joinToString(", ")}")
+                    editingDate = null
+                } },
                 onDismiss = { editingDate = null },
             )
         }
@@ -181,8 +191,16 @@ fun LogScreen(
         ModalBottomSheet(onDismissRequest = { selectedMeal = null }, sheetState = mealSheetState, containerColor = CardSurface) {
             MealEditSheet(
                 meal = selectedMeal!!,
-                onSave = { updated -> scope.launch { mealDao.update(updated); selectedMeal = null } },
-                onDelete = { scope.launch { mealDao.delete(selectedMeal!!); selectedMeal = null } },
+                onSave = { updated -> scope.launch {
+                    mealDao.update(updated)
+                    AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, date=${updated.date}")
+                    selectedMeal = null
+                } },
+                onDelete = { scope.launch {
+                    AppLogger.instance?.meal("Deleted: ${selectedMeal!!.description.take(40)} — ${selectedMeal!!.totalKcal} kcal, date=${selectedMeal!!.date}")
+                    mealDao.delete(selectedMeal!!)
+                    selectedMeal = null
+                } },
                 onDismiss = { selectedMeal = null },
             )
         }
@@ -193,7 +211,11 @@ fun LogScreen(
         ModalBottomSheet(onDismissRequest = { addMealForDate = null }, sheetState = addMealSheetState, containerColor = CardSurface) {
             AddMealSheet(
                 date = addMealForDate!!,
-                onSave = { newMeal -> scope.launch { mealDao.insert(newMeal); addMealForDate = null } },
+                onSave = { newMeal -> scope.launch {
+                    mealDao.insert(newMeal)
+                    AppLogger.instance?.meal("Manual add: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
+                    addMealForDate = null
+                } },
                 onDismiss = { addMealForDate = null },
                 onCamera = {
                     val date = addMealForDate!!

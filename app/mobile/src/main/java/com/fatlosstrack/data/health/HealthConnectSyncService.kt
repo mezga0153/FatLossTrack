@@ -1,6 +1,7 @@
 package com.fatlosstrack.data.health
 
 import android.util.Log
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.WeightDao
@@ -19,6 +20,7 @@ class HealthConnectSyncService @Inject constructor(
     private val hcManager: HealthConnectManager,
     private val dailyLogDao: DailyLogDao,
     private val weightDao: WeightDao,
+    private val appLogger: AppLogger,
 ) {
     companion object {
         private const val TAG = "HCSyncService"
@@ -29,13 +31,20 @@ class HealthConnectSyncService @Inject constructor(
      * Returns the number of days updated.
      */
     suspend fun syncRecentDays(days: Int = 7): Int {
-        if (!hcManager.isAvailable()) return 0
-        if (!hcManager.hasAllPermissions()) return 0
+        if (!hcManager.isAvailable()) {
+            appLogger.hc("Sync skipped — HC not available")
+            return 0
+        }
+        if (!hcManager.hasAllPermissions()) {
+            appLogger.hc("Sync skipped — missing permissions")
+            return 0
+        }
 
         val today = LocalDate.now()
         val from = today.minusDays(days.toLong() - 1)
         var updated = 0
 
+        appLogger.hc("Starting sync: $days days ($from → $today)")
         Log.d(TAG, "Syncing $days days from $from to $today")
 
         val summaries = hcManager.getSummaries(from, today)
@@ -44,6 +53,7 @@ class HealthConnectSyncService @Inject constructor(
         }
 
         Log.d(TAG, "Sync complete: $updated days updated")
+        appLogger.hc("Sync complete: $updated/$days days had data")
         return updated
     }
 
@@ -89,6 +99,15 @@ class HealthConnectSyncService @Inject constructor(
             }
             dailyLogDao.upsert(merged)
 
+            val parts = mutableListOf<String>()
+            summary.weightKg?.let { parts += "weight=%.1f kg".format(it) }
+            summary.steps?.let { parts += "steps=$it" }
+            summary.sleepHours?.let { parts += "sleep=${it}h" }
+            summary.restingHr?.let { parts += "hr=${it} bpm" }
+            summary.exercisesJson?.let { parts += "exercises" }
+            val isNew = existing == null
+            appLogger.hc("${summary.date}: ${if (isNew) "created" else "merged"} — ${parts.joinToString(", ")}")
+
             // Also save weight to weight_entries if present
             if (summary.weightKg != null) {
                 weightDao.insert(
@@ -103,6 +122,7 @@ class HealthConnectSyncService @Inject constructor(
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to merge summary for ${summary.date}", e)
+            appLogger.error("HC", "Failed to merge ${summary.date}", e)
             return false
         }
     }
