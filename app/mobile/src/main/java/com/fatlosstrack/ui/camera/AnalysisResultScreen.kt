@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui.camera
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
@@ -56,7 +58,7 @@ data class AnalysisResult(
 
 /**
  * Calls OpenAI vision API with captured photos. Parses structured JSON response
- * into meal items with nutrition data.
+ * into meal items with nutrition data. Supports user corrections for re-analysis.
  */
 @Composable
 fun AnalysisResultScreen(
@@ -72,39 +74,45 @@ fun AnalysisResultScreen(
     var result by remember { mutableStateOf<AnalysisResult?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Run analysis on launch
-    LaunchedEffect(Unit) {
+    // Keep bitmaps in memory for re-analysis with corrections
+    val bitmaps = remember { mutableStateListOf<Bitmap>() }
+
+    // Runs analysis (initial or with correction)
+    fun runAnalysis(correction: String? = null) {
+        analyzing = true
+        errorMessage = null
         scope.launch {
             try {
-                val photoUris = CapturedPhotoStore.consume()
-                if (photoUris.isEmpty()) {
-                    errorMessage = "No photos to analyze."
-                    analyzing = false
-                    return@launch
-                }
-
-                // Load URIs → Bitmaps on IO thread
-                val bitmaps = withContext(Dispatchers.IO) {
-                    photoUris.mapNotNull { uri ->
-                        try {
-                            context.contentResolver.openInputStream(uri)?.use { stream ->
-                                BitmapFactory.decodeStream(stream)
+                // Load bitmaps on first run
+                if (bitmaps.isEmpty()) {
+                    val photoUris = CapturedPhotoStore.consume()
+                    if (photoUris.isEmpty()) {
+                        errorMessage = "No photos to analyze."
+                        analyzing = false
+                        return@launch
+                    }
+                    val loaded = withContext(Dispatchers.IO) {
+                        photoUris.mapNotNull { uri ->
+                            try {
+                                context.contentResolver.openInputStream(uri)?.use { stream ->
+                                    BitmapFactory.decodeStream(stream)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("Analysis", "Failed to load photo: $uri", e)
+                                null
                             }
-                        } catch (e: Exception) {
-                            Log.e("Analysis", "Failed to load photo: $uri", e)
-                            null
                         }
                     }
-                }
-
-                if (bitmaps.isEmpty()) {
-                    errorMessage = "Could not load photos."
-                    analyzing = false
-                    return@launch
+                    if (loaded.isEmpty()) {
+                        errorMessage = "Could not load photos."
+                        analyzing = false
+                        return@launch
+                    }
+                    bitmaps.addAll(loaded)
                 }
 
                 val modeStr = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
-                val apiResult = openAiService.analyzeMeal(bitmaps, modeStr)
+                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction)
 
                 apiResult.fold(
                     onSuccess = { raw ->
@@ -112,7 +120,6 @@ fun AnalysisResultScreen(
                             result = parseAnalysisJson(raw)
                         } catch (e: Exception) {
                             Log.e("Analysis", "JSON parse failed, raw: $raw", e)
-                            // Fallback: show raw text as description
                             result = AnalysisResult(
                                 description = raw,
                                 items = emptyList(),
@@ -134,6 +141,9 @@ fun AnalysisResultScreen(
         }
     }
 
+    // Initial analysis on launch
+    LaunchedEffect(Unit) { runAnalysis() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -147,7 +157,10 @@ fun AnalysisResultScreen(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = {
+                CapturedPhotoStore.clear()
+                onBack()
+            }) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
@@ -164,8 +177,19 @@ fun AnalysisResultScreen(
 
         when {
             analyzing -> AnalyzingState(photoCount)
-            errorMessage != null -> ErrorState(errorMessage!!, onBack)
-            result != null -> ResultContent(result = result!!, mode = mode, onDone = onDone)
+            errorMessage != null -> ErrorState(errorMessage!!, onBack = {
+                CapturedPhotoStore.clear()
+                onBack()
+            })
+            result != null -> ResultContent(
+                result = result!!,
+                mode = mode,
+                onDone = {
+                    CapturedPhotoStore.clear()
+                    onDone()
+                },
+                onCorrection = { correction -> runAnalysis(correction) },
+            )
         }
     }
 }
@@ -296,8 +320,10 @@ private fun ResultContent(
     result: AnalysisResult,
     mode: CaptureMode,
     onDone: () -> Unit,
+    onCorrection: (String) -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
+    var correctionText by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { visible = true }
 
     AnimatedVisibility(visible = visible, enter = fadeIn(tween(500))) {
@@ -390,6 +416,74 @@ private fun ResultContent(
                             style = MaterialTheme.typography.bodyLarge,
                             color = OnSurface,
                         )
+                    }
+                }
+            }
+
+            // ── Correction input ──
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.border(1.dp, OnSurfaceVariant.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Something wrong?",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = OnSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Tell the AI what to fix and it will re-analyze",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = correctionText,
+                            onValueChange = { correctionText = it },
+                            placeholder = {
+                                Text(
+                                    "e.g. \"That's turkey, not chicken\"",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = OnSurfaceVariant.copy(alpha = 0.5f),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Primary,
+                                unfocusedBorderColor = OnSurfaceVariant.copy(alpha = 0.3f),
+                                cursorColor = Primary,
+                            ),
+                        )
+                        IconButton(
+                            onClick = {
+                                if (correctionText.isNotBlank()) {
+                                    onCorrection(correctionText.trim())
+                                    correctionText = ""
+                                }
+                            },
+                            enabled = correctionText.isNotBlank(),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (correctionText.isNotBlank()) Primary.copy(alpha = 0.15f)
+                                    else Color.Transparent,
+                                ),
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                "Re-analyze",
+                                tint = if (correctionText.isNotBlank()) Primary else OnSurfaceVariant.copy(alpha = 0.3f),
+                            )
+                        }
                     }
                 }
             }

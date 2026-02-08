@@ -68,20 +68,28 @@ class OpenAiService @Inject constructor(
             .jsonObject["content"]!!.jsonPrimitive.content
     }
 
-    /** Vision-based meal analysis — sends photos + prompt to GPT-4o */
+    /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
     suspend fun analyzeMeal(
         photos: List<Bitmap>,
         mode: String, // "log" or "suggest"
+        correction: String? = null,
     ): Result<String> = runCatching {
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
 
+        val basePrompt = if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT
+        val prompt = if (correction != null) {
+            "$basePrompt\n\nIMPORTANT CORRECTION from user: $correction\nPlease re-analyze with this correction applied."
+        } else {
+            basePrompt
+        }
+
         val contentArray = buildJsonArray {
             // Text prompt
             addJsonObject {
                 put("type", "text")
-                put("text", if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT)
+                put("text", prompt)
             }
             // Photos as base64
             photos.forEach { bitmap ->

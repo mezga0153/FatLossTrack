@@ -15,10 +15,12 @@ object CapturedPhotoStore {
         _photos.addAll(photos)
     }
 
-    fun consume(): List<Uri> {
-        val copy = _photos.toList()
+    /** Returns photos without clearing — allows re-analysis. */
+    fun consume(): List<Uri> = _photos.toList()
+
+    /** Explicitly clear when done (e.g. after logging or discarding). */
+    fun clear() {
         _photos.clear()
-        return copy
     }
 
     fun peek(): List<Uri> = _photos.toList()
