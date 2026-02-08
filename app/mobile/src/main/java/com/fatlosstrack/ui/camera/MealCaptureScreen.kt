@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,6 +46,7 @@ import androidx.concurrent.futures.await
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -87,6 +89,14 @@ fun MealCaptureScreen(
     // Photos state
     val capturedPhotos = remember { mutableStateListOf<Uri>() }
     var viewingIndex by remember { mutableIntStateOf(-1) }
+
+    // Gallery picker — pick up to (3 - current) images
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = 3)
+    ) { uris ->
+        val slots = 3 - capturedPhotos.size
+        uris.take(slots).forEach { capturedPhotos.add(it) }
+    }
 
     // CameraX
     val imageCapture = remember { ImageCapture.Builder().build() }
@@ -214,9 +224,25 @@ fun MealCaptureScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Cancel
-                IconButton(onClick = onBack, modifier = Modifier.size(52.dp)) {
-                    Icon(Icons.Default.Close, "Cancel", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(26.dp))
+                // Gallery picker
+                IconButton(
+                    onClick = {
+                        if (capturedPhotos.size < 3) {
+                            galleryLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(
+                                    androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier.size(52.dp),
+                ) {
+                    Icon(
+                        Icons.Default.PhotoLibrary,
+                        "Gallery",
+                        tint = if (capturedPhotos.size < 3) Color.White.copy(alpha = 0.7f) else TrendFlat,
+                        modifier = Modifier.size(26.dp),
+                    )
                 }
 
                 // Shutter
@@ -268,7 +294,10 @@ fun MealCaptureScreen(
                     exit = fadeOut(),
                 ) {
                     IconButton(
-                        onClick = { onAnalyze(mode, capturedPhotos.size) },
+                        onClick = {
+                            CapturedPhotoStore.store(capturedPhotos.toList())
+                            onAnalyze(mode, capturedPhotos.size)
+                        },
                         modifier = Modifier
                             .size(52.dp)
                             .clip(CircleShape)
