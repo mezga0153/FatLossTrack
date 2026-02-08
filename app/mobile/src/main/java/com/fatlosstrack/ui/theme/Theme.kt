@@ -9,33 +9,40 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Muted, neutral, instrument-panel palette — dark only
-val Surface = Color(0xFF0F0F0F)
-val SurfaceVariant = Color(0xFF1A1A1A)
-val CardSurface = Color(0xFF222222)
-val OnSurface = Color(0xFFE0E0E0)
-val OnSurfaceVariant = Color(0xFF9E9E9E)
-val Primary = Color(0xFF8AB4F8)           // calm blue — trend lines, primary actions
-val PrimaryContainer = Color(0xFF1A3A5C)
-val TrendDown = Color(0xFF81C995)         // muted green — weight going down (good)
-val TrendUp = Color(0xFFE8A87C)           // muted amber — weight going up
-val TrendFlat = Color(0xFF9E9E9E)         // grey — flat
-val ConfidenceBand = Color(0x338AB4F8)    // translucent blue
+// ── Palette ───────────────────────────────────────────────
+// Deep dark base with warm accent pops — feels alive, not flat.
+val Surface = Color(0xFF0D0D12)           // near-black with blue undertone
+val SurfaceVariant = Color(0xFF161622)    // slightly lifted, cool indigo cast
+val CardSurface = Color(0xFF1E1E2E)       // cards — distinct from background
+val OnSurface = Color(0xFFECECF4)         // high-contrast text
+val OnSurfaceVariant = Color(0xFF8B8BA3)  // secondary text — lavender grey
+
+val Primary = Color(0xFF6C9CFF)           // vivid periwinkle blue — primary CTA, trend lines
+val PrimaryContainer = Color(0xFF1D2D50)  // deep blue for containers
+val Secondary = Color(0xFF59D8A0)         // mint green — positive trends
+val Tertiary = Color(0xFFFF8F6B)          // warm coral — attention / warnings
+val Accent = Color(0xFFCDA0FF)            // soft violet — highlights, AI bar glow
+
+val TrendDown = Color(0xFF4ADE80)         // green — weight going down (good)
+val TrendUp = Color(0xFFFF7A5C)           // coral red — weight going up
+val TrendFlat = Color(0xFF6B6B80)         // muted slate
+val ConfidenceBand = Color(0x336C9CFF)    // translucent primary
+val AiBarBg = Color(0xFF252540)           // AI pill background — distinct from cards
 
 private val DarkColorScheme = darkColorScheme(
     primary = Primary,
     onPrimary = Color.Black,
     primaryContainer = PrimaryContainer,
-    secondary = TrendDown,
-    tertiary = TrendUp,
+    secondary = Secondary,
+    tertiary = Tertiary,
     background = Surface,
     surface = SurfaceVariant,
     surfaceVariant = CardSurface,
     onBackground = OnSurface,
     onSurface = OnSurface,
     onSurfaceVariant = OnSurfaceVariant,
-    error = Color(0xFFCF6679),
-    outline = Color(0xFF333333),
+    error = Color(0xFFFF6B6B),
+    outline = Color(0xFF2A2A40),
 )
 
 private val AppTypography = Typography(

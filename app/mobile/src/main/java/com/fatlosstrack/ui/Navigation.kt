@@ -14,10 +14,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.fatlosstrack.ui.camera.AnalysisResultScreen
+import com.fatlosstrack.ui.camera.CameraModeSheet
+import com.fatlosstrack.ui.camera.CaptureMode
+import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
@@ -40,14 +46,19 @@ fun FatLossTrackNavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
+
+    // Camera mode picker sheet
+    var showCameraModeSheet by remember { mutableStateOf(false) }
+
+    // Hide bottom bar + AI bar on camera/analysis screens
+    val hideChrome = currentRoute?.startsWith("capture") == true ||
+            currentRoute?.startsWith("analysis") == true
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            Column {
-                // Floating AI bar above bottom navigation
-                AiBar()
-
+            if (!hideChrome) {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 0.dp,
@@ -79,15 +90,75 @@ fun FatLossTrackNavGraph() {
             }
         },
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Tab.Home.route,
-            modifier = Modifier.padding(innerPadding),
-        ) {
-            composable(Tab.Home.route) { HomeScreen() }
-            composable(Tab.Trends.route) { TrendsScreen() }
-            composable(Tab.Log.route) { LogScreen() }
-            composable(Tab.Settings.route) { SettingsScreen() }
+        Box(Modifier.padding(innerPadding)) {
+            NavHost(
+                navController = navController,
+                startDestination = Tab.Home.route,
+            ) {
+                composable(Tab.Home.route) { HomeScreen() }
+                composable(Tab.Trends.route) { TrendsScreen() }
+                composable(Tab.Log.route) { LogScreen() }
+                composable(Tab.Settings.route) { SettingsScreen() }
+
+                // Camera capture
+                composable(
+                    route = "capture/{mode}",
+                    arguments = listOf(navArgument("mode") { type = NavType.StringType }),
+                ) { entry ->
+                    val modeStr = entry.arguments?.getString("mode") ?: "log"
+                    val mode = if (modeStr == "suggest") CaptureMode.SuggestMeal else CaptureMode.LogMeal
+                    MealCaptureScreen(
+                        mode = mode,
+                        onAnalyze = { m, count ->
+                            navController.navigate("analysis/${m.name}/$count") {
+                                popUpTo("capture/$modeStr") { inclusive = true }
+                            }
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Analysis result
+                composable(
+                    route = "analysis/{mode}/{count}",
+                    arguments = listOf(
+                        navArgument("mode") { type = NavType.StringType },
+                        navArgument("count") { type = NavType.IntType },
+                    ),
+                ) { entry ->
+                    val modeStr = entry.arguments?.getString("mode") ?: "LogMeal"
+                    val count = entry.arguments?.getInt("count") ?: 1
+                    val mode = if (modeStr == "SuggestMeal") CaptureMode.SuggestMeal else CaptureMode.LogMeal
+                    AnalysisResultScreen(
+                        mode = mode,
+                        photoCount = count,
+                        onDone = {
+                            navController.popBackStack(Tab.Home.route, inclusive = false)
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+
+            // Floating AI bar (hidden on camera screens)
+            if (!hideChrome) {
+                AiBar(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    onCameraClick = { showCameraModeSheet = true },
+                )
+            }
         }
+    }
+
+    // Camera mode picker bottom sheet
+    if (showCameraModeSheet) {
+        CameraModeSheet(
+            onSelect = { mode ->
+                showCameraModeSheet = false
+                val modeArg = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
+                navController.navigate("capture/$modeArg")
+            },
+            onDismiss = { showCameraModeSheet = false },
+        )
     }
 }

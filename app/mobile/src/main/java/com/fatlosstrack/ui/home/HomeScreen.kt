@@ -79,6 +79,6 @@ fun HomeScreen() {
         DayCard(day = MockData.yesterday)
 
         // Bottom spacer for AI bar clearance
-        Spacer(Modifier.height(72.dp))
+        Spacer(Modifier.height(80.dp)) // clearance for floating AI bar
     }
 }

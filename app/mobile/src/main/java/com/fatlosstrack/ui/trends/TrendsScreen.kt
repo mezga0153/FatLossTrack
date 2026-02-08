@@ -156,6 +156,6 @@ fun TrendsScreen() {
             }
         }
 
-        Spacer(Modifier.height(72.dp))
+        Spacer(Modifier.height(80.dp)) // clearance for floating AI bar
     }
 }

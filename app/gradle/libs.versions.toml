@@ -65,6 +65,8 @@ camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = 
 camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
 camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
 camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+concurrent-futures = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version = "1.2.0" }
+guava = { group = "com.google.guava", name = "guava", version = "33.0.0-android" }
 
 # Health Connect
 health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "health-connect" }

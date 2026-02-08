@@ -1,6 +1,7 @@
 package com.fatlosstrack.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,7 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.fatlosstrack.ui.theme.CardSurface
+import com.fatlosstrack.ui.theme.Accent
+import com.fatlosstrack.ui.theme.AiBarBg
 
 /**
  * Floating AI bar — persistent pill above bottom nav.
@@ -22,15 +24,19 @@ import com.fatlosstrack.ui.theme.CardSurface
 fun AiBar(
     modifier: Modifier = Modifier,
     onSend: (String) -> Unit = {},
+    onCameraClick: () -> Unit = {},
 ) {
     var text by remember { mutableStateOf("") }
+
+    val pillShape = RoundedCornerShape(28.dp)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(CardSurface)
+            .clip(pillShape)
+            .border(width = 1.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
+            .background(AiBarBg)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -40,8 +46,8 @@ fun AiBar(
             placeholder = { Text("Ask anything...", style = MaterialTheme.typography.bodyMedium) },
             modifier = Modifier.weight(1f),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = CardSurface,
-                unfocusedContainerColor = CardSurface,
+                focusedContainerColor = AiBarBg,
+                unfocusedContainerColor = AiBarBg,
                 focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
             ),
@@ -53,15 +59,15 @@ fun AiBar(
             Icon(
                 Icons.Default.KeyboardVoice,
                 contentDescription = "Voice input",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = Accent.copy(alpha = 0.7f),
             )
         }
 
-        IconButton(onClick = { /* camera placeholder */ }) {
+        IconButton(onClick = onCameraClick) {
             Icon(
                 Icons.Default.CameraAlt,
                 contentDescription = "Camera",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = Accent.copy(alpha = 0.7f),
             )
         }
     }
