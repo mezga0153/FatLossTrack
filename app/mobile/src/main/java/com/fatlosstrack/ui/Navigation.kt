@@ -158,6 +158,32 @@ fun FatLossTrackNavGraph(
                     )
                 }
 
+                // Text meal analysis (from AiBar)
+                composable("analysis/text") {
+                    AnalysisResultScreen(
+                        mode = CaptureMode.LogMeal,
+                        photoCount = 0,
+                        openAiService = openAiService,
+                        mealDao = mealDao,
+                        isTextMode = true,
+                        onDone = {
+                            navController.popBackStack()
+                        },
+                        onLogged = {
+                            if (!navController.popBackStack(Tab.Log.route, inclusive = false)) {
+                                navController.navigate(Tab.Log.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
                 // Analysis result
                 composable(
                     route = "analysis/{mode}/{count}?targetDate={targetDate}",
@@ -206,6 +232,9 @@ fun FatLossTrackNavGraph(
                     openAiService = openAiService,
                     mealDao = mealDao,
                     onCameraClick = { showCameraModeSheet = true },
+                    onTextMealAnalyzed = { _ ->
+                        navController.navigate("analysis/text")
+                    },
                 )
             }
         }

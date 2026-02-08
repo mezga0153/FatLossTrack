@@ -25,6 +25,7 @@ data class MealEntry(
     val totalKcal: Int = 0,
     val coachNote: String? = null,
     val category: MealCategory = MealCategory.HOME,
+    val mealType: MealType? = null,
     val hasAlcohol: Boolean = false,
     val photoUri: String? = null,
     val note: String? = null,
@@ -32,6 +33,8 @@ data class MealEntry(
 )
 
 enum class MealCategory { HOME, RESTAURANT, FAST_FOOD }
+
+enum class MealType { BREAKFAST, BRUNCH, LUNCH, DINNER, SNACK }
 
 @Entity(tableName = "goals")
 data class Goal(

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
@@ -39,6 +40,7 @@ fun AiBar(
     mealDao: MealDao? = null,
     onSend: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
+    onTextMealAnalyzed: ((LocalDate) -> Unit)? = null,
 ) {
     var text by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -194,8 +196,14 @@ fun AiBar(
                                 mealResult.fold(
                                     onSuccess = { raw ->
                                         val parsed = tryParseMealJson(raw)
-                                        if (parsed != null && mealDao != null) {
-                                            // It's a meal — save it
+                                        if (parsed != null && onTextMealAnalyzed != null) {
+                                            // It's a meal — store for analysis screen
+                                            val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
+                                            PendingTextMealStore.store(raw, targetDate)
+                                            isLoading = false
+                                            onTextMealAnalyzed(targetDate)
+                                        } else if (parsed != null && mealDao != null) {
+                                            // Fallback: direct insert if no nav callback
                                             val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
                                             mealDao.insert(
                                                 MealEntry(

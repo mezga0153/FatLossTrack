@@ -27,6 +27,7 @@ import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
+import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
@@ -53,6 +54,14 @@ private fun categoryColor(c: MealCategory) = when (c) {
     MealCategory.HOME -> Secondary
     MealCategory.RESTAURANT -> Accent
     MealCategory.FAST_FOOD -> Tertiary
+}
+
+private fun mealTypeLabel(t: MealType) = when (t) {
+    MealType.BREAKFAST -> "Breakfast"
+    MealType.BRUNCH -> "Brunch"
+    MealType.LUNCH -> "Lunch"
+    MealType.DINNER -> "Dinner"
+    MealType.SNACK -> "Snack"
 }
 
 // ── Main Screen ──
@@ -278,6 +287,16 @@ private fun DayCard(
                             modifier = Modifier.size(14.dp),
                         )
                         Spacer(Modifier.width(6.dp))
+                        if (meal.mealType != null) {
+                            Text(
+                                mealTypeLabel(meal.mealType),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Accent,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("·", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                        }
                         Text(
                             meal.description.take(35) + if (meal.description.length > 35) "\u2026" else "",
                             style = MaterialTheme.typography.bodySmall,
@@ -375,6 +394,7 @@ private fun AddMealSheet(
     var description by remember { mutableStateOf("") }
     var kcalStr by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(MealCategory.HOME) }
+    var selectedMealType by remember { mutableStateOf<MealType?>(null) }
     var note by remember { mutableStateOf("") }
 
     Column(
@@ -442,6 +462,22 @@ private fun AddMealSheet(
             }
         }
 
+        // Meal type selector
+        Text("Meal", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            MealType.entries.forEach { type ->
+                FilterChip(
+                    selected = selectedMealType == type,
+                    onClick = { selectedMealType = if (selectedMealType == type) null else type },
+                    label = { Text(mealTypeLabel(type), style = MaterialTheme.typography.labelSmall) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Accent.copy(alpha = 0.15f),
+                        selectedLabelColor = Accent,
+                    ),
+                )
+            }
+        }
+
         // Note
         OutlinedTextField(
             value = note,
@@ -463,6 +499,7 @@ private fun AddMealSheet(
                             description = description.trim(),
                             totalKcal = kcalStr.toIntOrNull() ?: 0,
                             category = selectedCategory,
+                            mealType = selectedMealType,
                             note = note.ifBlank { null },
                         )
                     )
@@ -494,6 +531,7 @@ private fun MealEditSheet(
     var description by remember { mutableStateOf(meal.description) }
     var kcalStr by remember { mutableStateOf(meal.totalKcal.toString()) }
     var selectedCategory by remember { mutableStateOf(meal.category) }
+    var selectedMealType by remember { mutableStateOf(meal.mealType) }
     var note by remember { mutableStateOf(meal.note ?: "") }
     var editing by remember { mutableStateOf(false) }
 
@@ -561,6 +599,22 @@ private fun MealEditSheet(
                 }
             }
 
+            // Meal type selector
+            Text("Meal", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                MealType.entries.forEach { type ->
+                    FilterChip(
+                        selected = selectedMealType == type,
+                        onClick = { selectedMealType = if (selectedMealType == type) null else type },
+                        label = { Text(mealTypeLabel(type), style = MaterialTheme.typography.labelSmall) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Accent.copy(alpha = 0.15f),
+                            selectedLabelColor = Accent,
+                        ),
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
@@ -574,7 +628,7 @@ private fun MealEditSheet(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); selectedCategory = meal.category; note = meal.note ?: "" },
+                    onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); selectedCategory = meal.category; selectedMealType = meal.mealType; note = meal.note ?: "" },
                     modifier = Modifier.weight(1f),
                 ) { Text("Cancel") }
 
@@ -584,6 +638,7 @@ private fun MealEditSheet(
                             description = description.trim(),
                             totalKcal = kcalStr.toIntOrNull() ?: meal.totalKcal,
                             category = selectedCategory,
+                            mealType = selectedMealType,
                             note = note.ifBlank { null },
                         ))
                     },

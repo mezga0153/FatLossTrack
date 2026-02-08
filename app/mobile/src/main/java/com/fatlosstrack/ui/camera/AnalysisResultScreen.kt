@@ -28,9 +28,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.local.CapturedPhotoStore
+import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
+import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +60,7 @@ data class AnalysisResult(
     val totalCalories: Int,
     val aiNote: String,
     val source: MealCategory = MealCategory.HOME,
+    val mealType: MealType? = null,
 )
 
 /**
@@ -71,18 +74,40 @@ fun AnalysisResultScreen(
     openAiService: OpenAiService,
     mealDao: MealDao,
     targetDate: java.time.LocalDate = java.time.LocalDate.now(),
+    isTextMode: Boolean = false,
     onDone: () -> Unit,
     onLogged: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var analyzing by remember { mutableStateOf(true) }
+    var analyzing by remember { mutableStateOf(!isTextMode) }
     var result by remember { mutableStateOf<AnalysisResult?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var effectiveDate by remember { mutableStateOf(targetDate) }
 
     // Keep bitmaps in memory for re-analysis with corrections
     val bitmaps = remember { mutableStateListOf<Bitmap>() }
+
+    // For text mode: load from PendingTextMealStore
+    LaunchedEffect(isTextMode) {
+        if (isTextMode) {
+            val pending = PendingTextMealStore.consume()
+            if (pending != null) {
+                val (raw, date) = pending
+                effectiveDate = date
+                try {
+                    result = parseAnalysisJson(raw)
+                } catch (e: Exception) {
+                    Log.e("Analysis", "Text meal parse failed: $raw", e)
+                    errorMessage = "Failed to parse meal data"
+                }
+                PendingTextMealStore.clear()
+            } else {
+                errorMessage = "No meal data available"
+            }
+        }
+    }
 
     // Runs analysis (initial or with correction)
     fun runAnalysis(correction: String? = null) {
@@ -148,8 +173,8 @@ fun AnalysisResultScreen(
         }
     }
 
-    // Initial analysis on launch
-    LaunchedEffect(Unit) { runAnalysis() }
+    // Initial analysis on launch (photo mode only)
+    LaunchedEffect(Unit) { if (!isTextMode) runAnalysis() }
 
     Column(
         modifier = Modifier
@@ -166,6 +191,7 @@ fun AnalysisResultScreen(
         ) {
             IconButton(onClick = {
                 CapturedPhotoStore.clear()
+                PendingTextMealStore.clear()
                 onBack()
             }) {
                 Icon(
@@ -176,7 +202,7 @@ fun AnalysisResultScreen(
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                text = if (mode == CaptureMode.LogMeal) "Meal Analysis" else "Meal Suggestion",
+                text = if (isTextMode) "Meal Analysis" else if (mode == CaptureMode.LogMeal) "Meal Analysis" else "Meal Suggestion",
                 style = MaterialTheme.typography.titleLarge,
                 color = OnSurface,
             )
@@ -186,16 +212,19 @@ fun AnalysisResultScreen(
             analyzing -> AnalyzingState(photoCount)
             errorMessage != null -> ErrorState(errorMessage!!, onBack = {
                 CapturedPhotoStore.clear()
+                PendingTextMealStore.clear()
                 onBack()
             })
             result != null -> ResultContent(
                 result = result!!,
-                mode = mode,
+                mode = if (isTextMode) CaptureMode.LogMeal else mode,
+                showCorrection = !isTextMode,
                 onDone = {
                     CapturedPhotoStore.clear()
+                    PendingTextMealStore.clear()
                     onDone()
                 },
-                onLog = { analysisResult ->
+                onLog = { analysisResult, overrideCategory, overrideMealType ->
                     scope.launch {
                         val itemsJson = kotlinx.serialization.json.buildJsonArray {
                             analysisResult.items.forEach { item ->
@@ -215,15 +244,17 @@ fun AnalysisResultScreen(
                         }.toString()
                         mealDao.insert(
                             MealEntry(
-                                date = targetDate,
+                                date = effectiveDate,
                                 description = analysisResult.description,
                                 itemsJson = itemsJson,
                                 totalKcal = analysisResult.totalCalories,
                                 coachNote = analysisResult.aiNote,
-                                category = analysisResult.source,
+                                category = overrideCategory,
+                                mealType = overrideMealType,
                             )
                         )
                         CapturedPhotoStore.clear()
+                        PendingTextMealStore.clear()
                         onLogged()
                     }
                 },
@@ -254,6 +285,16 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         else -> MealCategory.HOME
     }
 
+    val mealTypeStr = json["meal_type"]?.jsonPrimitive?.content ?: ""
+    val mealType = when (mealTypeStr.lowercase()) {
+        "breakfast" -> MealType.BREAKFAST
+        "brunch" -> MealType.BRUNCH
+        "lunch" -> MealType.LUNCH
+        "dinner" -> MealType.DINNER
+        "snack" -> MealType.SNACK
+        else -> null
+    }
+
     val items = json["items"]?.jsonArray?.map { itemEl ->
         val item = itemEl.jsonObject
         val name = item["name"]?.jsonPrimitive?.content ?: "Unknown"
@@ -281,6 +322,7 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         totalCalories = totalCalories,
         aiNote = aiNote,
         source = source,
+        mealType = mealType,
     )
 }
 
@@ -365,12 +407,15 @@ private fun ErrorState(message: String, onBack: () -> Unit) {
 private fun ResultContent(
     result: AnalysisResult,
     mode: CaptureMode,
+    showCorrection: Boolean = true,
     onDone: () -> Unit,
-    onLog: (AnalysisResult) -> Unit,
+    onLog: (AnalysisResult, MealCategory, MealType?) -> Unit,
     onCorrection: (String) -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
     var correctionText by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(result.source) }
+    var selectedMealType by remember { mutableStateOf(result.mealType) }
     LaunchedEffect(Unit) { visible = true }
 
     AnimatedVisibility(visible = visible, enter = fadeIn(tween(500))) {
@@ -467,7 +512,69 @@ private fun ResultContent(
                 }
             }
 
+            // ── Source selector ──
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Source", style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        data class CatOption(val cat: MealCategory, val label: String)
+                        listOf(
+                            CatOption(MealCategory.HOME, "Home"),
+                            CatOption(MealCategory.RESTAURANT, "Restaurant"),
+                            CatOption(MealCategory.FAST_FOOD, "Fast food"),
+                        ).forEach { (cat, label) ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = { selectedCategory = cat },
+                                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = Primary,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Meal type selector ──
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                shape = RoundedCornerShape(12.dp),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Meal", style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    @Suppress("ktlint")
+                    val mealTypes = listOf(
+                        MealType.BREAKFAST to "Breakfast",
+                        MealType.BRUNCH to "Brunch",
+                        MealType.LUNCH to "Lunch",
+                        MealType.DINNER to "Dinner",
+                        MealType.SNACK to "Snack",
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        mealTypes.forEach { (type, label) ->
+                            FilterChip(
+                                selected = selectedMealType == type,
+                                onClick = { selectedMealType = if (selectedMealType == type) null else type },
+                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Accent.copy(alpha = 0.15f),
+                                    selectedLabelColor = Accent,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
             // ── Correction input ──
+            if (showCorrection) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = CardSurface),
                 shape = RoundedCornerShape(12.dp),
@@ -534,6 +641,7 @@ private fun ResultContent(
                     }
                 }
             }
+            } // end if (showCorrection)
 
             // Action buttons
             Row(
@@ -542,7 +650,7 @@ private fun ResultContent(
             ) {
                 if (mode == CaptureMode.LogMeal) {
                     Button(
-                        onClick = { onLog(result) },
+                        onClick = { onLog(result, selectedCategory, selectedMealType) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     ) {

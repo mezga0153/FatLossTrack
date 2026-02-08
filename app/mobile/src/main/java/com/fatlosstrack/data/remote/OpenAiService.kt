@@ -173,6 +173,7 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in th
 {
   "description": "Brief description of what you see",
   "source": "home|restaurant|fast_food",
+  "meal_type": "breakfast|brunch|lunch|dinner|snack",
   "items": [
     {
       "name": "Item name",
@@ -187,6 +188,7 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in th
   "coach_note": "Brief coaching comment about this meal in context of a fat loss diet"
 }
 For "source", determine if the meal is: "home" (home-cooked), "restaurant" (dine-in/takeout from a restaurant), or "fast_food" (fast food chain). Look at plating, packaging, and food style to decide.
+For "meal_type", infer from the food and current time of day: "breakfast", "brunch", "lunch", "dinner", or "snack".
 Be specific with portions. Err on the side of slightly overestimating calories."""
 
 private const val MEAL_SUGGEST_PROMPT = """Look at the available ingredients in this photo(s) and suggest a meal.
@@ -220,6 +222,7 @@ If it IS a meal description, respond with ONLY this JSON (no markdown fences, no
   "day_offset": 0,
   "description": "Brief summary of the meal",
   "source": "home|restaurant|fast_food",
+  "meal_type": "breakfast|brunch|lunch|dinner|snack",
   "items": [
     {
       "name": "Item name",
@@ -239,6 +242,8 @@ Rules for day_offset:
 - "yesterday", "last night", "yesterday evening" → -1
 - "two days ago" → -2
 - and so on
+
+For "meal_type", infer from context: "this morning" or "for breakfast" → "breakfast", "for lunch" → "lunch", "for dinner" / "evening" → "dinner", etc. If unclear, infer from food type or default to "snack".
 
 If it is NOT a meal description (general question, greeting, etc.), respond with:
 {"is_meal": false}
