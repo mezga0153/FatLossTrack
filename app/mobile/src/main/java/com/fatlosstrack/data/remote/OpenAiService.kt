@@ -80,7 +80,10 @@ class OpenAiService @Inject constructor(
      */
     suspend fun parseTextMeal(userMessage: String): Result<String> {
         appLogger.ai("Text meal parse: ${userMessage.take(80)}")
-        return chat(userMessage, TEXT_MEAL_LOG_PROMPT)
+        val today = java.time.LocalDate.now()
+        val dayOfWeek = today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
+        val dateContext = "Today is $dayOfWeek, ${today}.\n\n"
+        return chat(userMessage, dateContext + TEXT_MEAL_LOG_PROMPT)
     }
 
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
@@ -253,6 +256,7 @@ Rules for day_offset:
 - "today", "this morning", "for lunch", "just now", or no time mention → 0
 - "yesterday", "last night", "yesterday evening" → -1
 - "two days ago" → -2
+- Named weekdays like "on Friday", "last Monday" → calculate the negative offset from today's date (provided above). Always pick the most recent past occurrence. For example if today is Sunday and user says "on Friday", day_offset = -2.
 - and so on
 
 For "meal_type", infer from context: "this morning" or "for breakfast" → "breakfast", "for lunch" → "lunch", "for dinner" / "evening" → "dinner", etc. If unclear, infer from food type or default to "snack".
