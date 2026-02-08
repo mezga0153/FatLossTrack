@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
@@ -76,6 +77,7 @@ fun AnalysisResultScreen(
     mealDao: MealDao,
     targetDate: java.time.LocalDate = java.time.LocalDate.now(),
     isTextMode: Boolean = false,
+    daySummaryGenerator: DaySummaryGenerator? = null,
     onDone: () -> Unit,
     onLogged: () -> Unit,
     onBack: () -> Unit,
@@ -255,6 +257,7 @@ fun AnalysisResultScreen(
                             )
                         )
                         AppLogger.instance?.meal("Logged via AI: ${analysisResult.description.take(50)} — ${analysisResult.totalCalories} kcal, cat=$overrideCategory, type=$overrideMealType, date=$effectiveDate")
+                        daySummaryGenerator?.generateForDate(effectiveDate)
                         CapturedPhotoStore.clear()
                         PendingTextMealStore.clear()
                         onLogged()

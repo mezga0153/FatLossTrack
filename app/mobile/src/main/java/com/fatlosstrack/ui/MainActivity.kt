@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
@@ -43,6 +44,9 @@ class MainActivity : ComponentActivity() {
     lateinit var healthConnectSyncService: HealthConnectSyncService
 
     @Inject
+    lateinit var daySummaryGenerator: DaySummaryGenerator
+
+    @Inject
     lateinit var appLogger: AppLogger
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,6 +76,7 @@ class MainActivity : ComponentActivity() {
                             dailyLogDao = dailyLogDao,
                             healthConnectManager = healthConnectManager,
                             healthConnectSyncService = healthConnectSyncService,
+                            daySummaryGenerator = daySummaryGenerator,
                             appLogger = appLogger,
                         )
                     }

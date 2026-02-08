@@ -56,6 +56,7 @@ data class DailyLog(
     val exercisesJson: String? = null,   // JSON array: [{"name":"Running","durationMin":30,"kcal":250}]
     val notes: String? = null,
     val offPlan: Boolean = false,
+    val daySummary: String? = null,
 )
 
 @Entity(tableName = "insights")

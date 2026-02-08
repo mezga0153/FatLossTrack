@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
@@ -61,6 +62,7 @@ fun FatLossTrackNavGraph(
     dailyLogDao: DailyLogDao,
     healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
+    daySummaryGenerator: DaySummaryGenerator? = null,
     appLogger: AppLogger? = null,
 ) {
     val navController = rememberNavController()
@@ -74,7 +76,10 @@ fun FatLossTrackNavGraph(
     // Auto-sync Health Connect on first composition
     val syncScope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        healthConnectSyncService?.syncRecentDays(7)
+        val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
+        if (changedDates.isNotEmpty()) {
+            daySummaryGenerator?.generateForDates(changedDates)
+        }
     }
 
     // Hide bottom bar + AI bar on camera/analysis/goal/log viewer screens
@@ -130,6 +135,7 @@ fun FatLossTrackNavGraph(
                         mealDao = mealDao,
                         dailyLogDao = dailyLogDao,
                         preferencesManager = preferencesManager,
+                        daySummaryGenerator = daySummaryGenerator,
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
                         },
@@ -143,7 +149,10 @@ fun FatLossTrackNavGraph(
                         healthConnectManager = healthConnectManager,
                         onSyncHealthConnect = {
                             syncScope.launch {
-                                healthConnectSyncService?.syncRecentDays(7)
+                                val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
+                                if (changedDates.isNotEmpty()) {
+                                    daySummaryGenerator?.generateForDates(changedDates)
+                                }
                             }
                         },
                         onViewLog = if (appLogger != null) {
@@ -200,6 +209,7 @@ fun FatLossTrackNavGraph(
                         openAiService = openAiService,
                         mealDao = mealDao,
                         isTextMode = true,
+                        daySummaryGenerator = daySummaryGenerator,
                         onDone = {
                             navController.popBackStack()
                         },
@@ -240,6 +250,7 @@ fun FatLossTrackNavGraph(
                         openAiService = openAiService,
                         mealDao = mealDao,
                         targetDate = targetDate,
+                        daySummaryGenerator = daySummaryGenerator,
                         onDone = {
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },
@@ -265,6 +276,7 @@ fun FatLossTrackNavGraph(
                     modifier = Modifier.align(Alignment.BottomCenter),
                     openAiService = openAiService,
                     mealDao = mealDao,
+                    daySummaryGenerator = daySummaryGenerator,
                     onCameraClick = { showCameraModeSheet = true },
                     onTextMealAnalyzed = { _ ->
                         navController.navigate("analysis/text")

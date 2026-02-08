@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
@@ -38,6 +39,7 @@ fun AiBar(
     modifier: Modifier = Modifier,
     openAiService: OpenAiService? = null,
     mealDao: MealDao? = null,
+    daySummaryGenerator: DaySummaryGenerator? = null,
     onSend: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
     onTextMealAnalyzed: ((LocalDate) -> Unit)? = null,
@@ -215,6 +217,7 @@ fun AiBar(
                                                     category = parsed.source,
                                                 )
                                             )
+                                            daySummaryGenerator?.generateForDate(targetDate)
                                             isLoading = false
                                             mealLogged = true
                                             aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +

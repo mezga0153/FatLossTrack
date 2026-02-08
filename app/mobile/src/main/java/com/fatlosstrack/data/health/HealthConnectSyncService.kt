@@ -28,33 +28,33 @@ class HealthConnectSyncService @Inject constructor(
 
     /**
      * Sync the last [days] days of data from Health Connect.
-     * Returns the number of days updated.
+     * Returns the list of dates that were updated.
      */
-    suspend fun syncRecentDays(days: Int = 7): Int {
+    suspend fun syncRecentDays(days: Int = 7): List<LocalDate> {
         if (!hcManager.isAvailable()) {
             appLogger.hc("Sync skipped — HC not available")
-            return 0
+            return emptyList()
         }
         if (!hcManager.hasAllPermissions()) {
             appLogger.hc("Sync skipped — missing permissions")
-            return 0
+            return emptyList()
         }
 
         val today = LocalDate.now()
         val from = today.minusDays(days.toLong() - 1)
-        var updated = 0
+        val updatedDates = mutableListOf<LocalDate>()
 
         appLogger.hc("Starting sync: $days days ($from → $today)")
         Log.d(TAG, "Syncing $days days from $from to $today")
 
         val summaries = hcManager.getSummaries(from, today)
         for (summary in summaries) {
-            if (mergeSummary(summary)) updated++
+            if (mergeSummary(summary)) updatedDates.add(summary.date)
         }
 
-        Log.d(TAG, "Sync complete: $updated days updated")
-        appLogger.hc("Sync complete: $updated/$days days had data")
-        return updated
+        Log.d(TAG, "Sync complete: ${updatedDates.size} days updated")
+        appLogger.hc("Sync complete: ${updatedDates.size}/$days days had data")
+        return updatedDates
     }
 
     /**

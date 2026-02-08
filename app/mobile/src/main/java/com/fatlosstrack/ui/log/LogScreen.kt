@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
@@ -73,6 +74,7 @@ fun LogScreen(
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
     preferencesManager: PreferencesManager,
+    daySummaryGenerator: DaySummaryGenerator? = null,
     onCameraForDate: (LocalDate) -> Unit = {},
 ) {
     val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
@@ -179,6 +181,7 @@ fun LogScreen(
                     it.sleepHours?.let { s -> parts += "sleep=${s}h" }
                     it.restingHr?.let { h -> parts += "hr=$h" }
                     AppLogger.instance?.user("DailyLog saved ${it.date}: ${parts.joinToString(", ")}")
+                    daySummaryGenerator?.generateForDate(it.date)
                     editingDate = null
                 } },
                 onDismiss = { editingDate = null },
@@ -194,11 +197,14 @@ fun LogScreen(
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
                     AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, date=${updated.date}")
+                    daySummaryGenerator?.generateForDate(updated.date)
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
-                    AppLogger.instance?.meal("Deleted: ${selectedMeal!!.description.take(40)} — ${selectedMeal!!.totalKcal} kcal, date=${selectedMeal!!.date}")
-                    mealDao.delete(selectedMeal!!)
+                    val meal = selectedMeal!!
+                    AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
+                    mealDao.delete(meal)
+                    daySummaryGenerator?.generateForDate(meal.date)
                     selectedMeal = null
                 } },
                 onDismiss = { selectedMeal = null },
@@ -214,6 +220,7 @@ fun LogScreen(
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
                     AppLogger.instance?.meal("Manual add: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
+                    daySummaryGenerator?.generateForDate(newMeal.date)
                     addMealForDate = null
                 } },
                 onDismiss = { addMealForDate = null },
@@ -381,6 +388,32 @@ private fun DayCard(
             if (!log?.notes.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Text(log!!.notes!!, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            }
+
+            // AI day summary
+            if (!log?.daySummary.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Primary.copy(alpha = 0.08f))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = "AI summary",
+                        tint = Primary,
+                        modifier = Modifier.size(14.dp).padding(top = 2.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        log!!.daySummary!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurface,
+                    )
+                }
             }
         }
     }
