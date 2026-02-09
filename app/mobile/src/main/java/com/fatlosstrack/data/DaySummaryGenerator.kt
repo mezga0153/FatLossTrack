@@ -75,6 +75,12 @@ class DaySummaryGenerator @Inject constructor(
         val parts = mutableListOf<String>()
         parts += "Date: $date"
 
+        // If summarizing today, include current time so AI knows the day is still in progress
+        if (date == LocalDate.now()) {
+            val now = java.time.LocalTime.now()
+            parts += "Current time: %02d:%02d (day still in progress — don't flag missing meals/data that haven't happened yet)".format(now.hour, now.minute)
+        }
+
         if (goal != null) {
             parts += "Goal: ${goal.targetKg} kg by ${goal.deadline} at ${goal.rateKgPerWeek} kg/week"
             goal.dailyDeficitKcal?.let { parts += "Target daily deficit: $it kcal" }

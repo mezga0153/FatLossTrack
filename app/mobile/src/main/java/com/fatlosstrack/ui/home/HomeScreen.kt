@@ -67,7 +67,8 @@ fun HomeScreen(
     val daysSinceStart = startDate?.let { ChronoUnit.DAYS.between(it, today).toInt().coerceAtLeast(1) }
     val lookbackDays = maxOf(7, daysSinceStart ?: 7)
 
-    val since = today.minusDays((lookbackDays - 1).toLong())
+    // Fetch lookbackDays of past data + today (for today's weight & DayCard)
+    val since = today.minusDays(lookbackDays.toLong())
     val logs by dailyLogDao.getLogsSince(since).collectAsState(initial = emptyList())
     val meals by mealDao.getMealsSince(since).collectAsState(initial = emptyList())
     val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
@@ -83,7 +84,7 @@ fun HomeScreen(
     var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
     var addMealForDate by remember { mutableStateOf<LocalDate?>(null) }
 
-    // Weight data for chart
+    // Weight data for chart — include today's weight
     val weightData = remember(logs, weightEntries) {
         val map = mutableMapOf<LocalDate, Double>()
         weightEntries.forEach { map[it.date] = it.valueKg }
@@ -94,15 +95,19 @@ fun HomeScreen(
     val weights = weightData.map { it.second }
     val latestWeight = weightData.lastOrNull()?.second
 
-    // Stats
-    val totalMeals = meals.size
-    val totalKcal = meals.sumOf { it.totalKcal }
-    val avgKcalPerDay = if (meals.isNotEmpty()) totalKcal / lookbackDays else null
-    val avgSteps = logs.mapNotNull { it.steps }.let { if (it.isNotEmpty()) it.average().toInt() else null }
-    val avgSleep = logs.mapNotNull { it.sleepHours }.let { if (it.isNotEmpty()) it.average() else null }
-    val daysLogged = logs.count { log ->
+    // Stats — exclude today (shown separately as DayCard)
+    val pastLogs = logs.filter { it.date != today }
+    val pastMeals = meals.filter { it.date != today }
+    val totalMeals = pastMeals.size
+    val totalKcal = pastMeals.sumOf { it.totalKcal }
+    // Divide kcal by days that actually have meals logged, not total period
+    val daysWithMeals = pastMeals.map { it.date }.distinct().size
+    val avgKcalPerDay = if (daysWithMeals > 0) totalKcal / daysWithMeals else null
+    val avgSteps = pastLogs.mapNotNull { it.steps }.let { if (it.isNotEmpty()) it.average().toInt() else null }
+    val avgSleep = pastLogs.mapNotNull { it.sleepHours }.let { if (it.isNotEmpty()) it.average() else null }
+    val daysLogged = pastLogs.count { log ->
         log.weightKg != null || log.steps != null || log.sleepHours != null ||
-                meals.any { it.date == log.date }
+                pastMeals.any { it.date == log.date }
     }
 
     // Goal progress
@@ -118,10 +123,10 @@ fun HomeScreen(
 
     // AI period summary — cached by data fingerprint
     // Build a fingerprint from the actual data so we only regenerate when content changes
-    val dataFingerprint = remember(logs, meals) {
-        val logSig = logs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) + (it.daySummary?.hashCode() ?: 0) }
-        val mealSig = meals.sumOf { it.totalKcal + it.description.hashCode() }
-        "${logs.size}-${meals.size}-$logSig-$mealSig"
+    val dataFingerprint = remember(pastLogs, pastMeals) {
+        val logSig = pastLogs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) + (it.daySummary?.hashCode() ?: 0) }
+        val mealSig = pastMeals.sumOf { it.totalKcal + it.description.hashCode() }
+        "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig"
     }
 
     var periodSummary by remember { mutableStateOf(periodSummaryCache.second) }
@@ -154,7 +159,7 @@ fun HomeScreen(
                     if (latestWeight != null) appendLine("Current weight: %.1f kg".format(latestWeight))
                     if (weeklyRate != null) appendLine("Target rate: %.1f kg/week".format(weeklyRate))
                     appendLine()
-                    appendLine("Period stats ($lookbackDays days):")
+                    appendLine("Period stats (last $lookbackDays days, excluding today):")
                     appendLine("- Meals logged: $totalMeals")
                     if (avgKcalPerDay != null) appendLine("- Avg kcal/day: $avgKcalPerDay")
                     if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
