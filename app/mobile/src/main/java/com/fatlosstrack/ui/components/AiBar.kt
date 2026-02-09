@@ -49,6 +49,7 @@ fun AiBar(
     onSend: (String) -> Unit = {},
     onCameraClick: () -> Unit = {},
     onTextMealAnalyzed: ((LocalDate) -> Unit)? = null,
+    onChatOpen: ((String) -> Unit)? = null,
 ) {
     var text by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -240,13 +241,17 @@ fun AiBar(
                                             aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +
                                                 if (parsed.coachNote.isNotBlank()) "\n\n${parsed.coachNote}" else ""
                                         } else if (parsed == null) {
-                                            // Not a meal — fall back to regular chat
-                                            val chatResult = openAiService.chat(query)
+                                            // Not a meal — open chat screen
                                             isLoading = false
-                                            chatResult.fold(
-                                                onSuccess = { aiResponse = it },
-                                                onFailure = { aiError = it.message ?: errorFallback },
-                                            )
+                                            if (onChatOpen != null) {
+                                                onChatOpen(query)
+                                            } else {
+                                                val chatResult = openAiService.chat(query)
+                                                chatResult.fold(
+                                                    onSuccess = { aiResponse = it },
+                                                    onFailure = { aiError = it.message ?: errorFallback },
+                                                )
+                                            }
                                         } else {
                                             // Parsed a meal but no mealDao — show it as text
                                             isLoading = false
@@ -254,13 +259,17 @@ fun AiBar(
                                         }
                                     },
                                     onFailure = {
-                                        // parseTextMeal failed — fall back to regular chat
-                                        val chatResult = openAiService.chat(query)
+                                        // parseTextMeal failed — open chat screen
                                         isLoading = false
-                                        chatResult.fold(
-                                            onSuccess = { aiResponse = it },
-                                            onFailure = { e -> aiError = e.message ?: errorFallback },
-                                        )
+                                        if (onChatOpen != null) {
+                                            onChatOpen(query)
+                                        } else {
+                                            val chatResult = openAiService.chat(query)
+                                            chatResult.fold(
+                                                onSuccess = { aiResponse = it },
+                                                onFailure = { e -> aiError = e.message ?: errorFallback },
+                                            )
+                                        }
                                     },
                                 )
                             }

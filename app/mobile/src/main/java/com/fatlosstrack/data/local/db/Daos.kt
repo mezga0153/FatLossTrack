@@ -75,3 +75,18 @@ interface InsightDao {
     @Query("SELECT * FROM insights ORDER BY date DESC, createdAt DESC")
     fun getAllInsights(): Flow<List<Insight>>
 }
+
+@Dao
+interface ChatMessageDao {
+    @Insert
+    suspend fun insert(message: ChatMessage): Long
+
+    @Query("SELECT * FROM chat_messages ORDER BY createdAt ASC")
+    fun getAllMessages(): Flow<List<ChatMessage>>
+
+    @Query("SELECT * FROM chat_messages ORDER BY createdAt DESC LIMIT :count")
+    suspend fun getRecentMessages(count: Int): List<ChatMessage>
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearAll()
+}

@@ -1,11 +1,14 @@
 package com.fatlosstrack.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +32,7 @@ import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
+import com.fatlosstrack.data.local.db.ChatMessageDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
@@ -36,6 +40,7 @@ import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.CameraModeSheet
 import com.fatlosstrack.ui.camera.CaptureMode
 import com.fatlosstrack.ui.camera.MealCaptureScreen
+import com.fatlosstrack.ui.chat.ChatScreen
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
@@ -52,6 +57,7 @@ enum class Tab(val route: String, @StringRes val labelRes: Int, val icon: ImageV
     Home("home", R.string.tab_home, Icons.Default.Home),
     Trends("trends", R.string.tab_trends, Icons.Default.Equalizer),
     Log("log", R.string.tab_log, Icons.AutoMirrored.Filled.List),
+    Chat("chat", R.string.tab_chat, Icons.Default.AutoAwesome),
     Settings("settings", R.string.tab_settings, Icons.Default.Settings),
 }
 
@@ -65,6 +71,7 @@ fun FatLossTrackNavGraph(
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
     weightDao: WeightDao,
+    chatMessageDao: ChatMessageDao,
     healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
     daySummaryGenerator: DaySummaryGenerator? = null,
@@ -95,8 +102,12 @@ fun FatLossTrackNavGraph(
             currentRoute == "set_goal" ||
             currentRoute == "log_viewer"
 
+    // Hide AiBar on chat tab too (it has its own input)
+    val hideAiBar = hideChrome || currentRoute == Tab.Chat.route
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (!hideChrome) {
                 NavigationBar(
@@ -115,8 +126,19 @@ fun FatLossTrackNavGraph(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
-                            label = { Text(stringResource(tab.labelRes)) },
+                            icon = {
+                                Icon(
+                                    tab.icon,
+                                    contentDescription = stringResource(tab.labelRes),
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            },
+                            label = {
+                                Text(
+                                    stringResource(tab.labelRes),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -130,7 +152,7 @@ fun FatLossTrackNavGraph(
             }
         },
     ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
+        Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
             NavHost(
                 navController = navController,
                 startDestination = Tab.Home.route,
@@ -296,10 +318,22 @@ fun FatLossTrackNavGraph(
                         onBack = { navController.popBackStack() },
                     )
                 }
+
+                // Chat tab
+                composable(Tab.Chat.route) {
+                    ChatScreen(
+                        openAiService = openAiService,
+                        chatMessageDao = chatMessageDao,
+                        dailyLogDao = dailyLogDao,
+                        mealDao = mealDao,
+                        weightDao = weightDao,
+                        preferencesManager = preferencesManager,
+                    )
+                }
             }
 
-            // Floating AI bar (hidden on camera screens)
-            if (!hideChrome) {
+            // Floating AI bar (hidden on camera/chat screens)
+            if (!hideAiBar) {
                 AiBar(
                     modifier = Modifier.align(Alignment.BottomCenter),
                     openAiService = openAiService,
@@ -308,6 +342,16 @@ fun FatLossTrackNavGraph(
                     onCameraClick = { showCameraModeSheet = true },
                     onTextMealAnalyzed = { _ ->
                         navController.navigate("analysis/text")
+                    },
+                    onChatOpen = { message ->
+                        com.fatlosstrack.data.local.PendingChatStore.store(message)
+                        navController.navigate(Tab.Chat.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = false
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
                     },
                 )
             }

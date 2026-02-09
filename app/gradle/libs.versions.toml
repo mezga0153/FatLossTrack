@@ -1,10 +1,10 @@
 [versions]
 agp = "8.9.1"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
-compose-bom = "2024.12.01"
-hilt = "2.54"
-room = "2.6.1"
+kotlin = "2.3.0"
+ksp = "2.3.5"
+compose-bom = "2026.01.01"
+hilt = "2.57.2"
+room = "2.8.4"
 ktor = "3.0.3"
 work = "2.10.0"
 camerax = "1.4.1"
@@ -18,6 +18,7 @@ activity-compose = "1.9.3"
 hilt-navigation-compose = "1.2.0"
 datastore = "1.1.1"
 coil = "2.7.0"
+markdown-renderer = "0.39.2"
 credentials = "1.5.0-rc01"
 firebase-bom = "33.7.0"
 google-id = "1.1.1"
@@ -85,6 +86,9 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 
 # Coil (image loading)
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Markdown renderer
+markdown-renderer = { group = "com.mikepenz", name = "multiplatform-markdown-renderer-m3", version.ref = "markdown-renderer" }
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }

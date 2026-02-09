@@ -82,6 +82,62 @@ class OpenAiService @Inject constructor(
     }
 
     /**
+     * Chat completion with full message history for conversational context.
+     * [history] is a list of role→content pairs (oldest first).
+     * [contextBlock] is prepended to the system prompt with user's current data.
+     */
+    suspend fun chatWithHistory(
+        history: List<Pair<String, String>>,
+        contextBlock: String,
+    ): Result<String> = runCatching {
+        appLogger.ai("Chat with history (${history.size} messages)")
+        val apiKey = prefs.openAiApiKey.first()
+        require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
+        val model = prefs.openAiModel.first()
+        val langSuffix = languageSuffix()
+
+        val systemContent = SYSTEM_PROMPT + "\n\n" + contextBlock + langSuffix
+
+        val body = buildJsonObject {
+            put("model", model)
+            putJsonArray("messages") {
+                addJsonObject {
+                    put("role", "system")
+                    put("content", systemContent)
+                }
+                // Include last N messages of history to stay within token limits
+                val recentHistory = if (history.size > 30) history.takeLast(30) else history
+                recentHistory.forEach { (role, content) ->
+                    addJsonObject {
+                        put("role", role)
+                        put("content", content)
+                    }
+                }
+            }
+            put("max_completion_tokens", 1024)
+            put("temperature", 0.7)
+        }
+
+        val response = client.post(API_URL) {
+            contentType(ContentType.Application.Json)
+            bearerAuth(apiKey)
+            setBody(Json.encodeToString(body))
+        }
+
+        if (response.status != HttpStatusCode.OK) {
+            val errorBody = response.bodyAsText()
+            appLogger.error("AI", "Chat API error ${response.status}: ${errorBody.take(200)}")
+            error("OpenAI API error ${response.status}: $errorBody")
+        }
+
+        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
+            .jsonObject["content"]!!.jsonPrimitive.content
+        appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
+        content
+    }
+
+    /**
      * Parse a natural-language meal description into structured JSON.
      * Returns the raw JSON string from AI with day_offset, items, etc.
      */
@@ -190,7 +246,7 @@ private const val SYSTEM_PROMPT = """You are FatLoss Track's AI coach — a no-B
 You have access to the user's weight trend data, meals, and goals.
 Be concise, data-driven, and actionable. Use metric units (kg, kcal).
 When analyzing meals, provide specific calorie and macro estimates.
-Format responses in a mobile-friendly way — short paragraphs, bullet points when useful."""
+Format responses using markdown — use **bold** for emphasis, bullet lists, numbered lists, tables when comparing data, and headers for sections. Keep it mobile-friendly."""
 
 private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in this exact JSON format:
 {

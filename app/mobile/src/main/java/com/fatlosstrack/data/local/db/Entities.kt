@@ -71,3 +71,11 @@ data class Insight(
 )
 
 enum class InsightType { PATTERN, TRADEOFF }
+
+@Entity(tableName = "chat_messages")
+data class ChatMessage(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val role: String,       // "user" or "assistant"
+    val content: String,
+    val createdAt: Instant = Instant.now(),
+)

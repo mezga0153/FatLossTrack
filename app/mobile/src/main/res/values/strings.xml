@@ -5,6 +5,7 @@
     <string name="tab_home">Home</string>
     <string name="tab_trends">Trends</string>
     <string name="tab_log">Log</string>
+    <string name="tab_chat">Chat</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Common / shared -->
@@ -305,4 +306,18 @@
     <string name="ai_coach">Coach</string>
     <string name="ai_bar_placeholder">Ask anything…</string>
     <string name="error_something_went_wrong">Something went wrong</string>
+
+    <!-- ChatScreen -->
+    <string name="chat_title">AI Coach</string>
+    <string name="chat_empty_title">Ask me anything</string>
+    <string name="chat_empty_subtitle">I have context about your last 7 days of data</string>
+    <string name="chat_input_placeholder">Type a message…</string>
+    <string name="chat_clear_title">Clear chat</string>
+    <string name="chat_clear_confirm">Delete all chat history?</string>
+    <string name="chat_clear_yes">Clear</string>
+    <string name="chat_clear_no">Cancel</string>
+    <string name="chat_pill_log_meal">Log a meal</string>
+    <string name="chat_pill_suggest_meal">Suggest a meal</string>
+    <string name="chat_pill_weekly_review">Weekly review</string>
+    <string name="chat_pill_am_i_on_track">Am I on track?</string>
 </resources>
