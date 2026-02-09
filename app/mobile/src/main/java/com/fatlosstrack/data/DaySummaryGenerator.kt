@@ -26,9 +26,37 @@ class DaySummaryGenerator @Inject constructor(
     private val goalDao: GoalDao,
     private val appLogger: AppLogger,
 ) {
+    /** Maps date → hash of the data that was used to generate its current summary. */
+    private val dataHashCache = mutableMapOf<LocalDate, String>()
+
+    /**
+     * Build a hash of the actual input data (no timestamps, no AI output).
+     * If this hash matches what we last generated from, we can skip the AI call.
+     */
+    private fun computeDataHash(log: DailyLog?, meals: List<MealEntry>, goal: Goal?): String {
+        val parts = mutableListOf<String>()
+        if (log != null) {
+            parts += "w=${log.weightKg}"
+            parts += "s=${log.steps}"
+            parts += "sl=${log.sleepHours}"
+            parts += "hr=${log.restingHr}"
+            parts += "ex=${log.exercisesJson}"
+            parts += "off=${log.offPlan}"
+            parts += "notes=${log.notes}"
+        }
+        meals.sortedBy { it.id }.forEach { m ->
+            parts += "m:${m.description}|${m.totalKcal}|${m.totalProteinG}|${m.category}|${m.mealType}|${m.itemsJson}"
+        }
+        if (goal != null) {
+            parts += "g:${goal.targetKg}|${goal.rateKgPerWeek}|${goal.dailyDeficitKcal}"
+        }
+        return parts.joinToString(";").hashCode().toString(16)
+    }
+
     /**
      * Generate and persist a day summary for [date].
      * Silently no-ops if no API key is configured or if the day has no data.
+     * Skips AI call if input data hash matches the last generation.
      */
     suspend fun generateForDate(date: LocalDate, reason: String = "unknown") {
         appLogger.hc("DaySummary requested for $date — reason: $reason")
@@ -48,7 +76,15 @@ class DaySummaryGenerator @Inject constructor(
                 return
             }
 
-            appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null})")
+            // Check data hash — skip if input data hasn't changed since last generation
+            val dataHash = computeDataHash(log, meals, goal)
+            val cachedHash = dataHashCache[date]
+            if (cachedHash == dataHash && log?.daySummary != null && log.daySummary != "⏳") {
+                appLogger.hc("DaySummary skipped for $date — data unchanged (hash=$dataHash)")
+                return
+            }
+
+            appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, hash=$dataHash, prevHash=$cachedHash)")
             val prompt = buildPrompt(date, log, meals, goal)
             val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT)
 
@@ -57,7 +93,8 @@ class DaySummaryGenerator @Inject constructor(
                 if (trimmed.isNotBlank()) {
                     val existing = log ?: DailyLog(date = date)
                     dailyLogDao.upsert(existing.copy(daySummary = trimmed))
-                    appLogger.hc("DaySummary generated for $date: ${trimmed.take(60)}…")
+                    dataHashCache[date] = dataHash
+                    appLogger.hc("DaySummary generated for $date: ${trimmed.take(60)}… (hash=$dataHash)")
                 }
             }.onFailure { e ->
                 appLogger.error("Summary", "Failed for $date", e)

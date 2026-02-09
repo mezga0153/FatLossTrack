@@ -97,6 +97,20 @@ class HealthConnectSyncService @Inject constructor(
                     exercisesJson = summary.exercisesJson,
                 )
             }
+
+            // Check if data actually changed (compare relevant fields, ignore daySummary/notes/offPlan)
+            val actuallyChanged = existing == null ||
+                    existing.weightKg != merged.weightKg ||
+                    existing.steps != merged.steps ||
+                    existing.sleepHours != merged.sleepHours ||
+                    existing.restingHr != merged.restingHr ||
+                    existing.exercisesJson != merged.exercisesJson
+
+            if (!actuallyChanged) {
+                appLogger.hc("${summary.date}: HC data unchanged, skipping")
+                return false
+            }
+
             dailyLogDao.upsert(merged)
 
             val parts = mutableListOf<String>()

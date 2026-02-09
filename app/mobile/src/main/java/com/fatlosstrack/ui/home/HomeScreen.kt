@@ -127,8 +127,9 @@ fun HomeScreen(
 
     // AI period summary — cached by data fingerprint
     // Build a fingerprint from the actual data so we only regenerate when content changes
+    // NOTE: deliberately excludes daySummary to avoid feedback loop (summary changes → fingerprint changes → new summary)
     val dataFingerprint = remember(pastLogs, pastMeals) {
-        val logSig = pastLogs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) + (it.daySummary?.hashCode() ?: 0) }
+        val logSig = pastLogs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) }
         val mealSig = pastMeals.sumOf { it.totalKcal + it.description.hashCode() }
         "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig"
     }
