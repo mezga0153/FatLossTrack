@@ -233,7 +233,7 @@ fun AiBar(
                                                 )
                                             )
                                             CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                                                daySummaryGenerator?.generateForDate(targetDate)
+                                                daySummaryGenerator?.generateForDate(targetDate, "AiBar:textMealLogged")
                                             }
                                             isLoading = false
                                             mealLogged = true

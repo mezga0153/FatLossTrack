@@ -139,18 +139,27 @@ fun HomeScreen(
 
     LaunchedEffect(dataFingerprint) {
         // If fingerprint hasn't changed and we have a cached summary, skip
-        if (dataFingerprint == lastFingerprint && periodSummary != null) return@LaunchedEffect
+        if (dataFingerprint == lastFingerprint && periodSummary != null) {
+            AppLogger.instance?.hc("PeriodSummary: fingerprint unchanged ($dataFingerprint), skipping")
+            return@LaunchedEffect
+        }
         // If the module-level cache matches, use it without calling AI
         if (dataFingerprint == periodSummaryCache.first && periodSummaryCache.second != null) {
+            AppLogger.instance?.hc("PeriodSummary: using module-level cache (fingerprint=$dataFingerprint)")
             periodSummary = periodSummaryCache.second
             lastFingerprint = dataFingerprint
             return@LaunchedEffect
         }
-        if (openAiService == null || logs.isEmpty()) return@LaunchedEffect
+        if (openAiService == null || logs.isEmpty()) {
+            AppLogger.instance?.hc("PeriodSummary: skipped (openAiService=${openAiService != null}, logs=${logs.size})")
+            return@LaunchedEffect
+        }
+        AppLogger.instance?.hc("PeriodSummary: fingerprint changed (${lastFingerprint} → $dataFingerprint), calling AI")
         periodSummaryLoading = true
         withContext(Dispatchers.IO) {
             try {
                 if (!openAiService.hasApiKey()) {
+                    AppLogger.instance?.hc("PeriodSummary: skipped — no API key")
                     periodSummaryLoading = false
                     return@withContext
                 }
@@ -189,6 +198,9 @@ Rules:
                     periodSummary = trimmed
                     lastFingerprint = dataFingerprint
                     periodSummaryCache = dataFingerprint to trimmed
+                    AppLogger.instance?.hc("PeriodSummary: AI returned ${trimmed.take(60)}…")
+                }.onFailure { e ->
+                    AppLogger.instance?.error("PeriodSummary", "AI call failed", e)
                 }
             } catch (_: Exception) { }
             periodSummaryLoading = false
@@ -353,7 +365,7 @@ Rules:
                 existingLog = logsByDate[editingDate!!],
                 onSave = { scope.launch {
                     dailyLogDao.upsert(it)
-                    launchSummary(it.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(it.date, dailyLogDao, daySummaryGenerator, "HomeScreen:dailyLogEdit")
                     editingDate = null
                 } },
                 onDismiss = { editingDate = null },
@@ -367,13 +379,13 @@ Rules:
                 meal = selectedMeal!!,
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
-                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealEdit")
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
                     val meal = selectedMeal!!
                     mealDao.delete(meal)
-                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealDelete")
                     selectedMeal = null
                 } },
                 onDismiss = { selectedMeal = null },
@@ -387,7 +399,7 @@ Rules:
                 date = addMealForDate!!,
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
-                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealAdd")
                     addMealForDate = null
                 } },
                 onDismiss = { addMealForDate = null },

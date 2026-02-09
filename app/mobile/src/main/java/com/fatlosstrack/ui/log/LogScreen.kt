@@ -190,7 +190,7 @@ fun LogScreen(
                     it.sleepHours?.let { s -> parts += "sleep=${s}h" }
                     it.restingHr?.let { h -> parts += "hr=$h" }
                     AppLogger.instance?.user("DailyLog saved ${it.date}: ${parts.joinToString(", ")}")
-                    launchSummary(it.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(it.date, dailyLogDao, daySummaryGenerator, "LogScreen:dailyLogEdit")
                     editingDate = null
                 } },
                 onDismiss = { editingDate = null },
@@ -206,14 +206,14 @@ fun LogScreen(
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
                     AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, date=${updated.date}")
-                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealEdit")
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
                     val meal = selectedMeal!!
                     AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
                     mealDao.delete(meal)
-                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealDelete")
                     selectedMeal = null
                 } },
                 onDismiss = { selectedMeal = null },
@@ -229,7 +229,7 @@ fun LogScreen(
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
                     AppLogger.instance?.meal("Manual add: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
-                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator)
+                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealAdd")
                     addMealForDate = null
                 } },
                 onDismiss = { addMealForDate = null },
@@ -1001,11 +1001,11 @@ internal val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
  * Writes a placeholder to the daySummary field immediately so the UI shows
  * a loading indicator, then generates the real summary in the background.
  */
-internal fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?) {
+internal fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?, reason: String = "unknown") {
     if (generator == null) return
     summaryScope.launch {
         val existing = dailyLogDao.getForDate(date) ?: DailyLog(date = date)
         dailyLogDao.upsert(existing.copy(daySummary = SUMMARY_PLACEHOLDER))
-        generator.generateForDate(date)
+        generator.generateForDate(date, reason)
     }
 }

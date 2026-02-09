@@ -265,7 +265,7 @@ fun AnalysisResultScreen(
                         AppLogger.instance?.meal("Logged via AI: ${analysisResult.description.take(50)} — ${analysisResult.totalCalories} kcal, cat=$overrideCategory, type=$overrideMealType, date=$effectiveDate")
                         // Fire-and-forget summary generation
                         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                            daySummaryGenerator?.generateForDate(effectiveDate)
+                            daySummaryGenerator?.generateForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
                         }
                         CapturedPhotoStore.clear()
                         PendingTextMealStore.clear()

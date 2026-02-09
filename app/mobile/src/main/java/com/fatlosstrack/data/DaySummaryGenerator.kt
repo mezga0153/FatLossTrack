@@ -30,17 +30,25 @@ class DaySummaryGenerator @Inject constructor(
      * Generate and persist a day summary for [date].
      * Silently no-ops if no API key is configured or if the day has no data.
      */
-    suspend fun generateForDate(date: LocalDate) {
+    suspend fun generateForDate(date: LocalDate, reason: String = "unknown") {
+        appLogger.hc("DaySummary requested for $date — reason: $reason")
         try {
-            if (!openAiService.hasApiKey()) return
+            if (!openAiService.hasApiKey()) {
+                appLogger.hc("DaySummary skipped for $date — no API key")
+                return
+            }
 
             val log = dailyLogDao.getForDate(date)
             val meals = mealDao.getMealsForDate(date).first()
             val goal = goalDao.getCurrentGoal().first()
 
             // Skip if there's nothing to summarize
-            if (log == null && meals.isEmpty()) return
+            if (log == null && meals.isEmpty()) {
+                appLogger.hc("DaySummary skipped for $date — no data")
+                return
+            }
 
+            appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null})")
             val prompt = buildPrompt(date, log, meals, goal)
             val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT)
 
@@ -49,7 +57,7 @@ class DaySummaryGenerator @Inject constructor(
                 if (trimmed.isNotBlank()) {
                     val existing = log ?: DailyLog(date = date)
                     dailyLogDao.upsert(existing.copy(daySummary = trimmed))
-                    appLogger.hc("$date summary generated: ${trimmed.take(60)}…")
+                    appLogger.hc("DaySummary generated for $date: ${trimmed.take(60)}…")
                 }
             }.onFailure { e ->
                 appLogger.error("Summary", "Failed for $date", e)
@@ -62,8 +70,9 @@ class DaySummaryGenerator @Inject constructor(
     /**
      * Generate summaries for multiple dates. Useful after HC sync.
      */
-    suspend fun generateForDates(dates: List<LocalDate>) {
-        dates.forEach { generateForDate(it) }
+    suspend fun generateForDates(dates: List<LocalDate>, reason: String = "unknown") {
+        appLogger.hc("DaySummary batch requested for ${dates.size} dates — reason: $reason")
+        dates.forEach { generateForDate(it, reason) }
     }
 
     private fun buildPrompt(
