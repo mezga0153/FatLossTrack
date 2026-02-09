@@ -307,7 +307,9 @@ internal fun DayCard(
 
             if (meals.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                meals.forEach { meal ->
+                // Sort: breakfast → brunch → lunch → dinner, snacks between, null-type at end
+                val sortedMeals = meals.sortedWith(compareByDescending(nullsFirst()) { it.mealType?.ordinal })
+                sortedMeals.forEach { meal ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
