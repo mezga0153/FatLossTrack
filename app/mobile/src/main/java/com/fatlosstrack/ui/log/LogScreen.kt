@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import kotlinx.coroutines.CoroutineScope
@@ -43,10 +45,11 @@ import java.util.Locale
 
 // ── Helpers ──
 
+@Composable
 internal fun categoryLabel(c: MealCategory) = when (c) {
-    MealCategory.HOME -> "Home"
-    MealCategory.RESTAURANT -> "Restaurant"
-    MealCategory.FAST_FOOD -> "Fast food"
+    MealCategory.HOME -> stringResource(R.string.category_home)
+    MealCategory.RESTAURANT -> stringResource(R.string.category_restaurant)
+    MealCategory.FAST_FOOD -> stringResource(R.string.category_fast_food)
 }
 
 internal fun categoryIcon(c: MealCategory) = when (c) {
@@ -61,12 +64,13 @@ internal fun categoryColor(c: MealCategory) = when (c) {
     MealCategory.FAST_FOOD -> Tertiary
 }
 
+@Composable
 internal fun mealTypeLabel(t: MealType) = when (t) {
-    MealType.BREAKFAST -> "Breakfast"
-    MealType.BRUNCH -> "Brunch"
-    MealType.LUNCH -> "Lunch"
-    MealType.DINNER -> "Dinner"
-    MealType.SNACK -> "Snack"
+    MealType.BREAKFAST -> stringResource(R.string.meal_type_breakfast)
+    MealType.BRUNCH -> stringResource(R.string.meal_type_brunch)
+    MealType.LUNCH -> stringResource(R.string.meal_type_lunch)
+    MealType.DINNER -> stringResource(R.string.meal_type_dinner)
+    MealType.SNACK -> stringResource(R.string.meal_type_snack)
 }
 
 // ── Main Screen ──
@@ -93,10 +97,10 @@ fun LogScreen(
             ) {
                 Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = OnSurfaceVariant.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
                 Spacer(Modifier.height(16.dp))
-                Text("Set your goal to start logging", style = MaterialTheme.typography.titleMedium, color = OnSurfaceVariant)
+                Text(stringResource(R.string.log_set_goal_title), style = MaterialTheme.typography.titleMedium, color = OnSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Go to Settings \u2192 Edit goal to set your start date, then daily logs will appear here.",
+                    stringResource(R.string.log_set_goal_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = OnSurfaceVariant.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
@@ -134,7 +138,7 @@ fun LogScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Daily Log", style = MaterialTheme.typography.headlineMedium, color = OnSurface)
+        Text(stringResource(R.string.log_screen_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface)
 
         // Today summary
         val todayLog = logsByDate[today]
@@ -150,11 +154,11 @@ fun LogScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                MiniStat("Weight", todayLog?.weightKg?.let { "%.1f".format(it) } ?: "\u2014", "kg")
-                MiniStat("Meals", "${todayMeals.size}", "$todayKcal kcal")
-                MiniStat("Protein", if (todayProtein > 0) "${todayProtein}g" else "\u2014", "")
-                MiniStat("Steps", todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
-                MiniStat("Sleep", todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", "hrs")
+                MiniStat(stringResource(R.string.stat_weight), todayLog?.weightKg?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_kg))
+                MiniStat(stringResource(R.string.stat_meals), "${todayMeals.size}", stringResource(R.string.format_kcal, todayKcal))
+                MiniStat(stringResource(R.string.stat_protein), if (todayProtein > 0) stringResource(R.string.format_protein_g, todayProtein) else "\u2014", "")
+                MiniStat(stringResource(R.string.stat_steps), todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
+                MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_hrs))
             }
         }
 
@@ -262,8 +266,8 @@ internal fun DayCard(
     onAddMeal: () -> Unit,
 ) {
     val dateLabel = when (date) {
-        LocalDate.now() -> "Today"
-        LocalDate.now().minusDays(1) -> "Yesterday"
+        LocalDate.now() -> stringResource(R.string.day_today)
+        LocalDate.now().minusDays(1) -> stringResource(R.string.day_yesterday)
         else -> date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()) +
                 ", " + date.format(DateTimeFormatter.ofPattern("d MMM"))
     }
@@ -278,7 +282,7 @@ internal fun DayCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(dateLabel, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
                 IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit), tint = Primary, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -286,18 +290,18 @@ internal fun DayCard(
 
             // Stats chips
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                StatChip(Icons.Default.Scale, log?.weightKg?.let { "%.1f kg".format(it) }, "Weight")
-                StatChip(Icons.AutoMirrored.Filled.DirectionsWalk, log?.steps?.let { "%,d".format(it) }, "Steps")
-                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { "%.1fh".format(it) }, "Sleep")
-                StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, "HR")
+                StatChip(Icons.Default.Scale, log?.weightKg?.let { "%.1f kg".format(it) }, stringResource(R.string.stat_weight))
+                StatChip(Icons.AutoMirrored.Filled.DirectionsWalk, log?.steps?.let { "%,d".format(it) }, stringResource(R.string.stat_steps))
+                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { "%.1fh".format(it) }, stringResource(R.string.stat_sleep))
+                StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, stringResource(R.string.stat_heart_rate))
             }
 
             // Meals section
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Meals", style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
+                Text(stringResource(R.string.section_meals), style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
                 IconButton(onClick = onAddMeal, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = "Add meal", tint = Primary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_meal), tint = Primary, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -356,14 +360,14 @@ internal fun DayCard(
                 val totalKcal = meals.sumOf { it.totalKcal }
                 val totalProtein = meals.sumOf { it.totalProteinG }
                 Text(
-                    "Total: $totalKcal kcal" + if (totalProtein > 0) " · ${totalProtein}g protein" else "",
+                    stringResource(R.string.meals_total_kcal, totalKcal) + if (totalProtein > 0) stringResource(R.string.meals_total_protein_suffix, totalProtein) else "",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = Primary,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             } else {
                 Text(
-                    "No meals logged",
+                    stringResource(R.string.no_meals_logged),
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariant.copy(alpha = 0.4f),
                 )
@@ -373,7 +377,7 @@ internal fun DayCard(
             val exercises = parseExercises(log?.exercisesJson)
             if (exercises.isNotEmpty()) {
                 Spacer(Modifier.height(10.dp))
-                Text("Exercises", style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
+                Text(stringResource(R.string.section_exercises), style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
                 exercises.forEach { ex ->
                     Row(
@@ -418,7 +422,7 @@ internal fun DayCard(
                 ) {
                     Icon(
                         Icons.Default.AutoAwesome,
-                        contentDescription = "AI summary",
+                        contentDescription = stringResource(R.string.cd_ai_summary),
                         tint = Primary,
                         modifier = Modifier.size(14.dp),
                     )
@@ -485,15 +489,15 @@ internal fun AddMealSheet(
     ) {
         // Header
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Add Meal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(stringResource(R.string.add_meal_title), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (onCamera != null) {
                     IconButton(onClick = onCamera) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Log with camera", tint = Accent)
+                        Icon(Icons.Default.CameraAlt, contentDescription = stringResource(R.string.cd_log_camera), tint = Accent)
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(12.dp).offset(x = (-4).dp, y = (-8).dp))
                     }
                 }
-                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
+                IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = OnSurfaceVariant) }
             }
         }
 
@@ -508,7 +512,7 @@ internal fun AddMealSheet(
             value = description,
             onValueChange = { description = it },
             modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
-            label = { Text("What did you eat?") },
+            label = { Text(stringResource(R.string.field_what_did_you_eat)) },
             placeholder = { Text("e.g. Grilled chicken with rice and salad") },
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
             colors = editFieldColors(),
@@ -518,7 +522,7 @@ internal fun AddMealSheet(
         // Calories
         EditField(
             icon = Icons.Default.LocalFireDepartment,
-            label = "Estimated calories (kcal)",
+            label = stringResource(R.string.field_estimated_calories),
             value = kcalStr,
             onValueChange = { kcalStr = it },
             keyboardType = KeyboardType.Number,
@@ -527,14 +531,14 @@ internal fun AddMealSheet(
         // Protein
         EditField(
             icon = Icons.Default.FitnessCenter,
-            label = "Protein (g)",
+            label = stringResource(R.string.field_protein_g),
             value = proteinStr,
             onValueChange = { proteinStr = it },
             keyboardType = KeyboardType.Number,
         )
 
         // Category selector
-        Text("Source", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+        Text(stringResource(R.string.section_source), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MealCategory.entries.forEach { cat ->
                 FilterChip(
@@ -552,7 +556,7 @@ internal fun AddMealSheet(
         }
 
         // Meal type selector
-        Text("Meal", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+        Text(stringResource(R.string.section_meal_type), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             MealType.entries.forEach { type ->
                 FilterChip(
@@ -572,7 +576,7 @@ internal fun AddMealSheet(
             value = note,
             onValueChange = { note = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Note (optional)") },
+            label = { Text(stringResource(R.string.field_note_optional)) },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
             colors = editFieldColors(),
@@ -600,7 +604,7 @@ internal fun AddMealSheet(
             shape = RoundedCornerShape(12.dp),
             enabled = description.isNotBlank(),
         ) {
-            Text("Save Meal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = Surface)
+            Text(stringResource(R.string.button_save_meal), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = Surface)
         }
 
         Spacer(Modifier.height(32.dp))
@@ -643,7 +647,7 @@ internal fun MealEditSheet(
                 style = MaterialTheme.typography.titleMedium,
                 color = OnSurface,
             )
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = OnSurfaceVariant) }
         }
 
         // Category badge
@@ -659,7 +663,7 @@ internal fun MealEditSheet(
                 value = description,
                 onValueChange = { description = it },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
-                label = { Text("Description") },
+                label = { Text(stringResource(R.string.field_description)) },
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
                 colors = editFieldColors(),
                 shape = RoundedCornerShape(10.dp),
@@ -667,7 +671,7 @@ internal fun MealEditSheet(
 
             EditField(
                 icon = Icons.Default.LocalFireDepartment,
-                label = "Calories (kcal)",
+                label = stringResource(R.string.field_calories_kcal),
                 value = kcalStr,
                 onValueChange = { kcalStr = it },
                 keyboardType = KeyboardType.Number,
@@ -675,13 +679,13 @@ internal fun MealEditSheet(
 
             EditField(
                 icon = Icons.Default.FitnessCenter,
-                label = "Protein (g)",
+                label = stringResource(R.string.field_protein_g),
                 value = proteinStr,
                 onValueChange = { proteinStr = it },
                 keyboardType = KeyboardType.Number,
             )
 
-            Text("Source", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(stringResource(R.string.section_source), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MealCategory.entries.forEach { cat ->
                     FilterChip(
@@ -699,7 +703,7 @@ internal fun MealEditSheet(
             }
 
             // Meal type selector
-            Text("Meal", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Text(stringResource(R.string.section_meal_type), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 MealType.entries.forEach { type ->
                     FilterChip(
@@ -718,7 +722,7 @@ internal fun MealEditSheet(
                 value = note,
                 onValueChange = { note = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Note") },
+                label = { Text(stringResource(R.string.field_note)) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
                 colors = editFieldColors(),
@@ -729,7 +733,7 @@ internal fun MealEditSheet(
                 OutlinedButton(
                     onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); proteinStr = meal.totalProteinG.toString(); selectedCategory = meal.category; selectedMealType = meal.mealType; note = meal.note ?: "" },
                     modifier = Modifier.weight(1f),
-                ) { Text("Cancel") }
+                ) { Text(stringResource(R.string.button_cancel)) }
 
                 Button(
                     onClick = {
@@ -744,7 +748,7 @@ internal fun MealEditSheet(
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                ) { Text("Save", color = Surface) }
+                ) { Text(stringResource(R.string.button_save), color = Surface) }
             }
         } else {
             // ── View mode ──
@@ -773,7 +777,7 @@ internal fun MealEditSheet(
                 shape = RoundedCornerShape(8.dp),
             ) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Total", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = OnSurface)
+                    Text(stringResource(R.string.label_total), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = OnSurface)
                     Column(horizontalAlignment = Alignment.End) {
                         Text("${meal.totalKcal} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Primary)
                         if (meal.totalProteinG > 0) {
@@ -787,7 +791,7 @@ internal fun MealEditSheet(
             if (!meal.coachNote.isNullOrBlank()) {
                 Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(8.dp)) {
                     Column(Modifier.padding(12.dp)) {
-                        Text("Coach said", style = MaterialTheme.typography.labelLarge, color = Accent)
+                        Text(stringResource(R.string.label_coach_said), style = MaterialTheme.typography.labelLarge, color = Accent)
                         Spacer(Modifier.height(4.dp))
                         Text(meal.coachNote, style = MaterialTheme.typography.bodyMedium, color = OnSurface)
                     }
@@ -796,7 +800,7 @@ internal fun MealEditSheet(
 
             // User note
             if (!meal.note.isNullOrBlank()) {
-                Text("Note: ${meal.note}", style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+                Text(stringResource(R.string.label_note_prefix) + meal.note, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
             }
 
             // Action buttons
@@ -808,7 +812,7 @@ internal fun MealEditSheet(
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Edit")
+                    Text(stringResource(R.string.button_edit))
                 }
                 OutlinedButton(
                     onClick = onDelete,
@@ -817,7 +821,7 @@ internal fun MealEditSheet(
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Delete")
+                    Text(stringResource(R.string.button_delete))
                 }
             }
         }
@@ -857,15 +861,15 @@ internal fun DailyLogEditSheet(
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(date.format(dateFmt), style = MaterialTheme.typography.titleMedium, color = OnSurface)
-            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = OnSurfaceVariant) }
+            IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = OnSurfaceVariant) }
         }
 
-        EditField(icon = Icons.Default.Scale, label = "Weight (kg)", value = weightStr, onValueChange = { weightStr = it }, keyboardType = KeyboardType.Decimal)
-        EditField(icon = Icons.AutoMirrored.Filled.DirectionsWalk, label = "Steps", value = stepsStr, onValueChange = { stepsStr = it }, keyboardType = KeyboardType.Number)
-        EditField(icon = Icons.Default.Bedtime, label = "Sleep (hours)", value = sleepStr, onValueChange = { sleepStr = it }, keyboardType = KeyboardType.Decimal)
-        EditField(icon = Icons.Default.FavoriteBorder, label = "Resting heart rate (bpm)", value = hrStr, onValueChange = { hrStr = it }, keyboardType = KeyboardType.Number)
+        EditField(icon = Icons.Default.Scale, label = stringResource(R.string.field_weight_kg), value = weightStr, onValueChange = { weightStr = it }, keyboardType = KeyboardType.Decimal)
+        EditField(icon = Icons.AutoMirrored.Filled.DirectionsWalk, label = stringResource(R.string.field_steps), value = stepsStr, onValueChange = { stepsStr = it }, keyboardType = KeyboardType.Number)
+        EditField(icon = Icons.Default.Bedtime, label = stringResource(R.string.field_sleep_hours), value = sleepStr, onValueChange = { sleepStr = it }, keyboardType = KeyboardType.Decimal)
+        EditField(icon = Icons.Default.FavoriteBorder, label = stringResource(R.string.field_resting_hr), value = hrStr, onValueChange = { hrStr = it }, keyboardType = KeyboardType.Number)
 
-        Text("Exercises", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+        Text(stringResource(R.string.section_exercises), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
 
         exercises.forEachIndexed { idx, ex ->
             Row(
@@ -884,15 +888,15 @@ internal fun DailyLogEditSheet(
                     )
                 }
                 IconButton(onClick = { exercises.removeAt(idx) }, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Tertiary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_remove), tint = Tertiary, modifier = Modifier.size(16.dp))
                 }
             }
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-            OutlinedTextField(value = newExName, onValueChange = { newExName = it }, modifier = Modifier.weight(1f), label = { Text("Exercise") }, singleLine = true, textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
-            OutlinedTextField(value = newExDuration, onValueChange = { newExDuration = it }, modifier = Modifier.width(60.dp), label = { Text("Min") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
-            OutlinedTextField(value = newExKcal, onValueChange = { newExKcal = it }, modifier = Modifier.width(70.dp), label = { Text("Kcal") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
+            OutlinedTextField(value = newExName, onValueChange = { newExName = it }, modifier = Modifier.weight(1f), label = { Text(stringResource(R.string.field_exercise_name)) }, singleLine = true, textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
+            OutlinedTextField(value = newExDuration, onValueChange = { newExDuration = it }, modifier = Modifier.width(60.dp), label = { Text(stringResource(R.string.field_exercise_min)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
+            OutlinedTextField(value = newExKcal, onValueChange = { newExKcal = it }, modifier = Modifier.width(70.dp), label = { Text(stringResource(R.string.field_exercise_kcal)) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), textStyle = MaterialTheme.typography.bodySmall.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(8.dp))
             FilledIconButton(
                 onClick = {
                     if (newExName.isNotBlank()) {
@@ -902,13 +906,13 @@ internal fun DailyLogEditSheet(
                 },
                 modifier = Modifier.size(40.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(containerColor = Primary),
-            ) { Icon(Icons.Default.Add, contentDescription = "Add", tint = Surface, modifier = Modifier.size(18.dp)) }
+            ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), tint = Surface, modifier = Modifier.size(18.dp)) }
         }
 
         OutlinedTextField(
             value = notes, onValueChange = { notes = it },
             modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp),
-            label = { Text("Notes") }, placeholder = { Text("How was your day? Any observations\u2026") },
+            label = { Text(stringResource(R.string.field_notes)) }, placeholder = { Text(stringResource(R.string.placeholder_notes)) },
             textStyle = MaterialTheme.typography.bodyMedium.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(10.dp),
         )
 
@@ -932,7 +936,7 @@ internal fun DailyLogEditSheet(
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
             shape = RoundedCornerShape(12.dp),
-        ) { Text("Save", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = Surface) }
+        ) { Text(stringResource(R.string.button_save), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = Surface) }
 
         Spacer(Modifier.height(32.dp))
     }

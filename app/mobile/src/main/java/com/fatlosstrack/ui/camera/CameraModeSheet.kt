@@ -13,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
 
 /**
@@ -36,23 +38,23 @@ fun CameraModeSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "What do you want to do?",
+                text = stringResource(R.string.camera_mode_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = OnSurface,
             )
 
             ModeOption(
                 icon = Icons.Default.CameraAlt,
-                title = "Log a meal",
-                subtitle = "Take a photo of what you're eating",
+                title = stringResource(R.string.capture_log_title),
+                subtitle = stringResource(R.string.capture_log_subtitle),
                 accentColor = Primary,
                 onClick = { onSelect(CaptureMode.LogMeal) },
             )
 
             ModeOption(
                 icon = Icons.Default.Lightbulb,
-                title = "Suggest a meal",
-                subtitle = "Snap your fridge or ingredients",
+                title = stringResource(R.string.capture_suggest_title),
+                subtitle = stringResource(R.string.capture_suggest_subtitle),
                 accentColor = Secondary,
                 onClick = { onSelect(CaptureMode.SuggestMeal) },
             )

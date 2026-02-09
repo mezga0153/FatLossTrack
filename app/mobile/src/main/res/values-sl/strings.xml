@@ -1,0 +1,308 @@
+<resources>
+    <string name="app_name">FatLoss Track</string>
+
+    <!-- Navigation tabs -->
+    <string name="tab_home">Domov</string>
+    <string name="tab_trends">Trendi</string>
+    <string name="tab_log">Dnevnik</string>
+    <string name="tab_settings">Nastavitve</string>
+
+    <!-- Common / shared -->
+    <string name="button_save">Shrani</string>
+    <string name="button_cancel">Prekliči</string>
+    <string name="button_edit">Uredi</string>
+    <string name="button_delete">Izbriši</string>
+    <string name="button_ok">V redu</string>
+    <string name="cd_back">Nazaj</string>
+    <string name="cd_close">Zapri</string>
+    <string name="cd_edit">Uredi</string>
+    <string name="cd_remove">Odstrani</string>
+    <string name="cd_add">Dodaj</string>
+    <string name="cd_send">Pošlji</string>
+    <string name="cd_camera">Kamera</string>
+    <string name="cd_dismiss">Skrij</string>
+    <string name="placeholder_no_data">—</string>
+    <string name="label_total">Skupaj</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_hrs">ur</string>
+
+    <!-- Meal categories -->
+    <string name="category_home">Doma</string>
+    <string name="category_restaurant">Restavracija</string>
+    <string name="category_fast_food">Hitra hrana</string>
+
+    <!-- Meal types -->
+    <string name="meal_type_breakfast">Zajtrk</string>
+    <string name="meal_type_brunch">Brunch</string>
+    <string name="meal_type_lunch">Kosilo</string>
+    <string name="meal_type_dinner">Večerja</string>
+    <string name="meal_type_snack">Prigrizek</string>
+
+    <!-- Stats labels -->
+    <string name="stat_weight">Teža</string>
+    <string name="stat_meals">Obroki</string>
+    <string name="stat_protein">Beljakovine</string>
+    <string name="stat_steps">Koraki</string>
+    <string name="stat_sleep">Spanje</string>
+    <string name="stat_heart_rate">Utrip</string>
+
+    <!-- Format strings -->
+    <string name="format_weight_kg">%.1f kg</string>
+    <string name="format_kcal">%d kcal</string>
+    <string name="format_protein_g">%dg</string>
+    <string name="format_protein_full">%dg beljakovin</string>
+    <string name="format_protein_short">%dg B</string>
+    <string name="format_hours">%.1fh</string>
+    <string name="format_steps_formatted">%,d</string>
+    <string name="format_bpm">%d utripov/min</string>
+    <string name="format_duration_min">%d min</string>
+    <string name="format_percent">%.0f%%</string>
+
+    <!-- HomeScreen -->
+    <string name="home_goal_progress">Napredek cilja</string>
+    <string name="home_goal_arrow">→ %.1f kg</string>
+    <string name="home_weeks_left">~%d tednov do cilja</string>
+    <string name="home_weight_trend">Trend teže</string>
+    <string name="home_last_n_days">Zadnjih %d dni</string>
+    <string name="home_logged_days">Podatki za %1$d od %2$d dni</string>
+    <string name="stat_label_meals">obrokov</string>
+    <string name="stat_label_kcal_day">kcal/dan</string>
+    <string name="stat_label_protein_day">beljakovin/dan</string>
+    <string name="stat_label_steps_day">korakov/dan</string>
+    <string name="stat_label_sleep_day">spanja/dan</string>
+    <string name="stat_steps_k">%dk</string>
+
+    <!-- LogScreen -->
+    <string name="log_screen_title">Dnevnik</string>
+    <string name="log_set_goal_title">Nastavi cilj za začetek beleženja</string>
+    <string name="log_set_goal_description">Pojdi v Nastavitve → Uredi cilj, da nastaviš začetni datum. Dnevni vnosi se bodo prikazali tukaj.</string>
+    <string name="day_today">Danes</string>
+    <string name="day_yesterday">Včeraj</string>
+    <string name="section_meals">Obroki</string>
+    <string name="cd_add_meal">Dodaj obrok</string>
+    <string name="meals_total_kcal">Skupaj: %d kcal</string>
+    <string name="meals_total_protein_suffix"> · %dg beljakovin</string>
+    <string name="no_meals_logged">Ni zabeleženih obrokov</string>
+    <string name="section_exercises">Vadba</string>
+    <string name="cd_ai_summary">AI povzetek</string>
+
+    <!-- AddMealSheet -->
+    <string name="add_meal_title">Dodaj obrok</string>
+    <string name="cd_log_camera">Zabeleži s kamero</string>
+    <string name="field_what_did_you_eat">Kaj si jedel/a?</string>
+    <string name="placeholder_meal_description">npr. Piščanec z rižem in solato</string>
+    <string name="field_estimated_calories">Ocenjene kalorije (kcal)</string>
+    <string name="field_protein_g">Beljakovine (g)</string>
+    <string name="section_source">Vir</string>
+    <string name="section_meal_type">Obrok</string>
+    <string name="field_note_optional">Opomba (neobvezno)</string>
+    <string name="button_save_meal">Shrani obrok</string>
+
+    <!-- MealEditSheet -->
+    <string name="field_description">Opis</string>
+    <string name="field_calories_kcal">Kalorije (kcal)</string>
+    <string name="field_note">Opomba</string>
+    <string name="label_coach_said">Trener je rekel</string>
+    <string name="label_note_prefix">Opomba: </string>
+
+    <!-- DailyLogEditSheet -->
+    <string name="field_weight_kg">Teža (kg)</string>
+    <string name="field_steps">Koraki</string>
+    <string name="field_sleep_hours">Spanje (ure)</string>
+    <string name="field_resting_hr">Srčni utrip v mirovanju (utripov/min)</string>
+    <string name="field_exercise_name">Vadba</string>
+    <string name="field_exercise_min">Min</string>
+    <string name="field_exercise_kcal">Kcal</string>
+    <string name="field_notes">Opombe</string>
+    <string name="placeholder_notes">Kakšen je bil tvoj dan? Kakšna opažanja…</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">Nastavitve</string>
+    <string name="settings_section_profile">Profil</string>
+    <string name="settings_height">Višina</string>
+    <string name="format_height_cm">%d cm</string>
+    <string name="settings_start_weight">Začetna teža</string>
+    <string name="settings_not_set">Ni nastavljeno</string>
+    <string name="settings_goal_weight">Ciljna teža</string>
+    <string name="settings_rate">Hitrost</string>
+    <string name="settings_rate_value">%s kg / teden</string>
+    <string name="settings_daily_deficit">Dnevni ciljni primanjkljaj</string>
+    <string name="settings_deficit_value">~%d kcal</string>
+    <string name="settings_start_date">Začetni datum</string>
+    <string name="settings_edit_goal">Uredi cilj</string>
+    <string name="settings_section_coach_tone">Ton trenerja</string>
+    <string name="tone_honest">Iskren</string>
+    <string name="tone_supportive">Podporen</string>
+    <string name="tone_honest_desc">Brez olepševanja. Pokaže na tvoje izgovore.</string>
+    <string name="tone_supportive_desc">Spodbujajoč. Najprej izpostavi uspehe.</string>
+    <string name="settings_section_hc">Health Connect</string>
+    <string name="hc_not_available">Health Connect ni na voljo na tej napravi.</string>
+    <string name="hc_install_prompt">Namesti Health Connect iz Google Play za sinhronizacijo teže, korakov, spanja, srčnega utripa in vadbe.</string>
+    <string name="hc_status_label">Stanje</string>
+    <string name="hc_connected">Povezano</string>
+    <string name="hc_not_connected">Ni povezano</string>
+    <string name="hc_reads_description">Bere: teža, koraki, spanje, srčni utrip, vadba, aktivne kalorije</string>
+    <string name="hc_grant_permissions">Dodeli dovoljenja</string>
+    <string name="hc_sync_now">Sinhroniziraj</string>
+    <string name="hc_permissions_granted">Dovoljenja dodeljena — pritisni Sinhroniziraj</string>
+    <string name="hc_sync_started">Sinhronizacija se je začela</string>
+    <string name="settings_section_language">Jezik</string>
+    <string name="language_english">English</string>
+    <string name="language_slovene">Slovenščina</string>
+    <string name="settings_section_backup">Varnostna kopija</string>
+    <string name="backup_google_drive">Samodejna varnostna kopija na Google Drive</string>
+    <string name="backup_last_never">Zadnja kopija: Nikoli</string>
+    <string name="backup_now_button">Ustvari kopijo zdaj</string>
+    <string name="settings_section_ai">AI</string>
+    <string name="ai_api_key_label">OpenAI API ključ</string>
+    <string name="ai_api_key_desc">Uporablja se za analizo obrokov, klepet in trenerske nasvete. Ključ je shranjen samo na napravi.</string>
+    <string name="ai_api_key_placeholder">sk-…</string>
+    <string name="cd_hide">Skrij</string>
+    <string name="cd_show">Prikaži</string>
+    <string name="ai_key_saved">✓ Ključ shranjen</string>
+    <string name="ai_save_key">Shrani ključ</string>
+    <string name="ai_model_label">Model</string>
+    <string name="settings_section_about">O aplikaciji</string>
+    <string name="about_version">Različica</string>
+    <string name="about_version_value">0.1.0-alpha</string>
+    <string name="about_build">Zgradba</string>
+    <string name="about_build_value">Prototip vmesnika</string>
+    <string name="about_licenses">Licence</string>
+    <string name="settings_section_account">Račun</string>
+    <string name="account_signed_in_as">Prijavljen kot</string>
+    <string name="account_google_user">Google uporabnik</string>
+    <string name="account_name">Ime</string>
+    <string name="account_sign_out">Odjava</string>
+    <string name="settings_section_debug">Razhroščevanje</string>
+    <string name="debug_log_desc">Preglej notranji dnevnik aktivnosti — HC sinhronizacija, AI klici, vnosi obrokov in več.</string>
+    <string name="debug_view_log">Preglej dnevnik aktivnosti</string>
+
+    <!-- SetGoalScreen -->
+    <string name="set_goal_title">Nastavi cilj</string>
+    <string name="goal_section_height">Višina</string>
+    <string name="field_cm">cm</string>
+    <string name="goal_section_weight">Teža</string>
+    <string name="field_starting_kg">Začetna (kg)</string>
+    <string name="field_goal_kg">Ciljna (kg)</string>
+    <string name="goal_kg_to_lose">To je %.1f kg do cilja</string>
+    <string name="goal_section_start_date">Začetni datum</string>
+    <string name="goal_start_date_desc">Kdaj se začne tvoja pot izgube maščobe? Dnevni vnosi bodo beleženi od tega datuma.</string>
+    <string name="goal_section_weekly_rate">Tedenska stopnja izgube</string>
+    <string name="field_kg_per_week">kg na teden</string>
+    <string name="rate_gentle">Nežno</string>
+    <string name="rate_standard">Standardno</string>
+    <string name="rate_aggressive">Agresivno</string>
+    <string name="rate_max">Maksimalno</string>
+    <string name="rate_warning_aggressive">⚠️ Izguba 1+ kg/teden je agresivna. Tveganje za izgubo mišic in težave z vzdržnostjo.</string>
+    <string name="goal_section_daily_target">Dnevni cilj</string>
+    <string name="goal_kcal_deficit_day">kcal primanjkljaj / dan</string>
+    <string name="goal_weeks_to_goal">tednov do cilja</string>
+    <string name="goal_section_ai_guidance">Navodila AI trenerju</string>
+    <string name="goal_ai_guidance_desc">Povej AI-ju o svojih prehranskih omejitvah, preferencah, vadbenih navadah ali karkoli, kar naj vpliva na predloge.</string>
+    <string name="goal_ai_guidance_placeholder">npr.\n• Laktozna intoleranca\n• Vegetarijanec med tednom\n• Fitnes 3×/teden (potisk/vlek/noge)\n• Ob ponedeljkih nimam časa za kuhanje</string>
+    <string name="goal_quick_add">Hitro dodaj:</string>
+    <string name="chip_no_gluten">Brez glutena</string>
+    <string name="chip_vegetarian">Vegetarijansko</string>
+    <string name="chip_keto_friendly">Keto prilagojeno</string>
+    <string name="chip_low_sodium">Malo natrija</string>
+    <string name="button_save_changes">Shrani spremembe</string>
+
+    <!-- LogViewerScreen -->
+    <string name="log_viewer_title">Dnevnik aktivnosti</string>
+    <string name="cd_refresh">Osveži</string>
+    <string name="cd_copy">Kopiraj</string>
+    <string name="cd_clear">Počisti</string>
+    <string name="log_viewer_size">Velikost dnevnika: %s</string>
+    <string name="log_viewer_newest_bottom">najnovejše spodaj</string>
+    <string name="dialog_clear_log_title">Počisti dnevnik?</string>
+    <string name="dialog_clear_log_text">To bo izbrisalo vse zabeležene vnose aktivnosti.</string>
+    <string name="dialog_clear_confirm">Počisti</string>
+    <string name="log_viewer_empty">(prazen dnevnik)</string>
+
+    <!-- TrendsScreen -->
+    <string name="trends_title">Trendi</string>
+    <string name="range_7d">7d</string>
+    <string name="range_30d">30d</string>
+    <string name="range_90d">90d</string>
+    <string name="trends_weight">Teža</string>
+    <string name="trends_7d_avg">7d povp.</string>
+    <string name="trends_period_avg">Povp. obdobja</string>
+    <string name="trends_weekly_delta">Tedenska Δ</string>
+    <string name="trends_goal">Cilj</string>
+    <string name="trends_no_weight_data">Za to obdobje ni dovolj podatkov o teži.</string>
+    <string name="trends_calories">Kalorije</string>
+    <string name="trends_avg">Povp.</string>
+    <string name="format_kcal_day">%d kcal/dan</string>
+    <string name="trends_total">Skupaj</string>
+    <string name="trends_days_tracked">Dni beleženja</string>
+    <string name="trends_sleep">Spanje</string>
+    <string name="trends_range">Razpon</string>
+    <string name="format_sleep_range">%.1f – %.1fh</string>
+    <string name="trends_steps">Koraki</string>
+    <string name="format_steps_k_day">%dk/dan</string>
+    <string name="trends_habits">Navade</string>
+    <string name="trends_logging_rate">stopnja beleženja</string>
+    <string name="trends_days_tracked_label">dni beleženja</string>
+    <string name="trends_alcohol_days">dnevi z alkoholom</string>
+
+    <!-- LoginScreen -->
+    <string name="login_tagline">Trend teže ne laže.\nPusti, da podatki trenirajo.</string>
+    <string name="login_feature_1">7-dnevno drseče povprečje, ne dnevni šum</string>
+    <string name="login_feature_2">AI trener, ki bere tvoje vzorce</string>
+    <string name="login_feature_3">Fotografiraj obroke v sekundah</string>
+    <string name="login_signing_in">Prijavljanje…</string>
+    <string name="login_continue_google">Nadaljuj z Googlom</string>
+    <string name="login_sign_in_failed">Prijava ni uspela</string>
+    <string name="login_privacy_note">Tvoji podatki ostanejo na napravi.\nGoogle račun se uporablja samo za varnostne kopije in AI funkcije.</string>
+
+    <!-- AnalysisResultScreen -->
+    <string name="analysis_title_log">Analiza obroka</string>
+    <string name="analysis_title_suggest">Predlog obroka</string>
+    <string name="analysis_analyzing_photos">Analiziram %d fotografij…</string>
+    <string name="analysis_sending_to_ai">Pošiljam AI-ju za prepoznavo</string>
+    <string name="analysis_failed">Analiza ni uspela</string>
+    <string name="button_go_back">Nazaj</string>
+    <string name="analysis_what_i_see">Kar vidim</string>
+    <string name="analysis_suggested_meal">Predlagan obrok</string>
+    <string name="label_coach_says">Trener pravi</string>
+    <string name="analysis_something_wrong">Nekaj narobe?</string>
+    <string name="analysis_correction_desc">Povej AI-ju, kaj popraviti, in bo ponovil analizo</string>
+    <string name="analysis_correction_placeholder">npr. \"To je puran, ne piščanec\"</string>
+    <string name="cd_re_analyze">Ponovi analizo</string>
+    <string name="button_log_meal">Zabeleži ta obrok</string>
+    <string name="button_sounds_good">Zveni dobro!</string>
+    <string name="button_discard">Zavrzi</string>
+    <string name="table_nutrient">Hranilo</string>
+    <string name="table_amount">Količina</string>
+    <string name="error_parse_meal">Napaka pri branju podatkov obroka</string>
+    <string name="error_no_meal_data">Ni podatkov o obroku</string>
+    <string name="error_no_photos">Ni fotografij za analizo.</string>
+    <string name="error_load_photos">Fotografij ni bilo mogoče naložiti.</string>
+
+    <!-- MealCaptureScreen -->
+    <string name="capture_log_title">Zabeleži obrok</string>
+    <string name="capture_log_subtitle">Fotografiraj, kar ješ</string>
+    <string name="capture_suggest_title">Predlagaj obrok</string>
+    <string name="capture_suggest_subtitle">Fotografiraj hladilnik ali sestavine</string>
+    <string name="camera_permission_required">Potrebno je dovoljenje za kamero</string>
+    <string name="button_grant_permission">Dodeli dovoljenje</string>
+    <string name="capture_photo_count">%d/3 fotografij</string>
+    <string name="cd_gallery">Galerija</string>
+    <string name="cd_take_photo">Fotografiraj</string>
+    <string name="cd_analyze">Analiziraj</string>
+    <string name="cd_captured_photo">Zajeta fotografija</string>
+    <string name="cd_photo_preview">Predogled fotografije</string>
+    <string name="cd_delete">Izbriši</string>
+    <string name="cd_previous">Prejšnja</string>
+    <string name="cd_next">Naslednja</string>
+
+    <!-- CameraModeSheet -->
+    <string name="camera_mode_title">Kaj želiš narediti?</string>
+
+    <!-- AiBar -->
+    <string name="ai_thinking">Razmišljam…</string>
+    <string name="ai_meal_logged">Obrok zabeležen</string>
+    <string name="ai_coach">Trener</string>
+    <string name="ai_bar_placeholder">Vprašaj karkoli…</string>
+    <string name="error_something_went_wrong">Nekaj je šlo narobe</string>
+</resources>

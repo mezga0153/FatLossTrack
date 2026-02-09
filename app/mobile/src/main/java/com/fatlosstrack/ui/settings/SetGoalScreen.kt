@@ -22,10 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.*
@@ -110,13 +112,13 @@ fun SetGoalScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = OnSurface,
                 )
             }
             Spacer(Modifier.width(4.dp))
             Text(
-                text = "Set Goal",
+                text = stringResource(R.string.set_goal_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = OnSurface,
             )
@@ -132,17 +134,17 @@ fun SetGoalScreen(
             Spacer(Modifier.height(4.dp))
 
             // ── Height section ──
-            GoalSection(icon = Icons.Default.Height, title = "Height") {
+            GoalSection(icon = Icons.Default.Height, title = stringResource(R.string.goal_section_height)) {
                 GoalTextField(
                     value = heightCm,
                     onValueChange = { heightCm = it },
-                    label = "cm",
+                    label = stringResource(R.string.field_cm),
                     modifier = Modifier.fillMaxWidth(0.5f),
                 )
             }
 
             // ── Weight section ──
-            GoalSection(icon = Icons.Default.Scale, title = "Weight") {
+            GoalSection(icon = Icons.Default.Scale, title = stringResource(R.string.goal_section_weight)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -150,13 +152,13 @@ fun SetGoalScreen(
                     GoalTextField(
                         value = startWeight,
                         onValueChange = { startWeight = it },
-                        label = "Starting (kg)",
+                        label = stringResource(R.string.field_starting_kg),
                         modifier = Modifier.weight(1f),
                     )
                     GoalTextField(
                         value = goalWeight,
                         onValueChange = { goalWeight = it },
-                        label = "Goal (kg)",
+                        label = stringResource(R.string.field_goal_kg),
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -164,7 +166,7 @@ fun SetGoalScreen(
                 if (weeksToGoal != null && weeksToGoal > 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "That's ${startWeight.toFloatOrNull()?.minus(goalWeight.toFloatOrNull() ?: 0f)?.let { "%.1f".format(it) } ?: "?"} kg to lose",
+                        text = stringResource(R.string.goal_kg_to_lose, startWeight.toFloatOrNull()?.minus(goalWeight.toFloatOrNull() ?: 0f) ?: 0f),
                         style = MaterialTheme.typography.bodyMedium,
                         color = OnSurfaceVariant,
                     )
@@ -172,9 +174,9 @@ fun SetGoalScreen(
             }
 
             // ── Start date section ──
-            GoalSection(icon = Icons.Default.CalendarMonth, title = "Start date") {
+            GoalSection(icon = Icons.Default.CalendarMonth, title = stringResource(R.string.goal_section_start_date)) {
                 Text(
-                    text = "When does your fat loss journey begin? Daily log entries will be tracked from this date.",
+                    text = stringResource(R.string.goal_start_date_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = OnSurfaceVariant,
                 )
@@ -192,11 +194,11 @@ fun SetGoalScreen(
             }
 
             // ── Rate section ──
-            GoalSection(icon = Icons.Default.Speed, title = "Weekly loss rate") {
+            GoalSection(icon = Icons.Default.Speed, title = stringResource(R.string.goal_section_weekly_rate)) {
                 GoalTextField(
                     value = weeklyRate,
                     onValueChange = { weeklyRate = it },
-                    label = "kg per week",
+                    label = stringResource(R.string.field_kg_per_week),
                     modifier = Modifier.fillMaxWidth(),
                 )
 
@@ -206,10 +208,10 @@ fun SetGoalScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    RateChip("0.25", "Gentle", weeklyRate == "0.25") { weeklyRate = "0.25" }
-                    RateChip("0.5", "Standard", weeklyRate == "0.5") { weeklyRate = "0.5" }
-                    RateChip("0.75", "Aggressive", weeklyRate == "0.75") { weeklyRate = "0.75" }
-                    RateChip("1.0", "Max", weeklyRate == "1.0") { weeklyRate = "1.0" }
+                    RateChip("0.25", stringResource(R.string.rate_gentle), weeklyRate == "0.25") { weeklyRate = "0.25" }
+                    RateChip("0.5", stringResource(R.string.rate_standard), weeklyRate == "0.5") { weeklyRate = "0.5" }
+                    RateChip("0.75", stringResource(R.string.rate_aggressive), weeklyRate == "0.75") { weeklyRate = "0.75" }
+                    RateChip("1.0", stringResource(R.string.rate_max), weeklyRate == "1.0") { weeklyRate = "1.0" }
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -218,7 +220,7 @@ fun SetGoalScreen(
                 val rate = weeklyRate.toFloatOrNull() ?: 0.5f
                 if (rate >= 1.0f) {
                     Text(
-                        text = "⚠️ Losing 1+ kg/week is aggressive. Risk of muscle loss and sustainability issues.",
+                        text = stringResource(R.string.rate_warning_aggressive),
                         style = MaterialTheme.typography.bodySmall,
                         color = Tertiary,
                     )
@@ -226,7 +228,7 @@ fun SetGoalScreen(
             }
 
             // ── Calculated deficit ──
-            GoalSection(icon = Icons.Default.Flag, title = "Daily target") {
+            GoalSection(icon = Icons.Default.Flag, title = stringResource(R.string.goal_section_daily_target)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -239,7 +241,7 @@ fun SetGoalScreen(
                             color = Primary,
                         )
                         Text(
-                            text = "kcal deficit / day",
+                            text = stringResource(R.string.goal_kcal_deficit_day),
                             style = MaterialTheme.typography.bodyMedium,
                             color = OnSurfaceVariant,
                         )
@@ -253,7 +255,7 @@ fun SetGoalScreen(
                                 color = Secondary,
                             )
                             Text(
-                                text = "weeks to goal",
+                                text = stringResource(R.string.goal_weeks_to_goal),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = OnSurfaceVariant,
                             )
@@ -263,9 +265,9 @@ fun SetGoalScreen(
             }
 
             // ── AI guidance freeform ──
-            GoalSection(icon = Icons.Default.Psychology, title = "AI Coach guidance") {
+            GoalSection(icon = Icons.Default.Psychology, title = stringResource(R.string.goal_section_ai_guidance)) {
                 Text(
-                    text = "Tell the AI about your dietary restrictions, preferences, exercise habits, or anything else that should influence its suggestions.",
+                    text = stringResource(R.string.goal_ai_guidance_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = OnSurfaceVariant,
                 )
@@ -280,7 +282,7 @@ fun SetGoalScreen(
                         .heightIn(min = 140.dp),
                     placeholder = {
                         Text(
-                            "e.g.\n• Lactose intolerant\n• Vegetarian on weekdays\n• Gym 3×/week (push/pull/legs)\n• No time to cook on Mondays",
+                            stringResource(R.string.goal_ai_guidance_placeholder),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     },
@@ -300,7 +302,7 @@ fun SetGoalScreen(
 
                 // Suggestion chips
                 Text(
-                    text = "Quick add:",
+                    text = stringResource(R.string.goal_quick_add),
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceVariant,
                 )
@@ -309,7 +311,12 @@ fun SetGoalScreen(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    val suggestions = listOf("No gluten", "Vegetarian", "Keto-friendly", "Low sodium")
+                    val suggestions = listOf(
+                        stringResource(R.string.chip_no_gluten),
+                        stringResource(R.string.chip_vegetarian),
+                        stringResource(R.string.chip_keto_friendly),
+                        stringResource(R.string.chip_low_sodium),
+                    )
                     suggestions.forEach { tag ->
                         val alreadyAdded = aiGuidance.contains(tag, ignoreCase = true)
                         SuggestionChip(
@@ -355,7 +362,7 @@ fun SetGoalScreen(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 Text(
-                    "Save changes",
+                    stringResource(R.string.button_save_changes),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = Color.Black,
                 )
@@ -378,11 +385,11 @@ fun SetGoalScreen(
                         startDate = LocalDate.ofEpochDay(millis / 86_400_000L)
                     }
                     showDatePicker = false
-                }) { Text("OK", color = Primary) }
+                }) { Text(stringResource(R.string.button_ok), color = Primary) }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = OnSurfaceVariant)
+                    Text(stringResource(R.string.button_cancel), color = OnSurfaceVariant)
                 }
             },
         ) {

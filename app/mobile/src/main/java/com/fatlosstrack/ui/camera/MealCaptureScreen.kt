@@ -40,20 +40,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.concurrent.futures.await
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
+import com.fatlosstrack.R
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
-enum class CaptureMode(val title: String, val subtitle: String) {
-    LogMeal("Log a meal", "Take a photo of what you're eating"),
-    SuggestMeal("Suggest a meal", "Snap your fridge or ingredients"),
+enum class CaptureMode(val titleRes: Int, val subtitleRes: Int) {
+    LogMeal(R.string.capture_log_title, R.string.capture_log_subtitle),
+    SuggestMeal(R.string.capture_suggest_title, R.string.capture_suggest_subtitle),
 }
 
 /**
@@ -151,13 +153,13 @@ fun MealCaptureScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "Camera permission required",
+                        stringResource(R.string.camera_permission_required),
                         style = MaterialTheme.typography.bodyLarge,
                         color = OnSurfaceVariant,
                     )
                     Spacer(Modifier.height(12.dp))
                     OutlinedButton(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Grant permission", color = Primary)
+                        Text(stringResource(R.string.button_grant_permission), color = Primary)
                     }
                 }
             }
@@ -173,13 +175,13 @@ fun MealCaptureScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.cd_back), tint = Color.White)
             }
             Spacer(Modifier.width(4.dp))
             Column {
-                Text(mode.title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(stringResource(mode.titleRes), style = MaterialTheme.typography.titleMedium, color = Color.White)
                 Text(
-                    "${capturedPhotos.size}/3 photos",
+                    stringResource(R.string.capture_photo_count, capturedPhotos.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.7f),
                 )
@@ -239,7 +241,7 @@ fun MealCaptureScreen(
                 ) {
                     Icon(
                         Icons.Default.PhotoLibrary,
-                        "Gallery",
+                        stringResource(R.string.cd_gallery),
                         tint = if (capturedPhotos.size < 3) Color.White.copy(alpha = 0.7f) else TrendFlat,
                         modifier = Modifier.size(26.dp),
                     )
@@ -281,7 +283,7 @@ fun MealCaptureScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        Icons.Default.CameraAlt, "Take photo",
+                        Icons.Default.CameraAlt, stringResource(R.string.cd_take_photo),
                         tint = if (canCapture) Primary else TrendFlat,
                         modifier = Modifier.size(28.dp),
                     )
@@ -303,7 +305,7 @@ fun MealCaptureScreen(
                             .clip(CircleShape)
                             .background(Secondary.copy(alpha = 0.25f)),
                     ) {
-                        Icon(Icons.Default.Check, "Analyze", tint = Secondary, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.Check, stringResource(R.string.cd_analyze), tint = Secondary, modifier = Modifier.size(28.dp))
                     }
                 }
 
@@ -351,7 +353,7 @@ private fun PhotoThumbnail(
     ) {
         AsyncImage(
             model = uri,
-            contentDescription = "Captured photo",
+            contentDescription = stringResource(R.string.cd_captured_photo),
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop,
         )
@@ -369,7 +371,7 @@ private fun PhotoThumbnail(
         ) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Remove",
+                contentDescription = stringResource(R.string.cd_remove),
                 tint = Color.White,
                 modifier = Modifier.size(13.dp),
             )
@@ -420,7 +422,7 @@ private fun PhotoViewer(
         ) { page ->
             AsyncImage(
                 model = photos[page],
-                contentDescription = "Photo preview",
+                contentDescription = stringResource(R.string.cd_photo_preview),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
@@ -440,7 +442,7 @@ private fun PhotoViewer(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, "Close", tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(Icons.Default.Close, stringResource(R.string.cd_close), tint = Color.White, modifier = Modifier.size(28.dp))
             }
 
             Text(
@@ -450,7 +452,7 @@ private fun PhotoViewer(
             )
 
             IconButton(onClick = { onDelete(currentIndex) }) {
-                Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFFF6B6B), modifier = Modifier.size(28.dp))
+                Icon(Icons.Default.Delete, stringResource(R.string.cd_delete), tint = Color(0xFFFF6B6B), modifier = Modifier.size(28.dp))
             }
         }
 
@@ -467,7 +469,7 @@ private fun PhotoViewer(
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.5f)),
                 ) {
-                    Icon(Icons.Default.ChevronLeft, "Previous", tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.ChevronLeft, stringResource(R.string.cd_previous), tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
 
@@ -482,7 +484,7 @@ private fun PhotoViewer(
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.5f)),
                 ) {
-                    Icon(Icons.Default.ChevronRight, "Next", tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.ChevronRight, stringResource(R.string.cd_next), tint = Color.White, modifier = Modifier.size(32.dp))
                 }
             }
         }

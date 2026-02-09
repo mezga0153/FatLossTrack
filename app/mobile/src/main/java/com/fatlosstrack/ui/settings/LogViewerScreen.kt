@@ -20,8 +20,10 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.ui.theme.*
 
@@ -35,14 +37,15 @@ fun LogViewerScreen(
     var sizeText by remember { mutableStateOf(formatSize(appLogger.sizeBytes())) }
     val clipboard = LocalClipboardManager.current
     var showClearDialog by remember { mutableStateOf(false) }
+    val emptyLogText = stringResource(R.string.log_viewer_empty)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Activity Log", color = OnSurface) },
+                title = { Text(stringResource(R.string.log_viewer_title), color = OnSurface) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = OnSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.cd_back), tint = OnSurface)
                     }
                 },
                 actions = {
@@ -50,15 +53,15 @@ fun LogViewerScreen(
                         logText = appLogger.readAll()
                         sizeText = formatSize(appLogger.sizeBytes())
                     }) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = OnSurfaceVariant)
+                        Icon(Icons.Default.Refresh, stringResource(R.string.cd_refresh), tint = OnSurfaceVariant)
                     }
                     IconButton(onClick = {
                         clipboard.setText(AnnotatedString(logText))
                     }) {
-                        Icon(Icons.Default.ContentCopy, "Copy", tint = OnSurfaceVariant)
+                        Icon(Icons.Default.ContentCopy, stringResource(R.string.cd_copy), tint = OnSurfaceVariant)
                     }
                     IconButton(onClick = { showClearDialog = true }) {
-                        Icon(Icons.Default.DeleteForever, "Clear", tint = Tertiary)
+                        Icon(Icons.Default.DeleteForever, stringResource(R.string.cd_clear), tint = Tertiary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface),
@@ -79,12 +82,12 @@ fun LogViewerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "Log size: $sizeText",
+                    stringResource(R.string.log_viewer_size, sizeText),
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceVariant,
                 )
                 Text(
-                    "newest at bottom",
+                    stringResource(R.string.log_viewer_newest_bottom),
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceVariant,
                 )
@@ -128,21 +131,21 @@ fun LogViewerScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear log?", color = OnSurface) },
-            text = { Text("This will delete all logged activity entries.", color = OnSurfaceVariant) },
+            title = { Text(stringResource(R.string.dialog_clear_log_title), color = OnSurface) },
+            text = { Text(stringResource(R.string.dialog_clear_log_text), color = OnSurfaceVariant) },
             confirmButton = {
                 TextButton(onClick = {
                     appLogger.clear()
-                    logText = "(empty log)"
+                    logText = emptyLogText
                     sizeText = formatSize(0)
                     showClearDialog = false
                 }) {
-                    Text("Clear", color = Tertiary)
+                    Text(stringResource(R.string.dialog_clear_confirm), color = Tertiary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel", color = OnSurfaceVariant)
+                    Text(stringResource(R.string.button_cancel), color = OnSurfaceVariant)
                 }
             },
             containerColor = CardSurface,

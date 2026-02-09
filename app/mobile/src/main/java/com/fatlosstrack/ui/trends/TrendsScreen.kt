@@ -19,7 +19,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.ui.components.InfoCard
@@ -115,7 +117,7 @@ fun TrendsScreen(
     ) {
         // ── Header ──
         Text(
-            text = "Trends",
+            text = stringResource(R.string.trends_title),
             style = MaterialTheme.typography.headlineMedium,
             color = OnSurface,
         )
@@ -143,7 +145,7 @@ fun TrendsScreen(
 
         // ── Weight Trend Chart ──
         if (weightData.size >= 2) {
-            InfoCard(label = "Weight") {
+            InfoCard(label = stringResource(R.string.trends_weight)) {
                 val goalW = goalWeight?.toDouble() ?: 80.0
                 TrendChart(
                     dataPoints = weightData.mapIndexed { i, (_, w) -> i to w },
@@ -161,27 +163,27 @@ fun TrendsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     if (avg7d != null) {
-                        StatColumn("7d avg", "%.1f kg".format(avg7d))
+                        StatColumn(stringResource(R.string.trends_7d_avg), "%.1f kg".format(avg7d))
                     }
                     if (avg30d != null && selectedRange != "7d") {
-                        StatColumn("Period avg", "%.1f kg".format(avg30d))
+                        StatColumn(stringResource(R.string.trends_period_avg), "%.1f kg".format(avg30d))
                     }
                     if (weeklyChange != null) {
                         StatColumn(
-                            "Weekly Δ",
+                            stringResource(R.string.trends_weekly_delta),
                             "%+.1f kg".format(weeklyChange),
                             if (weeklyChange < 0) Secondary else Tertiary,
                         )
                     }
                     if (goalWeight != null) {
-                        StatColumn("Goal", "%.1f kg".format(goalWeight!!), Secondary)
+                        StatColumn(stringResource(R.string.trends_goal), "%.1f kg".format(goalWeight!!), Secondary)
                     }
                 }
             }
         } else {
-            InfoCard(label = "Weight") {
+            InfoCard(label = stringResource(R.string.trends_weight)) {
                 Text(
-                    "Not enough weight data for this period.",
+                    stringResource(R.string.trends_no_weight_data),
                     style = MaterialTheme.typography.bodyMedium,
                     color = OnSurfaceVariant,
                 )
@@ -190,7 +192,7 @@ fun TrendsScreen(
 
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
-            InfoCard(label = "Calories") {
+            InfoCard(label = stringResource(R.string.trends_calories)) {
                 SimpleLineChart(
                     data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                     color = Accent,
@@ -201,16 +203,16 @@ fun TrendsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    StatColumn("Avg", "${avgKcal ?: 0} kcal/day")
-                    StatColumn("Total", "${kcalByDay.sumOf { it.second }} kcal")
-                    StatColumn("Days tracked", "${kcalByDay.size}")
+                    StatColumn(stringResource(R.string.trends_avg), stringResource(R.string.format_kcal_day, avgKcal ?: 0))
+                    StatColumn(stringResource(R.string.trends_total), "${kcalByDay.sumOf { it.second }} kcal")
+                    StatColumn(stringResource(R.string.trends_days_tracked), "${kcalByDay.size}")
                 }
             }
         }
 
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
-            InfoCard(label = "Sleep") {
+            InfoCard(label = stringResource(R.string.trends_sleep)) {
                 SimpleLineChart(
                     data = sleepData.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
@@ -221,17 +223,17 @@ fun TrendsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    if (avgSleep != null) StatColumn("Avg", "%.1fh".format(avgSleep))
+                    if (avgSleep != null) StatColumn(stringResource(R.string.trends_avg), stringResource(R.string.format_hours, avgSleep))
                     val minSleep = sleepData.minOf { it.second }
                     val maxSleep = sleepData.maxOf { it.second }
-                    StatColumn("Range", "%.1f – %.1fh".format(minSleep, maxSleep))
+                    StatColumn(stringResource(R.string.trends_range), stringResource(R.string.format_sleep_range, minSleep, maxSleep))
                 }
             }
         }
 
         // ── Steps Trend ──
         if (stepsData.size >= 2) {
-            InfoCard(label = "Steps") {
+            InfoCard(label = stringResource(R.string.trends_steps)) {
                 SimpleLineChart(
                     data = stepsData.mapIndexed { i, (_, s) -> i to s.toDouble() },
                     color = Secondary,
@@ -242,9 +244,9 @@ fun TrendsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    if (avgSteps != null) StatColumn("Avg", "${avgSteps / 1000}k/day")
+                    if (avgSteps != null) StatColumn(stringResource(R.string.trends_avg), stringResource(R.string.format_steps_k_day, avgSteps / 1000))
                     val totalSteps = stepsData.sumOf { it.second }
-                    StatColumn("Total", "${totalSteps / 1000}k")
+                    StatColumn(stringResource(R.string.trends_total), "${totalSteps / 1000}k")
                 }
             }
         }
@@ -255,23 +257,23 @@ fun TrendsScreen(
         val loggingRate = if (totalDays > 0) daysWithMeals * 100 / totalDays else 0
         val daysWithAlcohol = meals.filter { it.hasAlcohol }.map { it.date }.distinct().size
 
-        InfoCard(label = "Habits") {
+        InfoCard(label = stringResource(R.string.trends_habits)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$loggingRate%", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = Primary)
-                    Text("logging rate", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                    Text(stringResource(R.string.trends_logging_rate), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$daysWithMeals/$totalDays", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = OnSurface)
-                    Text("days tracked", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                    Text(stringResource(R.string.trends_days_tracked_label), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
                 }
                 if (daysWithAlcohol > 0) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("$daysWithAlcohol", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = Tertiary)
-                        Text("alcohol days", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                        Text(stringResource(R.string.trends_alcohol_days), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
                     }
                 }
             }

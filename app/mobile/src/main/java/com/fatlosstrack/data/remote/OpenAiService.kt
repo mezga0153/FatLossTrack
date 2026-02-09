@@ -29,6 +29,12 @@ class OpenAiService @Inject constructor(
     /** Check if API key is configured */
     suspend fun hasApiKey(): Boolean = prefs.openAiApiKey.first().isNotBlank()
 
+    /** Get the language instruction suffix based on user preference */
+    private suspend fun languageSuffix(): String {
+        val lang = prefs.language.first()
+        return if (lang == "sl") "\n\nIMPORTANT: Respond in Slovenian (slovenščina)." else ""
+    }
+
     /** Simple text chat completion */
     suspend fun chat(
         userMessage: String,
@@ -38,13 +44,14 @@ class OpenAiService @Inject constructor(
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
+        val langSuffix = languageSuffix()
 
         val body = buildJsonObject {
             put("model", model)
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "system")
-                    put("content", systemPrompt)
+                    put("content", systemPrompt + langSuffix)
                 }
                 addJsonObject {
                     put("role", "user")
@@ -96,6 +103,7 @@ class OpenAiService @Inject constructor(
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
+        val langSuffix = languageSuffix()
 
         val basePrompt = if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT
         val prompt = if (correction != null) {
@@ -127,7 +135,7 @@ class OpenAiService @Inject constructor(
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "system")
-                    put("content", SYSTEM_PROMPT)
+                    put("content", SYSTEM_PROMPT + langSuffix)
                 }
                 addJsonObject {
                     put("role", "user")

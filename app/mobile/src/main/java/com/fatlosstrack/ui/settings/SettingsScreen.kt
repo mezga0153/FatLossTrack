@@ -18,10 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
@@ -30,6 +32,8 @@ import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.Primary
 import com.fatlosstrack.ui.theme.Secondary
 import com.fatlosstrack.ui.theme.Tertiary
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
 
 /**
@@ -111,39 +115,39 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = "Settings",
+            text = stringResource(R.string.settings_title),
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         // -- Profile --
-        SettingsSection("Profile") {
-            if (savedHeight != null) SettingsRow("Height", "$savedHeight cm")
-            SettingsRow("Starting weight", savedStartWeight?.let { "%.1f kg".format(it) } ?: "Not set")
-            SettingsRow("Goal weight", savedGoalWeight?.let { "%.1f kg".format(it) } ?: "Not set")
+        SettingsSection(stringResource(R.string.settings_section_profile)) {
+            if (savedHeight != null) SettingsRow(stringResource(R.string.settings_height), stringResource(R.string.format_height_cm, savedHeight!!))
+            SettingsRow(stringResource(R.string.settings_start_weight), savedStartWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.settings_not_set))
+            SettingsRow(stringResource(R.string.settings_goal_weight), savedGoalWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.settings_not_set))
             val rateVal = savedRate ?: 0.5f
-            SettingsRow("Rate", "$rateVal kg / week")
-            SettingsRow("Daily deficit target", "~${(rateVal * 1100).toInt()} kcal")
-            if (savedStartDate != null) SettingsRow("Start date", savedStartDate!!)
+            SettingsRow(stringResource(R.string.settings_rate), stringResource(R.string.settings_rate_value, rateVal.toString()))
+            SettingsRow(stringResource(R.string.settings_daily_deficit), stringResource(R.string.settings_deficit_value, (rateVal * 1100).toInt()))
+            if (savedStartDate != null) SettingsRow(stringResource(R.string.settings_start_date), savedStartDate!!)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onEditGoal) {
-                Text("Edit goal", color = Primary)
+                Text(stringResource(R.string.settings_edit_goal), color = Primary)
             }
         }
 
         // -- Coach tone --
-        SettingsSection("Coach tone") {
+        SettingsSection(stringResource(R.string.settings_section_coach_tone)) {
             Text(
-                text = if (toneHonest) "Brutally honest" else "Supportive",
+                text = if (toneHonest) "Brutally honest" else stringResource(R.string.tone_supportive),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
             Text(
                 text = if (toneHonest)
-                    "No sugar-coating. Calls out your excuses."
+                    stringResource(R.string.tone_honest_desc)
                 else
-                    "Encouraging. Highlights wins before problems.",
+                    stringResource(R.string.tone_supportive_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -151,40 +155,67 @@ fun SettingsScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ToneChip("Honest", toneHonest) {
+                ToneChip(stringResource(R.string.tone_honest), toneHonest) {
                     toneHonest = true
                     scope.launch { preferencesManager?.setCoachTone("honest") }
                 }
-                ToneChip("Supportive", !toneHonest) {
+                ToneChip(stringResource(R.string.tone_supportive), !toneHonest) {
                     toneHonest = false
                     scope.launch { preferencesManager?.setCoachTone("supportive") }
                 }
             }
         }
 
+        // -- Language --
+        val savedLanguage by preferencesManager?.language?.collectAsState(initial = "en")
+            ?: remember { mutableStateOf("en") }
+
+        SettingsSection(stringResource(R.string.settings_section_language)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ToneChip(stringResource(R.string.language_english), savedLanguage == "en") {
+                    scope.launch {
+                        preferencesManager?.setLanguage("en")
+                        AppCompatDelegate.setApplicationLocales(
+                            LocaleListCompat.forLanguageTags("en")
+                        )
+                    }
+                }
+                ToneChip(stringResource(R.string.language_slovene), savedLanguage == "sl") {
+                    scope.launch {
+                        preferencesManager?.setLanguage("sl")
+                        AppCompatDelegate.setApplicationLocales(
+                            LocaleListCompat.forLanguageTags("sl")
+                        )
+                    }
+                }
+            }
+        }
+
         // -- Data sources --
-        SettingsSection("Health Connect") {
+        SettingsSection(stringResource(R.string.settings_section_hc)) {
             if (!hcAvailable) {
                 Text(
-                    "Health Connect is not available on this device.",
+                    stringResource(R.string.hc_not_available),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Install Health Connect from Google Play to sync weight, steps, sleep, heart rate, and exercises.",
+                    stringResource(R.string.hc_install_prompt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 // Permission status
                 SettingsRow(
-                    "Status",
-                    if (hcPermGranted) "Connected" else "Not connected",
+                    stringResource(R.string.hc_status_label),
+                    if (hcPermGranted) stringResource(R.string.hc_connected) else stringResource(R.string.hc_not_connected),
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Reads: weight, steps, sleep, heart rate, exercises, active calories",
+                    stringResource(R.string.hc_reads_description),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -197,7 +228,7 @@ fun SettingsScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     ) {
-                        Text("Grant permissions", color = MaterialTheme.colorScheme.onPrimary)
+                        Text(stringResource(R.string.hc_grant_permissions), color = MaterialTheme.colorScheme.onPrimary)
                     }
                 } else {
                     Row(
@@ -227,7 +258,7 @@ fun SettingsScreen(
                                 )
                                 Spacer(Modifier.width(8.dp))
                             }
-                            Text("Sync now", color = MaterialTheme.colorScheme.onPrimary)
+                            Text(stringResource(R.string.hc_sync_now), color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                 }
@@ -244,39 +275,39 @@ fun SettingsScreen(
         }
 
         // -- Backup --
-        SettingsSection("Backup") {
-            SwitchRow("Google Drive auto-backup", backupEnabled) {
+        SettingsSection(stringResource(R.string.settings_section_backup)) {
+            SwitchRow(stringResource(R.string.backup_google_drive), backupEnabled) {
                 backupEnabled = it
             }
             if (backupEnabled) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Last backup: Never",
+                    stringResource(R.string.backup_last_never),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { }) {
-                    Text("Back up now", color = Primary)
+                    Text(stringResource(R.string.backup_now_button), color = Primary)
                 }
             }
         }
 
         // -- AI --
-        SettingsSection("AI") {
+        SettingsSection(stringResource(R.string.settings_section_ai)) {
             var apiKeyInput by remember(storedApiKey) { mutableStateOf(storedApiKey ?: "") }
             var showKey by remember { mutableStateOf(false) }
             var selectedModel by remember(storedModel) { mutableStateOf(storedModel ?: "gpt-5.2") }
             val isKeySaved = (storedApiKey ?: "").isNotBlank() && apiKeyInput == storedApiKey
 
             Text(
-                text = "OpenAI API Key",
+                text = stringResource(R.string.ai_api_key_label),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "Used for meal analysis, chat, and coaching. Your key is stored on-device only.",
+                text = stringResource(R.string.ai_api_key_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -285,14 +316,14 @@ fun SettingsScreen(
                 value = apiKeyInput,
                 onValueChange = { apiKeyInput = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("sk-...") },
+                placeholder = { Text(stringResource(R.string.ai_api_key_placeholder)) },
                 singleLine = true,
                 visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = { showKey = !showKey }) {
                         Icon(
                             if (showKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showKey) "Hide" else "Show",
+                            contentDescription = if (showKey) stringResource(R.string.cd_hide) else stringResource(R.string.cd_show),
                         )
                     }
                 },
@@ -309,7 +340,7 @@ fun SettingsScreen(
             ) {
                 if (isKeySaved) {
                     Text(
-                        text = "✓ Key saved",
+                        text = stringResource(R.string.ai_key_saved),
                         style = MaterialTheme.typography.bodySmall,
                         color = Secondary,
                     )
@@ -325,13 +356,13 @@ fun SettingsScreen(
                     enabled = apiKeyInput.isNotBlank() && apiKeyInput != storedApiKey,
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
                 ) {
-                    Text("Save key", color = MaterialTheme.colorScheme.onPrimary)
+                    Text(stringResource(R.string.ai_save_key), color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Model",
+                text = stringResource(R.string.ai_model_label),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -350,9 +381,9 @@ fun SettingsScreen(
         }
 
         // -- About --
-        SettingsSection("About") {
-            SettingsRow("Version", "0.1.0-alpha")
-            SettingsRow("Build", "UI prototype")
+        SettingsSection(stringResource(R.string.settings_section_about)) {
+            SettingsRow(stringResource(R.string.about_version), stringResource(R.string.about_version_value))
+            SettingsRow(stringResource(R.string.about_build), stringResource(R.string.about_build_value))
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier
@@ -363,7 +394,7 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Licenses", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.about_licenses), style = MaterialTheme.typography.bodyLarge)
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
@@ -376,10 +407,10 @@ fun SettingsScreen(
         // -- Account --
         if (authManager != null) {
             val signedInState = authState as? AuthManager.AuthState.SignedIn
-            SettingsSection("Account") {
+            SettingsSection(stringResource(R.string.settings_section_account)) {
                 if (signedInState != null) {
-                    SettingsRow("Signed in as", signedInState.user.email ?: "Google user")
-                    SettingsRow("Name", signedInState.user.displayName ?: "—")
+                    SettingsRow(stringResource(R.string.account_signed_in_as), signedInState.user.email ?: stringResource(R.string.account_google_user))
+                    SettingsRow(stringResource(R.string.account_name), signedInState.user.displayName ?: "—")
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
@@ -396,22 +427,22 @@ fun SettingsScreen(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Sign out", color = Tertiary)
+                    Text(stringResource(R.string.account_sign_out), color = Tertiary)
                 }
             }
         }
 
         // -- Activity Log --
         if (onViewLog != null) {
-            SettingsSection("Debug") {
+            SettingsSection(stringResource(R.string.settings_section_debug)) {
                 Text(
-                    "View internal activity log — HC sync, AI calls, meal entries, and more.",
+                    stringResource(R.string.debug_log_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onViewLog) {
-                    Text("View activity log", color = Primary)
+                    Text(stringResource(R.string.debug_view_log), color = Primary)
                 }
             }
         }

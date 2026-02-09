@@ -29,7 +29,9 @@ import com.fatlosstrack.data.remote.OpenAiService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 import java.time.LocalDate
@@ -55,6 +57,7 @@ fun AiBar(
     var mealLogged by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val pillShape = RoundedCornerShape(28.dp)
+    val errorFallback = stringResource(R.string.error_something_went_wrong)
 
     Column(modifier = modifier) {
         // Response card (above the bar)
@@ -85,7 +88,7 @@ fun AiBar(
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Thinking…",
+                                stringResource(R.string.ai_thinking),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = OnSurfaceVariant,
                             )
@@ -115,14 +118,14 @@ fun AiBar(
                                         )
                                         Spacer(Modifier.width(8.dp))
                                         Text(
-                                            "Meal logged",
+                                            stringResource(R.string.ai_meal_logged),
                                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                             color = Secondary,
                                         )
                                     }
                                 } else {
                                     Text(
-                                        "Coach",
+                                        stringResource(R.string.ai_coach),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = Accent,
                                     )
@@ -150,7 +153,7 @@ fun AiBar(
                         ) {
                             Icon(
                                 Icons.Default.Close,
-                                contentDescription = "Dismiss",
+                                contentDescription = stringResource(R.string.cd_dismiss),
                                 tint = OnSurfaceVariant,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -181,7 +184,7 @@ fun AiBar(
             TextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Ask anything...", style = MaterialTheme.typography.bodyMedium) },
+                placeholder = { Text(stringResource(R.string.ai_bar_placeholder), style = MaterialTheme.typography.bodyMedium) },
                 modifier = Modifier.weight(1f),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = AiBarBg,
@@ -242,7 +245,7 @@ fun AiBar(
                                             isLoading = false
                                             chatResult.fold(
                                                 onSuccess = { aiResponse = it },
-                                                onFailure = { aiError = it.message ?: "Something went wrong" },
+                                                onFailure = { aiError = it.message ?: errorFallback },
                                             )
                                         } else {
                                             // Parsed a meal but no mealDao — show it as text
@@ -256,7 +259,7 @@ fun AiBar(
                                         isLoading = false
                                         chatResult.fold(
                                             onSuccess = { aiResponse = it },
-                                            onFailure = { e -> aiError = e.message ?: "Something went wrong" },
+                                            onFailure = { e -> aiError = e.message ?: errorFallback },
                                         )
                                     },
                                 )
@@ -269,7 +272,7 @@ fun AiBar(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send",
+                        contentDescription = stringResource(R.string.cd_send),
                         tint = Primary,
                     )
                 }
@@ -278,7 +281,7 @@ fun AiBar(
                     Box {
                         Icon(
                             Icons.Default.CameraAlt,
-                            contentDescription = "Camera",
+                            contentDescription = stringResource(R.string.cd_camera),
                             tint = Accent.copy(alpha = 0.7f),
                         )
                         Icon(

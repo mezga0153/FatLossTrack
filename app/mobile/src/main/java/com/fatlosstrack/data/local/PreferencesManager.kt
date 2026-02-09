@@ -30,6 +30,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_COACH_TONE = stringPreferencesKey("coach_tone")
         private val KEY_HEIGHT_CM = intPreferencesKey("height_cm")
         private val KEY_START_DATE = stringPreferencesKey("start_date") // ISO format yyyy-MM-dd
+        private val KEY_LANGUAGE = stringPreferencesKey("language") // "en" or "sl"
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -68,6 +69,10 @@ class PreferencesManager @Inject constructor(
         prefs[KEY_START_DATE]
     }
 
+    val language: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_LANGUAGE] ?: "en"
+    }
+
     suspend fun setOpenAiApiKey(key: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_OPENAI_API_KEY] = key
@@ -101,6 +106,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setCoachTone(tone: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_COACH_TONE] = tone
+        }
+    }
+
+    suspend fun setLanguage(lang: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LANGUAGE] = lang
         }
     }
 }

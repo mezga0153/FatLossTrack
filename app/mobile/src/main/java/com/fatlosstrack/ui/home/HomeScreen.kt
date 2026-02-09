@@ -14,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
@@ -212,7 +214,7 @@ Rules:
     ) {
         // ── Goal Progress ──
         if (progressPct != null && goalW != null && latestWeight != null) {
-            InfoCard(label = "Goal Progress") {
+            InfoCard(label = stringResource(R.string.home_goal_progress)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,7 +227,7 @@ Rules:
                             color = OnSurface,
                         )
                         Text(
-                            "→ %.1f kg".format(goalW),
+                            stringResource(R.string.home_goal_arrow, goalW),
                             style = MaterialTheme.typography.bodyMedium,
                             color = OnSurfaceVariant,
                         )
@@ -238,7 +240,7 @@ Rules:
                         )
                         if (weeksToGoal != null) {
                             Text(
-                                "~$weeksToGoal weeks left",
+                                stringResource(R.string.home_weeks_left, weeksToGoal),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OnSurfaceVariant,
                             )
@@ -260,7 +262,7 @@ Rules:
 
         // ── Weight Trend (compact) ──
         if (weightData.size >= 2) {
-            InfoCard(label = "Weight Trend") {
+            InfoCard(label = stringResource(R.string.home_weight_trend)) {
                 val dataPoints = weightData.mapIndexed { i, (_, w) -> i to w }
                 val avg = if (weights.isNotEmpty()) weights.average() else 0.0
                 TrendChart(
@@ -275,20 +277,20 @@ Rules:
         }
 
         // ── Period Stats ──
-        InfoCard(label = "Last $lookbackDays days") {
+        InfoCard(label = stringResource(R.string.home_last_n_days, lookbackDays)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                MiniStat(Icons.Default.Restaurant, "$totalMeals", "meals")
-                if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", "kcal/day")
-                if (avgProteinPerDay != null && avgProteinPerDay > 0) MiniStat(Icons.Default.FitnessCenter, "${avgProteinPerDay}g", "protein/day")
-                if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, "${avgSteps / 1000}k", "steps/day")
-                if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), "sleep/day")
+                MiniStat(Icons.Default.Restaurant, "$totalMeals", stringResource(R.string.stat_label_meals))
+                if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", stringResource(R.string.stat_label_kcal_day))
+                if (avgProteinPerDay != null && avgProteinPerDay > 0) MiniStat(Icons.Default.FitnessCenter, "${avgProteinPerDay}g", stringResource(R.string.stat_label_protein_day))
+                if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, stringResource(R.string.stat_steps_k, avgSteps / 1000), stringResource(R.string.stat_label_steps_day))
+                if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), stringResource(R.string.stat_label_sleep_day))
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                "Logged data on $daysLogged of $lookbackDays days",
+                stringResource(R.string.home_logged_days, daysLogged, lookbackDays),
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceVariant,
             )

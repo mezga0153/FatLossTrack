@@ -62,6 +62,7 @@ dependencies {
 
     // Core
     implementation(libs.core.ktx)
+    implementation(libs.appcompat)
     implementation(libs.activity.compose)
 
     // Navigation

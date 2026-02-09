@@ -1,3 +1,308 @@
 <resources>
     <string name="app_name">FatLoss Track</string>
+
+    <!-- Navigation tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_trends">Trends</string>
+    <string name="tab_log">Log</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Common / shared -->
+    <string name="button_save">Save</string>
+    <string name="button_cancel">Cancel</string>
+    <string name="button_edit">Edit</string>
+    <string name="button_delete">Delete</string>
+    <string name="button_ok">OK</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_edit">Edit</string>
+    <string name="cd_remove">Remove</string>
+    <string name="cd_add">Add</string>
+    <string name="cd_send">Send</string>
+    <string name="cd_camera">Camera</string>
+    <string name="cd_dismiss">Dismiss</string>
+    <string name="placeholder_no_data">—</string>
+    <string name="label_total">Total</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_hrs">hrs</string>
+
+    <!-- Meal categories -->
+    <string name="category_home">Home</string>
+    <string name="category_restaurant">Restaurant</string>
+    <string name="category_fast_food">Fast food</string>
+
+    <!-- Meal types -->
+    <string name="meal_type_breakfast">Breakfast</string>
+    <string name="meal_type_brunch">Brunch</string>
+    <string name="meal_type_lunch">Lunch</string>
+    <string name="meal_type_dinner">Dinner</string>
+    <string name="meal_type_snack">Snack</string>
+
+    <!-- Stats labels -->
+    <string name="stat_weight">Weight</string>
+    <string name="stat_meals">Meals</string>
+    <string name="stat_protein">Protein</string>
+    <string name="stat_steps">Steps</string>
+    <string name="stat_sleep">Sleep</string>
+    <string name="stat_heart_rate">HR</string>
+
+    <!-- Format strings -->
+    <string name="format_weight_kg">%.1f kg</string>
+    <string name="format_kcal">%d kcal</string>
+    <string name="format_protein_g">%dg</string>
+    <string name="format_protein_full">%dg protein</string>
+    <string name="format_protein_short">%dg P</string>
+    <string name="format_hours">%.1fh</string>
+    <string name="format_steps_formatted">%,d</string>
+    <string name="format_bpm">%d bpm</string>
+    <string name="format_duration_min">%dmin</string>
+    <string name="format_percent">%.0f%%</string>
+
+    <!-- HomeScreen -->
+    <string name="home_goal_progress">Goal Progress</string>
+    <string name="home_goal_arrow">→ %.1f kg</string>
+    <string name="home_weeks_left">~%d weeks left</string>
+    <string name="home_weight_trend">Weight Trend</string>
+    <string name="home_last_n_days">Last %d days</string>
+    <string name="home_logged_days">Logged data on %1$d of %2$d days</string>
+    <string name="stat_label_meals">meals</string>
+    <string name="stat_label_kcal_day">kcal/day</string>
+    <string name="stat_label_protein_day">protein/day</string>
+    <string name="stat_label_steps_day">steps/day</string>
+    <string name="stat_label_sleep_day">sleep/day</string>
+    <string name="stat_steps_k">%dk</string>
+
+    <!-- LogScreen -->
+    <string name="log_screen_title">Daily Log</string>
+    <string name="log_set_goal_title">Set your goal to start logging</string>
+    <string name="log_set_goal_description">Go to Settings → Edit goal to set your start date, then daily logs will appear here.</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
+    <string name="section_meals">Meals</string>
+    <string name="cd_add_meal">Add meal</string>
+    <string name="meals_total_kcal">Total: %d kcal</string>
+    <string name="meals_total_protein_suffix"> · %dg protein</string>
+    <string name="no_meals_logged">No meals logged</string>
+    <string name="section_exercises">Exercises</string>
+    <string name="cd_ai_summary">AI summary</string>
+
+    <!-- AddMealSheet -->
+    <string name="add_meal_title">Add Meal</string>
+    <string name="cd_log_camera">Log with camera</string>
+    <string name="field_what_did_you_eat">What did you eat?</string>
+    <string name="placeholder_meal_description">e.g. Grilled chicken with rice and salad</string>
+    <string name="field_estimated_calories">Estimated calories (kcal)</string>
+    <string name="field_protein_g">Protein (g)</string>
+    <string name="section_source">Source</string>
+    <string name="section_meal_type">Meal</string>
+    <string name="field_note_optional">Note (optional)</string>
+    <string name="button_save_meal">Save Meal</string>
+
+    <!-- MealEditSheet -->
+    <string name="field_description">Description</string>
+    <string name="field_calories_kcal">Calories (kcal)</string>
+    <string name="field_note">Note</string>
+    <string name="label_coach_said">Coach said</string>
+    <string name="label_note_prefix">Note: </string>
+
+    <!-- DailyLogEditSheet -->
+    <string name="field_weight_kg">Weight (kg)</string>
+    <string name="field_steps">Steps</string>
+    <string name="field_sleep_hours">Sleep (hours)</string>
+    <string name="field_resting_hr">Resting heart rate (bpm)</string>
+    <string name="field_exercise_name">Exercise</string>
+    <string name="field_exercise_min">Min</string>
+    <string name="field_exercise_kcal">Kcal</string>
+    <string name="field_notes">Notes</string>
+    <string name="placeholder_notes">How was your day? Any observations…</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_profile">Profile</string>
+    <string name="settings_height">Height</string>
+    <string name="format_height_cm">%d cm</string>
+    <string name="settings_start_weight">Starting weight</string>
+    <string name="settings_not_set">Not set</string>
+    <string name="settings_goal_weight">Goal weight</string>
+    <string name="settings_rate">Rate</string>
+    <string name="settings_rate_value">%s kg / week</string>
+    <string name="settings_daily_deficit">Daily deficit target</string>
+    <string name="settings_deficit_value">~%d kcal</string>
+    <string name="settings_start_date">Start date</string>
+    <string name="settings_edit_goal">Edit goal</string>
+    <string name="settings_section_coach_tone">Coach tone</string>
+    <string name="tone_honest">Honest</string>
+    <string name="tone_supportive">Supportive</string>
+    <string name="tone_honest_desc">No sugar-coating. Calls out your excuses.</string>
+    <string name="tone_supportive_desc">Encouraging. Highlights wins before problems.</string>
+    <string name="settings_section_hc">Health Connect</string>
+    <string name="hc_not_available">Health Connect is not available on this device.</string>
+    <string name="hc_install_prompt">Install Health Connect from Google Play to sync weight, steps, sleep, heart rate, and exercises.</string>
+    <string name="hc_status_label">Status</string>
+    <string name="hc_connected">Connected</string>
+    <string name="hc_not_connected">Not connected</string>
+    <string name="hc_reads_description">Reads: weight, steps, sleep, heart rate, exercises, active calories</string>
+    <string name="hc_grant_permissions">Grant permissions</string>
+    <string name="hc_sync_now">Sync now</string>
+    <string name="hc_permissions_granted">Permissions granted — tap Sync now</string>
+    <string name="hc_sync_started">Sync started</string>
+    <string name="settings_section_language">Language</string>
+    <string name="language_english">English</string>
+    <string name="language_slovene">Slovenščina</string>
+    <string name="settings_section_backup">Backup</string>
+    <string name="backup_google_drive">Google Drive auto-backup</string>
+    <string name="backup_last_never">Last backup: Never</string>
+    <string name="backup_now_button">Back up now</string>
+    <string name="settings_section_ai">AI</string>
+    <string name="ai_api_key_label">OpenAI API Key</string>
+    <string name="ai_api_key_desc">Used for meal analysis, chat, and coaching. Your key is stored on-device only.</string>
+    <string name="ai_api_key_placeholder">sk-…</string>
+    <string name="cd_hide">Hide</string>
+    <string name="cd_show">Show</string>
+    <string name="ai_key_saved">✓ Key saved</string>
+    <string name="ai_save_key">Save key</string>
+    <string name="ai_model_label">Model</string>
+    <string name="settings_section_about">About</string>
+    <string name="about_version">Version</string>
+    <string name="about_version_value">0.1.0-alpha</string>
+    <string name="about_build">Build</string>
+    <string name="about_build_value">UI prototype</string>
+    <string name="about_licenses">Licenses</string>
+    <string name="settings_section_account">Account</string>
+    <string name="account_signed_in_as">Signed in as</string>
+    <string name="account_google_user">Google user</string>
+    <string name="account_name">Name</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="settings_section_debug">Debug</string>
+    <string name="debug_log_desc">View internal activity log — HC sync, AI calls, meal entries, and more.</string>
+    <string name="debug_view_log">View activity log</string>
+
+    <!-- SetGoalScreen -->
+    <string name="set_goal_title">Set Goal</string>
+    <string name="goal_section_height">Height</string>
+    <string name="field_cm">cm</string>
+    <string name="goal_section_weight">Weight</string>
+    <string name="field_starting_kg">Starting (kg)</string>
+    <string name="field_goal_kg">Goal (kg)</string>
+    <string name="goal_kg_to_lose">That\'s %.1f kg to lose</string>
+    <string name="goal_section_start_date">Start date</string>
+    <string name="goal_start_date_desc">When does your fat loss journey begin? Daily log entries will be tracked from this date.</string>
+    <string name="goal_section_weekly_rate">Weekly loss rate</string>
+    <string name="field_kg_per_week">kg per week</string>
+    <string name="rate_gentle">Gentle</string>
+    <string name="rate_standard">Standard</string>
+    <string name="rate_aggressive">Aggressive</string>
+    <string name="rate_max">Max</string>
+    <string name="rate_warning_aggressive">⚠️ Losing 1+ kg/week is aggressive. Risk of muscle loss and sustainability issues.</string>
+    <string name="goal_section_daily_target">Daily target</string>
+    <string name="goal_kcal_deficit_day">kcal deficit / day</string>
+    <string name="goal_weeks_to_goal">weeks to goal</string>
+    <string name="goal_section_ai_guidance">AI Coach guidance</string>
+    <string name="goal_ai_guidance_desc">Tell the AI about your dietary restrictions, preferences, exercise habits, or anything else that should influence its suggestions.</string>
+    <string name="goal_ai_guidance_placeholder">e.g.\n• Lactose intolerant\n• Vegetarian on weekdays\n• Gym 3×/week (push/pull/legs)\n• No time to cook on Mondays</string>
+    <string name="goal_quick_add">Quick add:</string>
+    <string name="chip_no_gluten">No gluten</string>
+    <string name="chip_vegetarian">Vegetarian</string>
+    <string name="chip_keto_friendly">Keto-friendly</string>
+    <string name="chip_low_sodium">Low sodium</string>
+    <string name="button_save_changes">Save changes</string>
+
+    <!-- LogViewerScreen -->
+    <string name="log_viewer_title">Activity Log</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_copy">Copy</string>
+    <string name="cd_clear">Clear</string>
+    <string name="log_viewer_size">Log size: %s</string>
+    <string name="log_viewer_newest_bottom">newest at bottom</string>
+    <string name="dialog_clear_log_title">Clear log?</string>
+    <string name="dialog_clear_log_text">This will delete all logged activity entries.</string>
+    <string name="dialog_clear_confirm">Clear</string>
+    <string name="log_viewer_empty">(empty log)</string>
+
+    <!-- TrendsScreen -->
+    <string name="trends_title">Trends</string>
+    <string name="range_7d">7d</string>
+    <string name="range_30d">30d</string>
+    <string name="range_90d">90d</string>
+    <string name="trends_weight">Weight</string>
+    <string name="trends_7d_avg">7d avg</string>
+    <string name="trends_period_avg">Period avg</string>
+    <string name="trends_weekly_delta">Weekly Δ</string>
+    <string name="trends_goal">Goal</string>
+    <string name="trends_no_weight_data">Not enough weight data for this period.</string>
+    <string name="trends_calories">Calories</string>
+    <string name="trends_avg">Avg</string>
+    <string name="format_kcal_day">%d kcal/day</string>
+    <string name="trends_total">Total</string>
+    <string name="trends_days_tracked">Days tracked</string>
+    <string name="trends_sleep">Sleep</string>
+    <string name="trends_range">Range</string>
+    <string name="format_sleep_range">%.1f – %.1fh</string>
+    <string name="trends_steps">Steps</string>
+    <string name="format_steps_k_day">%dk/day</string>
+    <string name="trends_habits">Habits</string>
+    <string name="trends_logging_rate">logging rate</string>
+    <string name="trends_days_tracked_label">days tracked</string>
+    <string name="trends_alcohol_days">alcohol days</string>
+
+    <!-- LoginScreen -->
+    <string name="login_tagline">Your weight trend doesn\'t lie.\nLet the data do the coaching.</string>
+    <string name="login_feature_1">7-day moving average, not daily noise</string>
+    <string name="login_feature_2">AI coach that reads your patterns</string>
+    <string name="login_feature_3">Photo-log meals in seconds</string>
+    <string name="login_signing_in">Signing in…</string>
+    <string name="login_continue_google">Continue with Google</string>
+    <string name="login_sign_in_failed">Sign-in failed</string>
+    <string name="login_privacy_note">Your data stays on your device.\nGoogle account is used for backup &amp; AI features only.</string>
+
+    <!-- AnalysisResultScreen -->
+    <string name="analysis_title_log">Meal Analysis</string>
+    <string name="analysis_title_suggest">Meal Suggestion</string>
+    <string name="analysis_analyzing_photos">Analyzing %d photo(s)…</string>
+    <string name="analysis_sending_to_ai">Sending to AI for identification</string>
+    <string name="analysis_failed">Analysis failed</string>
+    <string name="button_go_back">Go back</string>
+    <string name="analysis_what_i_see">What I see</string>
+    <string name="analysis_suggested_meal">Suggested meal</string>
+    <string name="label_coach_says">Coach says</string>
+    <string name="analysis_something_wrong">Something wrong?</string>
+    <string name="analysis_correction_desc">Tell the AI what to fix and it will re-analyze</string>
+    <string name="analysis_correction_placeholder">e.g. \"That\'s turkey, not chicken\"</string>
+    <string name="cd_re_analyze">Re-analyze</string>
+    <string name="button_log_meal">Log this meal</string>
+    <string name="button_sounds_good">Sounds good!</string>
+    <string name="button_discard">Discard</string>
+    <string name="table_nutrient">Nutrient</string>
+    <string name="table_amount">Amount</string>
+    <string name="error_parse_meal">Failed to parse meal data</string>
+    <string name="error_no_meal_data">No meal data available</string>
+    <string name="error_no_photos">No photos to analyze.</string>
+    <string name="error_load_photos">Could not load photos.</string>
+
+    <!-- MealCaptureScreen -->
+    <string name="capture_log_title">Log a meal</string>
+    <string name="capture_log_subtitle">Take a photo of what you\'re eating</string>
+    <string name="capture_suggest_title">Suggest a meal</string>
+    <string name="capture_suggest_subtitle">Snap your fridge or ingredients</string>
+    <string name="camera_permission_required">Camera permission required</string>
+    <string name="button_grant_permission">Grant permission</string>
+    <string name="capture_photo_count">%d/3 photos</string>
+    <string name="cd_gallery">Gallery</string>
+    <string name="cd_take_photo">Take photo</string>
+    <string name="cd_analyze">Analyze</string>
+    <string name="cd_captured_photo">Captured photo</string>
+    <string name="cd_photo_preview">Photo preview</string>
+    <string name="cd_delete">Delete</string>
+    <string name="cd_previous">Previous</string>
+    <string name="cd_next">Next</string>
+
+    <!-- CameraModeSheet -->
+    <string name="camera_mode_title">What do you want to do?</string>
+
+    <!-- AiBar -->
+    <string name="ai_thinking">Thinking…</string>
+    <string name="ai_meal_logged">Meal logged</string>
+    <string name="ai_coach">Coach</string>
+    <string name="ai_bar_placeholder">Ask anything…</string>
+    <string name="error_something_went_wrong">Something went wrong</string>
 </resources>

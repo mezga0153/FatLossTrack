@@ -25,8 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.fatlosstrack.R
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
@@ -106,7 +108,7 @@ fun AnalysisResultScreen(
                     result = parseAnalysisJson(raw)
                 } catch (e: Exception) {
                     Log.e("Analysis", "Text meal parse failed: $raw", e)
-                    errorMessage = "Failed to parse meal data"
+                    errorMessage = "Failed to parse meal data" // internal error, not localized
                 }
                 PendingTextMealStore.clear()
             } else {
@@ -202,13 +204,13 @@ fun AnalysisResultScreen(
             }) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.cd_back),
                     tint = OnSurface,
                 )
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                text = if (isTextMode) "Meal Analysis" else if (mode == CaptureMode.LogMeal) "Meal Analysis" else "Meal Suggestion",
+                text = if (isTextMode) stringResource(R.string.analysis_title_log) else if (mode == CaptureMode.LogMeal) stringResource(R.string.analysis_title_log) else stringResource(R.string.analysis_title_suggest),
                 style = MaterialTheme.typography.titleLarge,
                 color = OnSurface,
             )
@@ -373,13 +375,13 @@ private fun AnalyzingState(photoCount: Int) {
             )
             Spacer(Modifier.height(24.dp))
             Text(
-                text = "Analyzing $photoCount photo${if (photoCount > 1) "s" else ""}…",
+                text = stringResource(R.string.analysis_analyzing_photos, photoCount),
                 style = MaterialTheme.typography.titleMedium,
                 color = OnSurface.copy(alpha = alpha),
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Sending to AI for identification",
+                text = stringResource(R.string.analysis_sending_to_ai),
                 style = MaterialTheme.typography.bodyMedium,
                 color = OnSurfaceVariant,
             )
@@ -405,7 +407,7 @@ private fun ErrorState(message: String, onBack: () -> Unit) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Analysis failed",
+                text = stringResource(R.string.analysis_failed),
                 style = MaterialTheme.typography.titleMedium,
                 color = OnSurface,
             )
@@ -417,7 +419,7 @@ private fun ErrorState(message: String, onBack: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             OutlinedButton(onClick = onBack) {
-                Text("Go back", color = Primary)
+                Text(stringResource(R.string.button_go_back), color = Primary)
             }
         }
     }
@@ -461,7 +463,7 @@ private fun ResultContent(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = if (mode == CaptureMode.LogMeal) "What I see" else "Suggested meal",
+                            text = if (mode == CaptureMode.LogMeal) stringResource(R.string.analysis_what_i_see) else stringResource(R.string.analysis_suggested_meal),
                             style = MaterialTheme.typography.titleMedium,
                             color = Primary,
                         )
@@ -495,19 +497,19 @@ private fun ResultContent(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "Total",
+                                text = stringResource(R.string.label_total),
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 color = OnSurface,
                             )
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "${result.totalCalories} kcal",
+                                    text = stringResource(R.string.format_kcal, result.totalCalories),
                                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                                     color = Primary,
                                 )
                                 if (result.totalProteinG > 0) {
                                     Text(
-                                        text = "${result.totalProteinG}g protein",
+                                        text = stringResource(R.string.format_protein_full, result.totalProteinG),
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = Secondary,
                                     )
@@ -527,7 +529,7 @@ private fun ResultContent(
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
-                            text = "Coach says",
+                            text = stringResource(R.string.label_coach_says),
                             style = MaterialTheme.typography.labelLarge,
                             color = Accent,
                         )
@@ -547,14 +549,14 @@ private fun ResultContent(
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Source", style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                    Text(stringResource(R.string.section_source), style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         data class CatOption(val cat: MealCategory, val label: String)
                         listOf(
-                            CatOption(MealCategory.HOME, "Home"),
-                            CatOption(MealCategory.RESTAURANT, "Restaurant"),
-                            CatOption(MealCategory.FAST_FOOD, "Fast food"),
+                            CatOption(MealCategory.HOME, stringResource(R.string.category_home)),
+                            CatOption(MealCategory.RESTAURANT, stringResource(R.string.category_restaurant)),
+                            CatOption(MealCategory.FAST_FOOD, stringResource(R.string.category_fast_food)),
                         ).forEach { (cat, label) ->
                             FilterChip(
                                 selected = selectedCategory == cat,
@@ -576,15 +578,15 @@ private fun ResultContent(
                 shape = RoundedCornerShape(12.dp),
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Meal", style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                    Text(stringResource(R.string.section_meal_type), style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                     @Suppress("ktlint")
                     val mealTypes = listOf(
-                        MealType.BREAKFAST to "Breakfast",
-                        MealType.BRUNCH to "Brunch",
-                        MealType.LUNCH to "Lunch",
-                        MealType.DINNER to "Dinner",
-                        MealType.SNACK to "Snack",
+                        MealType.BREAKFAST to stringResource(R.string.meal_type_breakfast),
+                        MealType.BRUNCH to stringResource(R.string.meal_type_brunch),
+                        MealType.LUNCH to stringResource(R.string.meal_type_lunch),
+                        MealType.DINNER to stringResource(R.string.meal_type_dinner),
+                        MealType.SNACK to stringResource(R.string.meal_type_snack),
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         mealTypes.forEach { (type, label) ->
@@ -611,13 +613,13 @@ private fun ResultContent(
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        text = "Something wrong?",
+                        text = stringResource(R.string.analysis_something_wrong),
                         style = MaterialTheme.typography.labelLarge,
                         color = OnSurfaceVariant,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Tell the AI what to fix and it will re-analyze",
+                        text = stringResource(R.string.analysis_correction_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = OnSurfaceVariant.copy(alpha = 0.7f),
                     )
@@ -631,7 +633,7 @@ private fun ResultContent(
                             onValueChange = { correctionText = it },
                             placeholder = {
                                 Text(
-                                    "e.g. \"That's turkey, not chicken\"",
+                                    stringResource(R.string.analysis_correction_placeholder),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = OnSurfaceVariant.copy(alpha = 0.5f),
                                 )
@@ -663,7 +665,7 @@ private fun ResultContent(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
-                                "Re-analyze",
+                                stringResource(R.string.cd_re_analyze),
                                 tint = if (correctionText.isNotBlank()) Primary else OnSurfaceVariant.copy(alpha = 0.3f),
                             )
                         }
@@ -683,7 +685,7 @@ private fun ResultContent(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     ) {
-                        Text("Log this meal", color = Color.Black)
+                        Text(stringResource(R.string.button_log_meal), color = Color.Black)
                     }
                 } else {
                     Button(
@@ -691,14 +693,14 @@ private fun ResultContent(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Secondary),
                     ) {
-                        Text("Sounds good!", color = Color.Black)
+                        Text(stringResource(R.string.button_sounds_good), color = Color.Black)
                     }
                 }
                 OutlinedButton(
                     onClick = onDone,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Discard", color = OnSurfaceVariant)
+                    Text(stringResource(R.string.button_discard), color = OnSurfaceVariant)
                 }
             }
 
@@ -734,8 +736,8 @@ private fun NutritionCard(item: MealItem) {
                     .background(SurfaceVariant)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
-                Text("Nutrient", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant, modifier = Modifier.weight(1f))
-                Text("Amount", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant, modifier = Modifier.width(72.dp))
+                Text(stringResource(R.string.table_nutrient), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.table_amount), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant, modifier = Modifier.width(72.dp))
             }
 
             // Rows

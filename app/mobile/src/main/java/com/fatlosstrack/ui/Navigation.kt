@@ -11,7 +11,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -37,6 +39,7 @@ import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
+import com.fatlosstrack.R
 import com.fatlosstrack.ui.settings.LogViewerScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
@@ -45,11 +48,11 @@ import kotlinx.coroutines.launch
 
 // ---- Navigation destinations ----
 
-enum class Tab(val route: String, val label: String, val icon: ImageVector) {
-    Home("home", "Home", Icons.Default.Home),
-    Trends("trends", "Trends", Icons.Default.Equalizer),
-    Log("log", "Log", Icons.AutoMirrored.Filled.List),
-    Settings("settings", "Settings", Icons.Default.Settings),
+enum class Tab(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
+    Home("home", R.string.tab_home, Icons.Default.Home),
+    Trends("trends", R.string.tab_trends, Icons.Default.Equalizer),
+    Log("log", R.string.tab_log, Icons.AutoMirrored.Filled.List),
+    Settings("settings", R.string.tab_settings, Icons.Default.Settings),
 }
 
 // ---- Root scaffold with bottom nav + floating AI bar ----
@@ -112,8 +115,8 @@ fun FatLossTrackNavGraph(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
+                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.labelRes)) },
+                            label = { Text(stringResource(tab.labelRes)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,

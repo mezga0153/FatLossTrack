@@ -17,9 +17,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fatlosstrack.R
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
@@ -39,6 +41,8 @@ fun LoginScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val signInFailedMsg = stringResource(R.string.login_sign_in_failed)
+
     // Legacy GoogleSignIn intent launcher
     val signInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -47,7 +51,7 @@ fun LoginScreen(
             val res = authManager.handleSignInResult(result.data)
             isLoading = false
             if (res.isFailure) {
-                errorMessage = res.exceptionOrNull()?.message ?: "Sign-in failed"
+                errorMessage = res.exceptionOrNull()?.message ?: signInFailedMsg
             }
         }
     }
@@ -102,7 +106,7 @@ fun LoginScreen(
 
             // Title
             Text(
-                text = "FatLoss Track",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-1).sp,
@@ -112,7 +116,7 @@ fun LoginScreen(
 
             // Tagline
             Text(
-                text = "Your weight trend doesn't lie.\nLet the data do the coaching.",
+                text = stringResource(R.string.login_tagline),
                 style = MaterialTheme.typography.bodyLarge,
                 color = OnSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -122,9 +126,9 @@ fun LoginScreen(
             Spacer(Modifier.height(32.dp))
 
             // Feature highlights
-            FeatureRow("7-day moving average, not daily noise")
-            FeatureRow("AI coach that reads your patterns")
-            FeatureRow("Photo-log meals in seconds")
+            FeatureRow(stringResource(R.string.login_feature_1))
+            FeatureRow(stringResource(R.string.login_feature_2))
+            FeatureRow(stringResource(R.string.login_feature_3))
 
             Spacer(Modifier.height(40.dp))
 
@@ -162,7 +166,7 @@ fun LoginScreen(
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = if (isLoading) "Signing in…" else "Continue with Google",
+                    text = if (isLoading) stringResource(R.string.login_signing_in) else stringResource(R.string.login_continue_google),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
                     color = Color.DarkGray,
                 )
@@ -183,7 +187,7 @@ fun LoginScreen(
 
             // Privacy note
             Text(
-                text = "Your data stays on your device.\nGoogle account is used for backup & AI features only.",
+                text = stringResource(R.string.login_privacy_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = OnSurfaceVariant.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
