@@ -96,9 +96,12 @@ class DaySummaryGenerator @Inject constructor(
 
         if (meals.isNotEmpty()) {
             val totalKcal = meals.sumOf { it.totalKcal }
-            parts += "Meals logged: ${meals.size} (total $totalKcal kcal)"
+            val totalProtein = meals.sumOf { it.totalProteinG }
+            val proteinStr = if (totalProtein > 0) ", ${totalProtein}g protein" else ""
+            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$proteinStr)"
             meals.forEach { m ->
-                val desc = "${m.description.take(50)} — ${m.totalKcal} kcal"
+                val proteinPart = if (m.totalProteinG > 0) ", ${m.totalProteinG}g P" else ""
+                val desc = "${m.description.take(50)} — ${m.totalKcal} kcal$proteinPart"
                 parts += "  • $desc"
             }
         } else {

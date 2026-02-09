@@ -100,9 +100,11 @@ fun HomeScreen(
     val pastMeals = meals.filter { it.date != today }
     val totalMeals = pastMeals.size
     val totalKcal = pastMeals.sumOf { it.totalKcal }
+    val totalProtein = pastMeals.sumOf { it.totalProteinG }
     // Divide kcal by days that actually have meals logged, not total period
     val daysWithMeals = pastMeals.map { it.date }.distinct().size
     val avgKcalPerDay = if (daysWithMeals > 0) totalKcal / daysWithMeals else null
+    val avgProteinPerDay = if (daysWithMeals > 0) totalProtein / daysWithMeals else null
     val avgSteps = pastLogs.mapNotNull { it.steps }.let { if (it.isNotEmpty()) it.average().toInt() else null }
     val avgSleep = pastLogs.mapNotNull { it.sleepHours }.let { if (it.isNotEmpty()) it.average() else null }
     val daysLogged = pastLogs.count { log ->
@@ -162,6 +164,7 @@ fun HomeScreen(
                     appendLine("Period stats (last $lookbackDays days, excluding today):")
                     appendLine("- Meals logged: $totalMeals")
                     if (avgKcalPerDay != null) appendLine("- Avg kcal/day: $avgKcalPerDay")
+                    if (avgProteinPerDay != null && avgProteinPerDay > 0) appendLine("- Avg protein/day: ${avgProteinPerDay}g")
                     if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
                     if (avgSleep != null) appendLine("- Avg sleep: %.1fh".format(avgSleep))
                     appendLine("- Days with data: $daysLogged / $lookbackDays")
@@ -279,6 +282,7 @@ Rules:
             ) {
                 MiniStat(Icons.Default.Restaurant, "$totalMeals", "meals")
                 if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", "kcal/day")
+                if (avgProteinPerDay != null && avgProteinPerDay > 0) MiniStat(Icons.Default.FitnessCenter, "${avgProteinPerDay}g", "protein/day")
                 if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, "${avgSteps / 1000}k", "steps/day")
                 if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), "sleep/day")
             }

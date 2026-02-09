@@ -23,6 +23,7 @@ data class MealEntry(
     val description: String = "",
     val itemsJson: String? = null,
     val totalKcal: Int = 0,
+    val totalProteinG: Int = 0,
     val coachNote: String? = null,
     val category: MealCategory = MealCategory.HOME,
     val mealType: MealType? = null,

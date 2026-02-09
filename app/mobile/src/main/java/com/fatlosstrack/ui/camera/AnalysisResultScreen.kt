@@ -62,6 +62,7 @@ data class AnalysisResult(
     val description: String,
     val items: List<MealItem>,
     val totalCalories: Int,
+    val totalProteinG: Int = 0,
     val aiNote: String,
     val source: MealCategory = MealCategory.HOME,
     val mealType: MealType? = null,
@@ -253,6 +254,7 @@ fun AnalysisResultScreen(
                                 description = analysisResult.description,
                                 itemsJson = itemsJson,
                                 totalKcal = analysisResult.totalCalories,
+                                totalProteinG = analysisResult.totalProteinG,
                                 coachNote = analysisResult.aiNote,
                                 category = overrideCategory,
                                 mealType = overrideMealType,
@@ -287,6 +289,7 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
 
     val description = json["description"]?.jsonPrimitive?.content ?: ""
     val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
+    val totalProteinFromJson = json["total_protein_g"]?.jsonPrimitive?.intOrNull
     val aiNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
     val sourceStr = json["source"]?.jsonPrimitive?.content ?: "home"
     val source = when (sourceStr.lowercase()) {
@@ -326,10 +329,17 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         )
     } ?: emptyList()
 
+    // Use explicit total_protein_g from AI, or sum from items as fallback
+    val totalProteinG = totalProteinFromJson
+        ?: items.sumOf { item ->
+            item.nutrition.find { it.name == "Protein" }?.amount?.toIntOrNull() ?: 0
+        }
+
     return AnalysisResult(
         description = description,
         items = items,
         totalCalories = totalCalories,
+        totalProteinG = totalProteinG,
         aiNote = aiNote,
         source = source,
         mealType = mealType,
@@ -471,7 +481,7 @@ private fun ResultContent(
                     NutritionCard(item)
                 }
 
-                // Total calories
+                // Total calories & protein
                 if (result.totalCalories > 0) {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
@@ -489,11 +499,20 @@ private fun ResultContent(
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 color = OnSurface,
                             )
-                            Text(
-                                text = "${result.totalCalories} kcal",
-                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Primary,
-                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "${result.totalCalories} kcal",
+                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Primary,
+                                )
+                                if (result.totalProteinG > 0) {
+                                    Text(
+                                        text = "${result.totalProteinG}g protein",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Secondary,
+                                    )
+                                }
+                            }
                         }
                     }
                 }

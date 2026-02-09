@@ -12,7 +12,7 @@ import androidx.room.TypeConverters
         DailyLog::class,
         Insight::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

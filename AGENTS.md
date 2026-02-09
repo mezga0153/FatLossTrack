@@ -10,7 +10,7 @@ Guide for AI agents working on this codebase.
 | Language | Kotlin 2.1.0 |
 | UI | Jetpack Compose + Material 3 (BOM 2024.12.01) |
 | DI | Hilt 2.54 |
-| DB | Room 2.6.1, version **5** |
+| DB | Room 2.6.1, version **6** |
 | HTTP | Ktor 3.0.3 (OkHttp engine) |
 | Health | Health Connect 1.2.0-alpha02 |
 | Camera | CameraX 1.4.1 |
@@ -120,7 +120,7 @@ fatloss_track/
 | Table | PK | Key Fields |
 |---|---|---|
 | `weight_entries` | `id` (auto) | `date`, `valueKg`, `source` (MANUAL/HEALTH_CONNECT) |
-| `meal_entries` | `id` (auto) | `date`, `description`, `itemsJson?`, `totalKcal`, `coachNote?`, `category` (HOME/RESTAURANT/FAST_FOOD), `mealType?` (BREAKFAST/BRUNCH/LUNCH/DINNER/SNACK) |
+| `meal_entries` | `id` (auto) | `date`, `description`, `itemsJson?`, `totalKcal`, `totalProteinG`, `totalProteinG`, `coachNote?`, `category` (HOME/RESTAURANT/FAST_FOOD), `mealType?` (BREAKFAST/BRUNCH/LUNCH/DINNER/SNACK) |
 | `goals` | `id` (auto) | `targetKg`, `rateKgPerWeek`, `deadline`, `dailyDeficitKcal?` |
 | `daily_logs` | `date` (PK) | `weightKg?`, `steps?`, `sleepHours?`, `restingHr?`, `exercisesJson?`, `notes?`, `offPlan`, `daySummary?` |
 | `insights` | `id` (auto) | `date`, `type` (PATTERN/TRADEOFF), `message`, `dataJson?` |
@@ -128,6 +128,7 @@ fatloss_track/
 ### Migrations
 
 - **4→5**: `ALTER TABLE daily_logs ADD COLUMN daySummary TEXT DEFAULT NULL`
+- **5→6**: `ALTER TABLE meal_entries ADD COLUMN totalProteinG INTEGER NOT NULL DEFAULT 0`
 - Uses `addMigrations()` — **never** use `fallbackToDestructiveMigration()` (it wipes user data)
 
 ### Important: Adding new columns
