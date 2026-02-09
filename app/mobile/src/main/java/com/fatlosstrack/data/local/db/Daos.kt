@@ -17,6 +17,9 @@ interface WeightDao {
 
     @Query("SELECT * FROM weight_entries ORDER BY date DESC LIMIT :count")
     suspend fun getLastN(count: Int): List<WeightEntry>
+
+    @Query("SELECT * FROM weight_entries ORDER BY date ASC")
+    fun getAllEntries(): Flow<List<WeightEntry>>
 }
 
 @Dao

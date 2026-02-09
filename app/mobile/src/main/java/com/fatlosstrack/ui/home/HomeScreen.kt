@@ -1,6 +1,7 @@
 package com.fatlosstrack.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -273,19 +275,68 @@ Rules:
             }
         }
 
-        // ── Weight Trend (compact) ──
+        // ── Weight Trend (compact sparkline with range toggle) ──
         if (weightData.size >= 2) {
-            InfoCard(label = stringResource(R.string.home_weight_trend)) {
-                val dataPoints = weightData.mapIndexed { i, (_, w) -> i to w }
-                val avg = if (weights.isNotEmpty()) weights.average() else 0.0
-                TrendChart(
-                    dataPoints = dataPoints,
-                    avg7d = avg,
-                    targetKg = goalW?.toDouble() ?: 80.0,
-                    confidenceLow = avg - 0.5,
-                    confidenceHigh = avg + 0.5,
-                    modifier = Modifier.height(120.dp),
-                )
+            val allWeightEntries by weightDao.getAllEntries().collectAsState(initial = emptyList())
+            var chartRange by remember { mutableStateOf("7d") }
+            val chartData = remember(chartRange, weightData, allWeightEntries) {
+                val cutoff = when (chartRange) {
+                    "7d" -> today.minusDays(7)
+                    "1m" -> today.minusDays(30)
+                    else -> LocalDate.MIN // "all"
+                }
+                if (chartRange == "all" || chartRange == "1m") {
+                    // For ranges beyond lookback, use allWeightEntries
+                    val src = if (chartRange == "all") allWeightEntries else allWeightEntries.filter { it.date >= cutoff }
+                    src.sortedBy { it.date }.map { it.date to it.valueKg }
+                } else {
+                    weightData.filter { (date, _) -> date >= cutoff }
+                }
+            }
+            if (chartData.size >= 2) {
+                InfoCard(label = null) {
+                    // Header row: label + range chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.home_weight_trend).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OnSurfaceVariant,
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf("7d", "1m", "all").forEach { range ->
+                                val selected = chartRange == range
+                                Text(
+                                    text = range.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
+                                    color = if (selected) Primary else OnSurfaceVariant,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (selected) Primary.copy(alpha = 0.15f) else Color.Transparent)
+                                        .clickable { chartRange = range }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                    }
+                    val firstDate = chartData.first().first
+                    val dataPoints = chartData.map { (date, w) ->
+                        java.time.temporal.ChronoUnit.DAYS.between(firstDate, date).toInt() to w
+                    }
+                    val dateLabels = chartData.map { (date, _) ->
+                        val monthName = date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
+                            .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                        "%d. %s".format(date.dayOfMonth, monthName)
+                    }
+                    TrendChart(
+                        dataPoints = dataPoints,
+                        dateLabels = dateLabels,
+                        modifier = Modifier.height(120.dp),
+                    )
+                }
             }
         }
 
