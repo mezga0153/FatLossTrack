@@ -58,6 +58,17 @@ private fun dateLabelFor(date: LocalDate): String {
     return "${date.dayOfMonth}. $month"
 }
 
+private fun xAxisLabelFor(date: LocalDate, use7dDayNames: Boolean): String {
+    return if (use7dDayNames) {
+        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            .removeSuffix(".").take(3)
+    } else {
+        val month = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+        "${date.dayOfMonth}. $month"
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -421,6 +432,7 @@ Rules:
                     }
 
                     // Swipable chart pager
+                    val is7d = chartRange == "7d"
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxWidth(),
@@ -434,9 +446,11 @@ Rules:
                                     ChronoUnit.DAYS.between(firstDate, date).toInt() to w
                                 }
                                 val dateLabels = chartData.map { (date, _) -> dateLabelFor(date) }
+                                val xLabels = chartData.map { (date, _) -> xAxisLabelFor(date, is7d) }
                                 TrendChart(
                                     dataPoints = dataPoints,
                                     dateLabels = dateLabels,
+                                    xAxisLabels = xLabels,
                                     startLineKg = chartData.firstOrNull()?.second,
                                     targetLineKg = when (chartRange) {
                                         "all" -> goalWeight?.toDouble()
@@ -449,40 +463,46 @@ Rules:
                                             firstW?.let { it - (weeklyRate ?: 0f).toDouble() * days / 7.0 }
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
                             "kcal" -> {
                                 val labels = filteredKcal.map { (d, _) -> dateLabelFor(d) }
+                                val xLabels = filteredKcal.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 SimpleLineChart(
                                     data = filteredKcal.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                                     color = Accent,
                                     dateLabels = labels,
+                                    xAxisLabels = xLabels,
                                     unit = "kcal",
                                     refLineValue = dailyTargetKcal?.toDouble(),
                                     refLineColor = Secondary,
                                     refLineLabel = dailyTargetKcal?.let { "$it kcal" },
-                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
                             "sleep" -> {
                                 val labels = filteredSleep.map { (d, _) -> dateLabelFor(d) }
+                                val xLabels = filteredSleep.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 SimpleLineChart(
                                     data = filteredSleep.mapIndexed { i, (_, h) -> i to h },
                                     color = Primary,
                                     dateLabels = labels,
+                                    xAxisLabels = xLabels,
                                     unit = "h",
-                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
                             "steps" -> {
                                 val labels = filteredSteps.map { (d, _) -> dateLabelFor(d) }
+                                val xLabels = filteredSteps.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 SimpleLineChart(
                                     data = filteredSteps.mapIndexed { i, (_, s) -> i to s.toDouble() },
                                     color = Secondary,
                                     dateLabels = labels,
+                                    xAxisLabels = xLabels,
                                     unit = "steps",
-                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
                         }

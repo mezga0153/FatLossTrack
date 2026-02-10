@@ -29,6 +29,7 @@ fun SimpleLineChart(
     color: Color,
     modifier: Modifier = Modifier,
     dateLabels: List<String> = emptyList(),
+    xAxisLabels: List<String> = emptyList(),
     unit: String = "",
     refLineValue: Double? = null,
     refLineColor: Color = Color(0xFF59D8A0),
@@ -86,7 +87,7 @@ fun SimpleLineChart(
             val padLeft = 4.dp.toPx()
             val padRight = 34.dp.toPx()
             val padTop = 4.dp.toPx()
-            val padBottom = 2.dp.toPx()
+            val padBottom = if (xAxisLabels.isNotEmpty()) 14.dp.toPx() else 2.dp.toPx()
             val chartWidth = size.width - padLeft - padRight
             val chartHeight = size.height - padTop - padBottom
 
@@ -107,6 +108,37 @@ fun SimpleLineChart(
                 )
                 textSize = 9 * d
                 isAntiAlias = true
+            }
+
+            // X-axis labels + vertical grid lines
+            if (xAxisLabels.isNotEmpty()) {
+                val xLabelPaint = android.graphics.Paint().apply {
+                    this.color = labelPaint.color
+                    textSize = 8 * d
+                    isAntiAlias = true
+                    textAlign = android.graphics.Paint.Align.CENTER
+                }
+                val count = xAxisLabels.size
+                val maxLabels = 6
+                val step = if (count <= maxLabels) 1 else (count - 1 + maxLabels - 2) / (maxLabels - 1)
+                var i = 0
+                while (i < count) {
+                    val idx = data[i].first
+                    val x = xFor(idx)
+                    drawLine(
+                        color = gridColor,
+                        start = Offset(x, padTop),
+                        end = Offset(x, padTop + chartHeight),
+                        strokeWidth = 0.5.dp.toPx(),
+                    )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        xAxisLabels[i],
+                        x,
+                        padTop + chartHeight + 11 * d,
+                        xLabelPaint,
+                    )
+                    i += step
+                }
             }
             ticks.forEach { tick ->
                 val y = yFor(tick)

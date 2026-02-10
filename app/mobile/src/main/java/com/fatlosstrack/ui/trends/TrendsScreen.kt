@@ -173,9 +173,11 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "%d. %s".format(date.dayOfMonth, monthName)
                 }
+                val xLabels = weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7d") }
                 TrendChart(
                     dataPoints = weightData.mapIndexed { i, (_, w) -> i to w },
                     dateLabels = dateLabels,
+                    xAxisLabels = xLabels,
                     startLineKg = firstWeight,
                     targetLineKg = refTarget,
                     modifier = Modifier.height(220.dp),
@@ -223,10 +225,12 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
+                val xLabels = kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 SimpleLineChart(
                     data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                     color = Accent,
                     dateLabels = labels,
+                    xAxisLabels = xLabels,
                     unit = "kcal",
                     refLineValue = dailyTargetKcal?.toDouble(),
                     refLineColor = Secondary,
@@ -253,10 +257,12 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
+                val xLabels = sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 SimpleLineChart(
                     data = sleepData.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
                     dateLabels = labels,
+                    xAxisLabels = xLabels,
                     unit = "h",
                     modifier = Modifier.height(120.dp),
                 )
@@ -281,10 +287,12 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
+                val xLabels = stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 SimpleLineChart(
                     data = stepsData.mapIndexed { i, (_, s) -> i to s.toDouble() },
                     color = Secondary,
                     dateLabels = labels,
+                    xAxisLabels = xLabels,
                     unit = "steps",
                     modifier = Modifier.height(120.dp),
                 )
@@ -329,6 +337,17 @@ fun TrendsScreen(
         }
 
         Spacer(Modifier.height(80.dp))
+    }
+}
+
+private fun xAxisLabel(date: LocalDate, use7dDayNames: Boolean): String {
+    return if (use7dDayNames) {
+        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            .removeSuffix(".").take(3)
+    } else {
+        val month = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+        "${date.dayOfMonth}. $month"
     }
 }
 
