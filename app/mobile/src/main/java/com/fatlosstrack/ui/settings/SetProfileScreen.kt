@@ -57,16 +57,14 @@ fun SetProfileScreen(
 
     // Seed fields once from saved values
     LaunchedEffect(savedHeight, savedAge, savedSex, savedActivityLevel) {
-        if (!initialized && (savedHeight != null || savedAge != null || savedSex != null)) {
+        if (!initialized) {
             heightCm = savedHeight?.toString() ?: ""
             age = savedAge?.toString() ?: ""
             sex = savedSex ?: ""
             activityLevel = savedActivityLevel
-            initialized = true
-        } else if (!initialized) {
-            // First launch — no saved values yet, still mark initialized
-            activityLevel = savedActivityLevel
-            initialized = true
+            if (savedHeight != null || savedAge != null || savedSex != null) {
+                initialized = true
+            }
         }
     }
 

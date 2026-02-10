@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
@@ -52,25 +51,22 @@ fun SetGoalScreen(
     val savedGoalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
     val savedRate by preferencesManager.weeklyRate.collectAsState(initial = null)
     val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = null)
-    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
     val savedStartDate by preferencesManager.startDate.collectAsState(initial = null)
 
     var startWeight by remember { mutableStateOf("") }
     var goalWeight by remember { mutableStateOf("") }
     var weeklyRate by remember { mutableStateOf("") }
     var aiGuidance by remember { mutableStateOf("") }
-    var heightCm by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf(LocalDate.now()) }
     var initialized by remember { mutableStateOf(false) }
 
     // Seed fields once from saved values — wait until rate is loaded (non-null) to avoid race
-    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedHeight, savedStartDate) {
+    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedStartDate) {
         if (!initialized && savedRate != null) {
             startWeight = savedStartWeight?.let { "%.1f".format(it) } ?: ""
             goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
             weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
             aiGuidance = savedGuidance ?: ""
-            heightCm = savedHeight?.toString() ?: ""
             startDate = savedStartDate?.let {
                 try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
             } ?: LocalDate.now()
@@ -132,16 +128,6 @@ fun SetGoalScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Spacer(Modifier.height(4.dp))
-
-            // ── Height section ──
-            GoalSection(icon = Icons.Default.Height, title = stringResource(R.string.goal_section_height)) {
-                GoalTextField(
-                    value = heightCm,
-                    onValueChange = { heightCm = it },
-                    label = stringResource(R.string.field_cm),
-                    modifier = Modifier.fillMaxWidth(0.5f),
-                )
-            }
 
             // ── Weight section ──
             GoalSection(icon = Icons.Default.Scale, title = stringResource(R.string.goal_section_weight)) {
@@ -348,10 +334,10 @@ fun SetGoalScreen(
                             goalWeight = goalWeight.toFloatOrNull() ?: 0f,
                             weeklyRate = weeklyRate.toFloatOrNull() ?: 0.5f,
                             aiGuidance = aiGuidance.trim(),
-                            heightCm = heightCm.toIntOrNull(),
+                            heightCm = null,
                             startDate = startDate.toString(),
                         )
-                        AppLogger.instance?.user("Goal saved: start=${startWeight}kg, goal=${goalWeight}kg, rate=${weeklyRate}kg/wk, height=${heightCm}cm, startDate=$startDate")
+                        AppLogger.instance?.user("Goal saved: start=${startWeight}kg, goal=${goalWeight}kg, rate=${weeklyRate}kg/wk, startDate=$startDate")
                     }
                     onBack()
                 },
