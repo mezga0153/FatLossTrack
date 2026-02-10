@@ -43,6 +43,8 @@
     <string name="stat_weight">Weight</string>
     <string name="stat_meals">Meals</string>
     <string name="stat_protein">Protein</string>
+    <string name="stat_carbs">Carbs</string>
+    <string name="stat_fat">Fat</string>
     <string name="stat_steps">Steps</string>
     <string name="stat_sleep">Sleep</string>
     <string name="stat_heart_rate">HR</string>
@@ -69,6 +71,8 @@
     <string name="stat_label_meals">meals</string>
     <string name="stat_label_kcal_day">kcal/day</string>
     <string name="stat_label_protein_day">protein/day</string>
+    <string name="stat_label_carbs_day">carbs/day</string>
+    <string name="stat_label_fat_day">fat/day</string>
     <string name="stat_label_steps_day">steps/day</string>
     <string name="stat_label_sleep_day">sleep/day</string>
     <string name="stat_steps_k">%dk</string>
@@ -94,6 +98,8 @@
     <string name="placeholder_meal_description">e.g. Grilled chicken with rice and salad</string>
     <string name="field_estimated_calories">Estimated calories (kcal)</string>
     <string name="field_protein_g">Protein (g)</string>
+    <string name="field_carbs_g">Carbs (g)</string>
+    <string name="field_fat_g">Fat (g)</string>
     <string name="section_source">Source</string>
     <string name="section_meal_type">Meal</string>
     <string name="field_note_optional">Note (optional)</string>

@@ -146,6 +146,8 @@ fun LogScreen(
         val todayMeals = mealsByDate[today] ?: emptyList()
         val todayKcal = todayMeals.sumOf { it.totalKcal }
         val todayProtein = todayMeals.sumOf { it.totalProteinG }
+        val todayCarbs = todayMeals.sumOf { it.totalCarbsG }
+        val todayFat = todayMeals.sumOf { it.totalFatG }
 
         Card(
             colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
@@ -158,6 +160,8 @@ fun LogScreen(
                 MiniStat(stringResource(R.string.stat_weight), todayLog?.weightKg?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_kg))
                 MiniStat(stringResource(R.string.stat_meals), "${todayMeals.size}", stringResource(R.string.format_kcal, todayKcal))
                 MiniStat(stringResource(R.string.stat_protein), if (todayProtein > 0) stringResource(R.string.format_protein_g, todayProtein) else "\u2014", "")
+                MiniStat(stringResource(R.string.stat_carbs), if (todayCarbs > 0) "${todayCarbs}g" else "\u2014", "")
+                MiniStat(stringResource(R.string.stat_fat), if (todayFat > 0) "${todayFat}g" else "\u2014", "")
                 MiniStat(stringResource(R.string.stat_steps), todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
                 MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_hrs))
             }
@@ -357,13 +361,36 @@ internal fun DayCard(
                                 color = Secondary,
                             )
                         }
+                        if (meal.totalCarbsG > 0) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${meal.totalCarbsG}g C",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = OnSurfaceVariant,
+                            )
+                        }
+                        if (meal.totalFatG > 0) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${meal.totalFatG}g F",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = OnSurfaceVariant,
+                            )
+                        }
                     }
                     Spacer(Modifier.height(2.dp))
                 }
                 val totalKcal = meals.sumOf { it.totalKcal }
                 val totalProtein = meals.sumOf { it.totalProteinG }
+                val totalCarbs = meals.sumOf { it.totalCarbsG }
+                val totalFat = meals.sumOf { it.totalFatG }
+                val macroSuffix = buildString {
+                    if (totalProtein > 0) append(" · ${totalProtein}g P")
+                    if (totalCarbs > 0) append(" · ${totalCarbs}g C")
+                    if (totalFat > 0) append(" · ${totalFat}g F")
+                }
                 Text(
-                    stringResource(R.string.meals_total_kcal, totalKcal) + if (totalProtein > 0) stringResource(R.string.meals_total_protein_suffix, totalProtein) else "",
+                    stringResource(R.string.meals_total_kcal, totalKcal) + macroSuffix,
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = Primary,
                     modifier = Modifier.padding(top = 2.dp),
@@ -479,6 +506,8 @@ internal fun AddMealSheet(
     var description by remember { mutableStateOf("") }
     var kcalStr by remember { mutableStateOf("") }
     var proteinStr by remember { mutableStateOf("") }
+    var carbsStr by remember { mutableStateOf("") }
+    var fatStr by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(MealCategory.HOME) }
     var selectedMealType by remember { mutableStateOf<MealType?>(null) }
     var note by remember { mutableStateOf("") }
@@ -540,6 +569,24 @@ internal fun AddMealSheet(
             keyboardType = KeyboardType.Number,
         )
 
+        // Carbs
+        EditField(
+            icon = Icons.Default.Grain,
+            label = stringResource(R.string.field_carbs_g),
+            value = carbsStr,
+            onValueChange = { carbsStr = it },
+            keyboardType = KeyboardType.Number,
+        )
+
+        // Fat
+        EditField(
+            icon = Icons.Default.WaterDrop,
+            label = stringResource(R.string.field_fat_g),
+            value = fatStr,
+            onValueChange = { fatStr = it },
+            keyboardType = KeyboardType.Number,
+        )
+
         // Category selector
         Text(stringResource(R.string.section_source), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -595,6 +642,8 @@ internal fun AddMealSheet(
                             description = description.trim(),
                             totalKcal = kcalStr.toIntOrNull() ?: 0,
                             totalProteinG = proteinStr.toIntOrNull() ?: 0,
+                            totalCarbsG = carbsStr.toIntOrNull() ?: 0,
+                            totalFatG = fatStr.toIntOrNull() ?: 0,
                             category = selectedCategory,
                             mealType = selectedMealType,
                             note = note.ifBlank { null },
@@ -628,6 +677,8 @@ internal fun MealEditSheet(
     var description by remember { mutableStateOf(meal.description) }
     var kcalStr by remember { mutableStateOf(meal.totalKcal.toString()) }
     var proteinStr by remember { mutableStateOf(meal.totalProteinG.toString()) }
+    var carbsStr by remember { mutableStateOf(meal.totalCarbsG.toString()) }
+    var fatStr by remember { mutableStateOf(meal.totalFatG.toString()) }
     var selectedCategory by remember { mutableStateOf(meal.category) }
     var selectedMealType by remember { mutableStateOf(meal.mealType) }
     var note by remember { mutableStateOf(meal.note ?: "") }
@@ -688,6 +739,22 @@ internal fun MealEditSheet(
                 keyboardType = KeyboardType.Number,
             )
 
+            EditField(
+                icon = Icons.Default.Grain,
+                label = stringResource(R.string.field_carbs_g),
+                value = carbsStr,
+                onValueChange = { carbsStr = it },
+                keyboardType = KeyboardType.Number,
+            )
+
+            EditField(
+                icon = Icons.Default.WaterDrop,
+                label = stringResource(R.string.field_fat_g),
+                value = fatStr,
+                onValueChange = { fatStr = it },
+                keyboardType = KeyboardType.Number,
+            )
+
             Text(stringResource(R.string.section_source), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MealCategory.entries.forEach { cat ->
@@ -734,7 +801,7 @@ internal fun MealEditSheet(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); proteinStr = meal.totalProteinG.toString(); selectedCategory = meal.category; selectedMealType = meal.mealType; note = meal.note ?: "" },
+                    onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); proteinStr = meal.totalProteinG.toString(); carbsStr = meal.totalCarbsG.toString(); fatStr = meal.totalFatG.toString(); selectedCategory = meal.category; selectedMealType = meal.mealType; note = meal.note ?: "" },
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.button_cancel)) }
 
@@ -744,6 +811,8 @@ internal fun MealEditSheet(
                             description = description.trim(),
                             totalKcal = kcalStr.toIntOrNull() ?: meal.totalKcal,
                             totalProteinG = proteinStr.toIntOrNull() ?: meal.totalProteinG,
+                            totalCarbsG = carbsStr.toIntOrNull() ?: meal.totalCarbsG,
+                            totalFatG = fatStr.toIntOrNull() ?: meal.totalFatG,
                             category = selectedCategory,
                             mealType = selectedMealType,
                             note = note.ifBlank { null },
@@ -785,6 +854,13 @@ internal fun MealEditSheet(
                         Text("${meal.totalKcal} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Primary)
                         if (meal.totalProteinG > 0) {
                             Text("${meal.totalProteinG}g protein", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Secondary)
+                        }
+                        val macros = buildString {
+                            if (meal.totalCarbsG > 0) append("${meal.totalCarbsG}g C")
+                            if (meal.totalFatG > 0) { if (isNotEmpty()) append("  "); append("${meal.totalFatG}g F") }
+                        }
+                        if (macros.isNotEmpty()) {
+                            Text(macros, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
                         }
                     }
                 }

@@ -65,6 +65,8 @@ data class AnalysisResult(
     val items: List<MealItem>,
     val totalCalories: Int,
     val totalProteinG: Int = 0,
+    val totalCarbsG: Int = 0,
+    val totalFatG: Int = 0,
     val aiNote: String,
     val source: MealCategory = MealCategory.HOME,
     val mealType: MealType? = null,
@@ -257,6 +259,8 @@ fun AnalysisResultScreen(
                                 itemsJson = itemsJson,
                                 totalKcal = analysisResult.totalCalories,
                                 totalProteinG = analysisResult.totalProteinG,
+                                totalCarbsG = analysisResult.totalCarbsG,
+                                totalFatG = analysisResult.totalFatG,
                                 coachNote = analysisResult.aiNote,
                                 category = overrideCategory,
                                 mealType = overrideMealType,
@@ -292,6 +296,8 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
     val description = json["description"]?.jsonPrimitive?.content ?: ""
     val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
     val totalProteinFromJson = json["total_protein_g"]?.jsonPrimitive?.intOrNull
+    val totalCarbsFromJson = json["total_carbs_g"]?.jsonPrimitive?.intOrNull
+    val totalFatFromJson = json["total_fat_g"]?.jsonPrimitive?.intOrNull
     val aiNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
     val sourceStr = json["source"]?.jsonPrimitive?.content ?: "home"
     val source = when (sourceStr.lowercase()) {
@@ -331,10 +337,18 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         )
     } ?: emptyList()
 
-    // Use explicit total_protein_g from AI, or sum from items as fallback
+    // Use explicit totals from AI, or sum from items as fallback
     val totalProteinG = totalProteinFromJson
         ?: items.sumOf { item ->
             item.nutrition.find { it.name == "Protein" }?.amount?.toIntOrNull() ?: 0
+        }
+    val totalCarbsG = totalCarbsFromJson
+        ?: items.sumOf { item ->
+            item.nutrition.find { it.name == "Carbs" }?.amount?.toIntOrNull() ?: 0
+        }
+    val totalFatG = totalFatFromJson
+        ?: items.sumOf { item ->
+            item.nutrition.find { it.name == "Fat" }?.amount?.toIntOrNull() ?: 0
         }
 
     return AnalysisResult(
@@ -342,6 +356,8 @@ private fun parseAnalysisJson(raw: String): AnalysisResult {
         items = items,
         totalCalories = totalCalories,
         totalProteinG = totalProteinG,
+        totalCarbsG = totalCarbsG,
+        totalFatG = totalFatG,
         aiNote = aiNote,
         source = source,
         mealType = mealType,
@@ -512,6 +528,17 @@ private fun ResultContent(
                                         text = stringResource(R.string.format_protein_full, result.totalProteinG),
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = Secondary,
+                                    )
+                                }
+                                val macros = buildString {
+                                    if (result.totalCarbsG > 0) append("${result.totalCarbsG}g C")
+                                    if (result.totalFatG > 0) { if (isNotEmpty()) append("  "); append("${result.totalFatG}g F") }
+                                }
+                                if (macros.isNotEmpty()) {
+                                    Text(
+                                        macros,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = OnSurfaceVariant,
                                     )
                                 }
                             }

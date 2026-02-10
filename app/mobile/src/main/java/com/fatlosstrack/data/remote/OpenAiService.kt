@@ -265,6 +265,8 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in th
   ],
   "total_calories": 0,
   "total_protein_g": 0,
+  "total_carbs_g": 0,
+  "total_fat_g": 0,
   "coach_note": "Brief coaching comment about this meal in context of a fat loss diet"
 }
 For "source", determine if the meal is: "home" (home-cooked), "restaurant" (dine-in/takeout from a restaurant), or "fast_food" (fast food chain). Look at plating, packaging, and food style to decide.
@@ -288,6 +290,8 @@ Respond in this exact JSON format:
   ],
   "total_calories": 0,
   "total_protein_g": 0,
+  "total_carbs_g": 0,
+  "total_fat_g": 0,
   "coach_note": "Why this meal is good for fat loss and how to prepare it quickly"
 }
 Prioritize high-protein, moderate-calorie meals."""
@@ -316,6 +320,8 @@ If it IS a meal description, respond with ONLY this JSON (no markdown fences, no
   ],
   "total_calories": 0,
   "total_protein_g": 0,
+  "total_carbs_g": 0,
+  "total_fat_g": 0,
   "coach_note": "Brief coaching comment about this meal"
 }
 

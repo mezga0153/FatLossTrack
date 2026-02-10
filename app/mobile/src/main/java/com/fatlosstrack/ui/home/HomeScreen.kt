@@ -105,10 +105,14 @@ fun HomeScreen(
     val totalMeals = pastMeals.size
     val totalKcal = pastMeals.sumOf { it.totalKcal }
     val totalProtein = pastMeals.sumOf { it.totalProteinG }
+    val totalCarbs = pastMeals.sumOf { it.totalCarbsG }
+    val totalFat = pastMeals.sumOf { it.totalFatG }
     // Divide kcal by days that actually have meals logged, not total period
     val daysWithMeals = pastMeals.map { it.date }.distinct().size
     val avgKcalPerDay = if (daysWithMeals > 0) totalKcal / daysWithMeals else null
     val avgProteinPerDay = if (daysWithMeals > 0) totalProtein / daysWithMeals else null
+    val avgCarbsPerDay = if (daysWithMeals > 0) totalCarbs / daysWithMeals else null
+    val avgFatPerDay = if (daysWithMeals > 0) totalFat / daysWithMeals else null
     val avgSteps = pastLogs.mapNotNull { it.steps }.let { if (it.isNotEmpty()) it.average().toInt() else null }
     val avgSleep = pastLogs.mapNotNull { it.sleepHours }.let { if (it.isNotEmpty()) it.average() else null }
     val daysLogged = pastLogs.count { log ->
@@ -179,6 +183,8 @@ fun HomeScreen(
                     appendLine("- Meals logged: $totalMeals")
                     if (avgKcalPerDay != null) appendLine("- Avg kcal/day: $avgKcalPerDay")
                     if (avgProteinPerDay != null && avgProteinPerDay > 0) appendLine("- Avg protein/day: ${avgProteinPerDay}g")
+                    if (avgCarbsPerDay != null && avgCarbsPerDay > 0) appendLine("- Avg carbs/day: ${avgCarbsPerDay}g")
+                    if (avgFatPerDay != null && avgFatPerDay > 0) appendLine("- Avg fat/day: ${avgFatPerDay}g")
                     if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
                     if (avgSleep != null) appendLine("- Avg sleep: %.1fh".format(avgSleep))
                     appendLine("- Days with data: $daysLogged / $lookbackDays")
@@ -350,6 +356,8 @@ Rules:
                 MiniStat(Icons.Default.Restaurant, "$totalMeals", stringResource(R.string.stat_label_meals))
                 if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", stringResource(R.string.stat_label_kcal_day))
                 if (avgProteinPerDay != null && avgProteinPerDay > 0) MiniStat(Icons.Default.FitnessCenter, "${avgProteinPerDay}g", stringResource(R.string.stat_label_protein_day))
+                if (avgCarbsPerDay != null && avgCarbsPerDay > 0) MiniStat(Icons.Default.Grain, "${avgCarbsPerDay}g", stringResource(R.string.stat_label_carbs_day))
+                if (avgFatPerDay != null && avgFatPerDay > 0) MiniStat(Icons.Default.WaterDrop, "${avgFatPerDay}g", stringResource(R.string.stat_label_fat_day))
                 if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, stringResource(R.string.stat_steps_k, avgSteps / 1000), stringResource(R.string.stat_label_steps_day))
                 if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), stringResource(R.string.stat_label_sleep_day))
             }

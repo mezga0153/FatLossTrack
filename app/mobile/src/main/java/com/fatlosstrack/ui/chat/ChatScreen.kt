@@ -491,7 +491,9 @@ private suspend fun buildContextBlock(
         sb.appendLine("\nMeals:")
         meals.sortedByDescending { it.date }.forEach { m ->
             val prot = if (m.totalProteinG > 0) ", ${m.totalProteinG}g protein" else ""
-            sb.appendLine("  ${fmt.format(m.date)}: ${m.description} (${m.totalKcal} kcal$prot)")
+            val carb = if (m.totalCarbsG > 0) ", ${m.totalCarbsG}g carbs" else ""
+            val fat = if (m.totalFatG > 0) ", ${m.totalFatG}g fat" else ""
+            sb.appendLine("  ${fmt.format(m.date)}: ${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
         }
     }
 

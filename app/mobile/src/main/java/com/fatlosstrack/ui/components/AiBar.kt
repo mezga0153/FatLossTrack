@@ -229,6 +229,9 @@ fun AiBar(
                                                     description = parsed.description,
                                                     itemsJson = parsed.itemsJson,
                                                     totalKcal = parsed.totalCalories,
+                                                    totalProteinG = parsed.totalProteinG,
+                                                    totalCarbsG = parsed.totalCarbsG,
+                                                    totalFatG = parsed.totalFatG,
                                                     coachNote = parsed.coachNote,
                                                     category = parsed.source,
                                                 )
@@ -314,6 +317,9 @@ private data class ParsedMeal(
     val source: MealCategory,
     val itemsJson: String,
     val totalCalories: Int,
+    val totalProteinG: Int,
+    val totalCarbsG: Int,
+    val totalFatG: Int,
     val coachNote: String,
 )
 
@@ -360,6 +366,9 @@ private fun tryParseMealJson(raw: String): ParsedMeal? {
             source = source,
             itemsJson = itemsJson,
             totalCalories = totalCalories,
+            totalProteinG = json["total_protein_g"]?.jsonPrimitive?.intOrNull ?: 0,
+            totalCarbsG = json["total_carbs_g"]?.jsonPrimitive?.intOrNull ?: 0,
+            totalFatG = json["total_fat_g"]?.jsonPrimitive?.intOrNull ?: 0,
             coachNote = coachNote,
         )
     } catch (_: Exception) {

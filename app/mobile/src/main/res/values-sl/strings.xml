@@ -43,6 +43,8 @@
     <string name="stat_weight">Teža</string>
     <string name="stat_meals">Obroki</string>
     <string name="stat_protein">Beljakovine</string>
+    <string name="stat_carbs">Ogljikovi h.</string>
+    <string name="stat_fat">Maščobe</string>
     <string name="stat_steps">Koraki</string>
     <string name="stat_sleep">Spanje</string>
     <string name="stat_heart_rate">Utrip</string>
@@ -69,6 +71,8 @@
     <string name="stat_label_meals">obrokov</string>
     <string name="stat_label_kcal_day">kcal/dan</string>
     <string name="stat_label_protein_day">beljakovin/dan</string>
+    <string name="stat_label_carbs_day">OH/dan</string>
+    <string name="stat_label_fat_day">maščob/dan</string>
     <string name="stat_label_steps_day">korakov/dan</string>
     <string name="stat_label_sleep_day">spanja/dan</string>
     <string name="stat_steps_k">%dk</string>
@@ -94,6 +98,8 @@
     <string name="placeholder_meal_description">npr. Piščanec z rižem in solato</string>
     <string name="field_estimated_calories">Ocenjene kalorije (kcal)</string>
     <string name="field_protein_g">Beljakovine (g)</string>
+    <string name="field_carbs_g">Ogljikovi hidrati (g)</string>
+    <string name="field_fat_g">Maščobe (g)</string>
     <string name="section_source">Vir</string>
     <string name="section_meal_type">Obrok</string>
     <string name="field_note_optional">Opomba (neobvezno)</string>

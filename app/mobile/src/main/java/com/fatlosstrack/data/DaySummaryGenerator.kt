@@ -45,7 +45,7 @@ class DaySummaryGenerator @Inject constructor(
             parts += "notes=${log.notes}"
         }
         meals.sortedBy { it.id }.forEach { m ->
-            parts += "m:${m.description}|${m.totalKcal}|${m.totalProteinG}|${m.category}|${m.mealType}|${m.itemsJson}"
+            parts += "m:${m.description}|${m.totalKcal}|${m.totalProteinG}|${m.totalCarbsG}|${m.totalFatG}|${m.category}|${m.mealType}|${m.itemsJson}"
         }
         if (goal != null) {
             parts += "g:${goal.targetKg}|${goal.rateKgPerWeek}|${goal.dailyDeficitKcal}"
@@ -143,11 +143,21 @@ class DaySummaryGenerator @Inject constructor(
         if (meals.isNotEmpty()) {
             val totalKcal = meals.sumOf { it.totalKcal }
             val totalProtein = meals.sumOf { it.totalProteinG }
-            val proteinStr = if (totalProtein > 0) ", ${totalProtein}g protein" else ""
-            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$proteinStr)"
+            val totalCarbs = meals.sumOf { it.totalCarbsG }
+            val totalFat = meals.sumOf { it.totalFatG }
+            val macroStr = buildString {
+                if (totalProtein > 0) append(", ${totalProtein}g protein")
+                if (totalCarbs > 0) append(", ${totalCarbs}g carbs")
+                if (totalFat > 0) append(", ${totalFat}g fat")
+            }
+            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$macroStr)"
             meals.forEach { m ->
-                val proteinPart = if (m.totalProteinG > 0) ", ${m.totalProteinG}g P" else ""
-                val desc = "${m.description.take(50)} — ${m.totalKcal} kcal$proteinPart"
+                val macroPart = buildString {
+                    if (m.totalProteinG > 0) append(", ${m.totalProteinG}g P")
+                    if (m.totalCarbsG > 0) append(", ${m.totalCarbsG}g C")
+                    if (m.totalFatG > 0) append(", ${m.totalFatG}g F")
+                }
+                val desc = "${m.description.take(50)} — ${m.totalKcal} kcal$macroPart"
                 parts += "  • $desc"
             }
         } else {
