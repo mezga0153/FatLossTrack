@@ -355,4 +355,6 @@
     <string name="chat_pill_suggest_meal">Predlagaj obrok</string>
     <string name="chat_pill_weekly_review">Tedenski pregled</string>
     <string name="chat_pill_am_i_on_track">Sem na pravi poti?</string>
+    <string name="chat_action_copy">Kopiraj</string>
+    <string name="chat_action_retry">Ponovi</string>
 </resources>

@@ -14,13 +14,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,9 +54,32 @@ fun ChatScreen(
     val messages by chatMessageDao.getAllMessages().collectAsState(initial = emptyList())
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var streamingContent by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     var showClearDialog by remember { mutableStateOf(false) }
+    val androidContext = LocalContext.current
+
+    // Helper: stream a chat response, update streamingContent live, save to DB when done
+    suspend fun streamResponse() {
+        val context = buildContextBlock(dailyLogDao, mealDao, weightDao, preferencesManager)
+        val recent = chatMessageDao.getRecentMessages(20).reversed()
+        val history = recent.map { it.role to it.content }
+        streamingContent = ""
+        try {
+            val sb = StringBuilder()
+            openAiService.streamChatWithHistory(history, context).collect { delta ->
+                sb.append(delta)
+                streamingContent = sb.toString()
+            }
+            chatMessageDao.insert(ChatMessage(role = "assistant", content = sb.toString()))
+        } catch (e: Exception) {
+            chatMessageDao.insert(
+                ChatMessage(role = "assistant", content = "\u26a0\ufe0f ${e.message ?: "Something went wrong"}")
+            )
+        }
+        streamingContent = null
+    }
 
     // Pick up pending message from AiBar
     val initialHandled = remember { mutableStateOf(false) }
@@ -62,28 +89,16 @@ fun ChatScreen(
             initialHandled.value = true
             isLoading = true
             chatMessageDao.insert(ChatMessage(role = "user", content = pending))
-            val context = buildContextBlock(dailyLogDao, mealDao, weightDao, preferencesManager)
-            val recent = chatMessageDao.getRecentMessages(20).reversed()
-            val history = recent.map { it.role to it.content }
-            val result = openAiService.chatWithHistory(history, context)
-            result.fold(
-                onSuccess = { reply ->
-                    chatMessageDao.insert(ChatMessage(role = "assistant", content = reply))
-                },
-                onFailure = { err ->
-                    chatMessageDao.insert(
-                        ChatMessage(role = "assistant", content = "⚠️ ${err.message ?: "Something went wrong"}")
-                    )
-                },
-            )
+            streamResponse()
             isLoading = false
         }
     }
 
-    // Auto-scroll to bottom when messages change
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    // Auto-scroll to bottom when messages change or streaming
+    LaunchedEffect(messages.size, streamingContent) {
+        val totalItems = messages.size + (if (streamingContent != null) 1 else 0)
+        if (totalItems > 0) {
+            listState.animateScrollToItem(totalItems - 1)
         }
     }
 
@@ -116,20 +131,7 @@ fun ChatScreen(
         isLoading = true
         scope.launch {
             chatMessageDao.insert(ChatMessage(role = "user", content = text))
-            val context = buildContextBlock(dailyLogDao, mealDao, weightDao, preferencesManager)
-            val recent = chatMessageDao.getRecentMessages(20).reversed()
-            val history = recent.map { it.role to it.content }
-            val result = openAiService.chatWithHistory(history, context)
-            result.fold(
-                onSuccess = { reply ->
-                    chatMessageDao.insert(ChatMessage(role = "assistant", content = reply))
-                },
-                onFailure = { err ->
-                    chatMessageDao.insert(
-                        ChatMessage(role = "assistant", content = "⚠️ ${err.message ?: "Something went wrong"}")
-                    )
-                },
-            )
+            streamResponse()
             isLoading = false
         }
     }
@@ -182,27 +184,78 @@ fun ChatScreen(
             }
 
             items(messages, key = { it.id }) { msg ->
-                ChatBubble(msg)
+                ChatBubble(
+                    message = msg,
+                    onCopy = { content ->
+                        val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
+                    },
+                    onRetry = {
+                        // Find the user message before this AI message and resend
+                        val idx = messages.indexOf(msg)
+                        val userMsg = messages.take(idx).lastOrNull { it.role == "user" }
+                        if (userMsg != null) {
+                            scope.launch {
+                                chatMessageDao.delete(msg)
+                                isLoading = true
+                                streamResponse()
+                                isLoading = false
+                            }
+                        }
+                    },
+                )
             }
 
-            // Loading indicator
-            if (isLoading) {
-                item {
-                    Row(
-                        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = Accent,
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(8.dp))
+            // Streaming response bubble
+            if (streamingContent != null) {
+                item(key = "streaming") {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            stringResource(R.string.ai_thinking),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = OnSurfaceVariant,
+                            stringResource(R.string.ai_coach),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = Accent,
                         )
+                        Spacer(Modifier.height(2.dp))
+                        if (streamingContent!!.isNotEmpty()) {
+                            Markdown(
+                                content = streamingContent!!,
+                                colors = markdownColor(
+                                    text = OnSurface,
+                                    codeBackground = CardSurface,
+                                    inlineCodeBackground = CardSurface,
+                                    dividerColor = OnSurfaceVariant.copy(alpha = 0.3f),
+                                    tableBackground = CardSurface,
+                                ),
+                                typography = markdownTypography(
+                                    h1 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = OnSurface),
+                                    h2 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = OnSurface),
+                                    h3 = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = OnSurface),
+                                    text = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    paragraph = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    bullet = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    list = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    ordered = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.padding(top = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Accent,
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    stringResource(R.string.ai_thinking),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = OnSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -227,6 +280,11 @@ fun ChatScreen(
                 inputText = ""
                 sendMessage(query)
             },
+            onFocused = {
+                if (messages.isNotEmpty()) {
+                    scope.launch { listState.animateScrollToItem(messages.size - 1) }
+                }
+            },
         )
     }
 }
@@ -234,7 +292,11 @@ fun ChatScreen(
 // ── Chat message ──
 
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    message: ChatMessage,
+    onCopy: (String) -> Unit = {},
+    onRetry: () -> Unit = {},
+) {
     val isUser = message.role == "user"
 
     if (isUser) {
@@ -292,6 +354,34 @@ private fun ChatBubble(message: ChatMessage) {
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
+            // Action icons
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconButton(
+                    onClick = { onCopy(message.content) },
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = stringResource(R.string.chat_action_copy),
+                        tint = OnSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                IconButton(
+                    onClick = onRetry,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = stringResource(R.string.chat_action_retry),
+                        tint = OnSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -363,6 +453,7 @@ private fun ChatInputBar(
     onTextChange: (String) -> Unit,
     isLoading: Boolean,
     onSend: () -> Unit,
+    onFocused: () -> Unit = {},
 ) {
     val pillShape = RoundedCornerShape(28.dp)
 
@@ -394,7 +485,9 @@ private fun ChatInputBar(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { if (it.isFocused) onFocused() },
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = AiBarBg,
                 unfocusedContainerColor = AiBarBg,

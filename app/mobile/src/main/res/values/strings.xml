@@ -355,4 +355,6 @@
     <string name="chat_pill_suggest_meal">Suggest a meal</string>
     <string name="chat_pill_weekly_review">Weekly review</string>
     <string name="chat_pill_am_i_on_track">Am I on track?</string>
+    <string name="chat_action_copy">Copy</string>
+    <string name="chat_action_retry">Retry</string>
 </resources>

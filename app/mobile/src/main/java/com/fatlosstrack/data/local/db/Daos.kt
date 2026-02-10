@@ -81,6 +81,9 @@ interface ChatMessageDao {
     @Insert
     suspend fun insert(message: ChatMessage): Long
 
+    @Delete
+    suspend fun delete(message: ChatMessage)
+
     @Query("SELECT * FROM chat_messages ORDER BY createdAt ASC")
     fun getAllMessages(): Flow<List<ChatMessage>>
 

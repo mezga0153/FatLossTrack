@@ -8,7 +8,10 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -135,6 +138,74 @@ class OpenAiService @Inject constructor(
             .jsonObject["content"]!!.jsonPrimitive.content
         appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
         content
+    }
+
+    /**
+     * Streaming chat completion — emits content deltas as they arrive.
+     * Collects SSE events from the OpenAI streaming API.
+     */
+    fun streamChatWithHistory(
+        history: List<Pair<String, String>>,
+        contextBlock: String,
+    ): Flow<String> = flow {
+        appLogger.ai("Streaming chat with history (${history.size} messages)")
+        val apiKey = prefs.openAiApiKey.first()
+        require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
+        val model = prefs.openAiModel.first()
+        val langSuffix = languageSuffix()
+
+        val systemContent = SYSTEM_PROMPT + "\n\n" + contextBlock + langSuffix
+
+        val body = buildJsonObject {
+            put("model", model)
+            put("stream", true)
+            putJsonArray("messages") {
+                addJsonObject {
+                    put("role", "system")
+                    put("content", systemContent)
+                }
+                val recentHistory = if (history.size > 30) history.takeLast(30) else history
+                recentHistory.forEach { (role, content) ->
+                    addJsonObject {
+                        put("role", role)
+                        put("content", content)
+                    }
+                }
+            }
+            put("max_completion_tokens", 1024)
+            put("temperature", 0.7)
+        }
+
+        val response = client.post(API_URL) {
+            contentType(ContentType.Application.Json)
+            bearerAuth(apiKey)
+            setBody(Json.encodeToString(body))
+        }
+
+        if (response.status != HttpStatusCode.OK) {
+            val errorBody = response.bodyAsText()
+            appLogger.error("AI", "Stream API error ${response.status}: ${errorBody.take(200)}")
+            error("OpenAI API error ${response.status}: $errorBody")
+        }
+
+        val channel = response.bodyAsChannel()
+        val sb = StringBuilder()
+        while (!channel.isClosedForRead) {
+            val line = channel.readUTF8Line() ?: break
+            if (!line.startsWith("data: ")) continue
+            val data = line.removePrefix("data: ").trim()
+            if (data == "[DONE]") break
+            try {
+                val chunk = Json.parseToJsonElement(data).jsonObject
+                val delta = chunk["choices"]?.jsonArray?.get(0)?.jsonObject
+                    ?.get("delta")?.jsonObject?.get("content")?.jsonPrimitive?.content
+                if (delta != null) {
+                    sb.append(delta)
+                    emit(delta)
+                }
+            } catch (_: Exception) { /* skip malformed chunks */ }
+        }
+        appLogger.ai("Stream complete (${sb.length} chars): ${sb.take(120)}${if (sb.length > 120) "…" else ""}")
     }
 
     /**
