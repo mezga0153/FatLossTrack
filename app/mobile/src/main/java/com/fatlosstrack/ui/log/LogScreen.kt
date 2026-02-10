@@ -114,6 +114,21 @@ fun LogScreen(
     val dailyLogs by dailyLogDao.getAllLogs().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
+    // TDEE / daily target
+    val savedSex by preferencesManager.sex.collectAsState(initial = null)
+    val savedAge by preferencesManager.age.collectAsState(initial = null)
+    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
+    val savedStartWeight by preferencesManager.startWeight.collectAsState(initial = null)
+    val savedRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
+    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
+    val dailyTargetKcal = remember(savedSex, savedAge, savedHeight, savedStartWeight, savedRate, savedActivityLevel) {
+        val sex = savedSex ?: return@remember null
+        val age = savedAge ?: return@remember null
+        val height = savedHeight ?: return@remember null
+        val weight = savedStartWeight ?: return@remember null
+        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(weight, height, age, sex, savedActivityLevel, savedRate)
+    }
+
     // Sheet states
     val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val mealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -172,6 +187,7 @@ fun LogScreen(
                 date = date,
                 log = logsByDate[date],
                 meals = mealsByDate[date] ?: emptyList(),
+                dailyTargetKcal = dailyTargetKcal,
                 onEdit = { editingDate = date },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = date },
@@ -266,6 +282,7 @@ internal fun DayCard(
     date: LocalDate,
     log: DailyLog?,
     meals: List<MealEntry>,
+    dailyTargetKcal: Int? = null,
     onEdit: () -> Unit,
     onMealClick: (MealEntry) -> Unit,
     onAddMeal: () -> Unit,
@@ -318,6 +335,11 @@ internal fun DayCard(
                 val dayTotalProtein = meals.sumOf { it.totalProteinG }
                 val dayTotalCarbs = meals.sumOf { it.totalCarbsG }
                 val dayTotalFat = meals.sumOf { it.totalFatG }
+                // Macro targets from daily calorie target (for percentage calculations)
+                val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+                val targetProtein = macroTargets?.first ?: dayTotalProtein
+                val targetCarbs = macroTargets?.second ?: dayTotalCarbs
+                val targetFat = macroTargets?.third ?: dayTotalFat
                 sortedMeals.forEach { meal ->
                     Column(
                         modifier = Modifier
@@ -355,19 +377,28 @@ internal fun DayCard(
                                 maxLines = 1,
                             )
                         }
-                        // Line 2: kcal P C F with percentages
+                        // Line 2: kcal P C F with percentages (of daily target when available, else day total)
                         Row(
                             modifier = Modifier.padding(start = 20.dp, top = 2.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "${meal.totalKcal} kcal",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = Primary,
-                            )
+                            if (dailyTargetKcal != null && dailyTargetKcal > 0) {
+                                val kcalPct = meal.totalKcal * 100 / dailyTargetKcal
+                                Text(
+                                    "${meal.totalKcal} kcal ($kcalPct%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Primary,
+                                )
+                            } else {
+                                Text(
+                                    "${meal.totalKcal} kcal",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Primary,
+                                )
+                            }
                             if (meal.totalProteinG > 0) {
-                                val pct = if (dayTotalProtein > 0) (meal.totalProteinG * 100 / dayTotalProtein) else 0
+                                val pct = if (targetProtein > 0) (meal.totalProteinG * 100 / targetProtein) else 0
                                 Text(
                                     "P ${meal.totalProteinG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
@@ -375,7 +406,7 @@ internal fun DayCard(
                                 )
                             }
                             if (meal.totalCarbsG > 0) {
-                                val pct = if (dayTotalCarbs > 0) (meal.totalCarbsG * 100 / dayTotalCarbs) else 0
+                                val pct = if (targetCarbs > 0) (meal.totalCarbsG * 100 / targetCarbs) else 0
                                 Text(
                                     "C ${meal.totalCarbsG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
@@ -383,7 +414,7 @@ internal fun DayCard(
                                 )
                             }
                             if (meal.totalFatG > 0) {
-                                val pct = if (dayTotalFat > 0) (meal.totalFatG * 100 / dayTotalFat) else 0
+                                val pct = if (targetFat > 0) (meal.totalFatG * 100 / targetFat) else 0
                                 Text(
                                     "F ${meal.totalFatG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
@@ -403,8 +434,12 @@ internal fun DayCard(
                     if (totalCarbs > 0) append(" · ${totalCarbs}g C")
                     if (totalFat > 0) append(" · ${totalFat}g F")
                 }
+                // Total row: show % of daily target if available
+                val targetSuffix = if (dailyTargetKcal != null && dailyTargetKcal > 0) {
+                    " / $dailyTargetKcal (${totalKcal * 100 / dailyTargetKcal}%)"
+                } else ""
                 Text(
-                    stringResource(R.string.meals_total_kcal, totalKcal) + macroSuffix,
+                    stringResource(R.string.meals_total_kcal, totalKcal) + targetSuffix + macroSuffix,
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = Primary,
                     modifier = Modifier.padding(top = 2.dp),

@@ -31,6 +31,9 @@ class PreferencesManager @Inject constructor(
         private val KEY_HEIGHT_CM = intPreferencesKey("height_cm")
         private val KEY_START_DATE = stringPreferencesKey("start_date") // ISO format yyyy-MM-dd
         private val KEY_LANGUAGE = stringPreferencesKey("language") // "en" or "sl"
+        private val KEY_SEX = stringPreferencesKey("sex") // "male", "female", or "yes"
+        private val KEY_AGE = intPreferencesKey("age")
+        private val KEY_ACTIVITY_LEVEL = stringPreferencesKey("activity_level") // "sedentary", "light", "moderate", "active"
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -73,6 +76,18 @@ class PreferencesManager @Inject constructor(
         prefs[KEY_LANGUAGE] ?: "en"
     }
 
+    val sex: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SEX]
+    }
+
+    val age: Flow<Int?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_AGE]
+    }
+
+    val activityLevel: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ACTIVITY_LEVEL] ?: "light"
+    }
+
     suspend fun setOpenAiApiKey(key: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_OPENAI_API_KEY] = key
@@ -109,9 +124,33 @@ class PreferencesManager @Inject constructor(
         }
     }
 
+    suspend fun setHeightCm(height: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_HEIGHT_CM] = height
+        }
+    }
+
     suspend fun setLanguage(lang: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LANGUAGE] = lang
+        }
+    }
+
+    suspend fun setSex(sex: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SEX] = sex
+        }
+    }
+
+    suspend fun setAge(age: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_AGE] = age
+        }
+    }
+
+    suspend fun setActivityLevel(level: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ACTIVITY_LEVEL] = level
         }
     }
 }

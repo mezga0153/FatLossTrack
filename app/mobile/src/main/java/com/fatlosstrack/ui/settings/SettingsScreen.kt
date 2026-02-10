@@ -32,6 +32,7 @@ import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.Primary
 import com.fatlosstrack.ui.theme.Secondary
 import com.fatlosstrack.ui.theme.Tertiary
+import com.fatlosstrack.domain.TdeeCalculator
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
@@ -49,6 +50,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onEditGoal: () -> Unit = {},
+    onEditProfile: () -> Unit = {},
     authManager: AuthManager? = null,
     preferencesManager: PreferencesManager? = null,
     healthConnectManager: HealthConnectManager? = null,
@@ -72,6 +74,12 @@ fun SettingsScreen(
         ?: remember { mutableStateOf(null) }
     val savedStartDate by preferencesManager?.startDate?.collectAsState(initial = null)
         ?: remember { mutableStateOf(null) }
+    val savedSex by preferencesManager?.sex?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
+    val savedAge by preferencesManager?.age?.collectAsState(initial = null)
+        ?: remember { mutableStateOf(null) }
+    val savedActivityLevel by preferencesManager?.activityLevel?.collectAsState(initial = "light")
+        ?: remember { mutableStateOf("light") }
 
     var toneHonest by remember { mutableStateOf(true) }
     LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
@@ -121,14 +129,52 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        // -- Profile --
-        SettingsSection(stringResource(R.string.settings_section_profile)) {
-            if (savedHeight != null) SettingsRow(stringResource(R.string.settings_height), stringResource(R.string.format_height_cm, savedHeight!!))
+        // -- User Profile --
+        SettingsSection(stringResource(R.string.settings_section_user_profile)) {
+            SettingsRow(stringResource(R.string.settings_height), savedHeight?.let { stringResource(R.string.format_height_cm, it) } ?: stringResource(R.string.settings_not_set))
+            SettingsRow(stringResource(R.string.settings_age), savedAge?.toString() ?: stringResource(R.string.settings_not_set))
+            SettingsRow(stringResource(R.string.settings_sex), savedSex?.let { sex ->
+                when (sex) {
+                    "male" -> stringResource(R.string.sex_male)
+                    "female" -> stringResource(R.string.sex_female)
+                    else -> stringResource(R.string.sex_yes)
+                }
+            } ?: stringResource(R.string.settings_not_set))
+            SettingsRow(stringResource(R.string.settings_activity_level), when (savedActivityLevel) {
+                "sedentary" -> stringResource(R.string.activity_sedentary)
+                "light" -> stringResource(R.string.activity_light)
+                "moderate" -> stringResource(R.string.activity_moderate)
+                "active" -> stringResource(R.string.activity_active)
+                else -> stringResource(R.string.activity_light)
+            })
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onEditProfile) {
+                Text(stringResource(R.string.settings_edit_profile), color = Primary)
+            }
+        }
+
+        // -- Goal --
+        SettingsSection(stringResource(R.string.settings_section_goal)) {
             SettingsRow(stringResource(R.string.settings_start_weight), savedStartWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.settings_not_set))
             SettingsRow(stringResource(R.string.settings_goal_weight), savedGoalWeight?.let { "%.1f kg".format(it) } ?: stringResource(R.string.settings_not_set))
             val rateVal = savedRate ?: 0.5f
             SettingsRow(stringResource(R.string.settings_rate), stringResource(R.string.settings_rate_value, rateVal.toString()))
             SettingsRow(stringResource(R.string.settings_daily_deficit), stringResource(R.string.settings_deficit_value, (rateVal * 1100).toInt()))
+
+            // TDEE and daily target
+            val weightForTdee = savedStartWeight
+            val heightForTdee = savedHeight
+            val ageForTdee = savedAge
+            val sexForTdee = savedSex
+            if (weightForTdee != null && heightForTdee != null && ageForTdee != null && sexForTdee != null) {
+                val tdeeVal = TdeeCalculator.tdee(weightForTdee, heightForTdee, ageForTdee, sexForTdee, savedActivityLevel)
+                val dailyTarget = TdeeCalculator.dailyTarget(weightForTdee, heightForTdee, ageForTdee, sexForTdee, savedActivityLevel, rateVal)
+                SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_value, tdeeVal))
+                SettingsRow(stringResource(R.string.settings_daily_target), stringResource(R.string.settings_daily_target_value, dailyTarget))
+            } else {
+                SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_incomplete))
+            }
+
             if (savedStartDate != null) SettingsRow(stringResource(R.string.settings_start_date), savedStartDate!!)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onEditGoal) {
@@ -296,10 +342,10 @@ fun SettingsScreen(
 
         // -- AI --
         SettingsSection(stringResource(R.string.settings_section_ai)) {
-            var apiKeyInput by remember(storedApiKey) { mutableStateOf(storedApiKey ?: "") }
+            var apiKeyInput by remember(storedApiKey) { mutableStateOf(storedApiKey) }
             var showKey by remember { mutableStateOf(false) }
-            var selectedModel by remember(storedModel) { mutableStateOf(storedModel ?: "gpt-5.2") }
-            val isKeySaved = (storedApiKey ?: "").isNotBlank() && apiKeyInput == storedApiKey
+            var selectedModel by remember(storedModel) { mutableStateOf(storedModel) }
+            val isKeySaved = storedApiKey.isNotBlank() && apiKeyInput == storedApiKey
 
             Text(
                 text = stringResource(R.string.ai_api_key_label),

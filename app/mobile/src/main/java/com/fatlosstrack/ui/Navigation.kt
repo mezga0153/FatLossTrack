@@ -47,6 +47,7 @@ import com.fatlosstrack.ui.log.LogScreen
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.settings.LogViewerScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
+import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 import kotlinx.coroutines.launch
@@ -100,6 +101,7 @@ fun FatLossTrackNavGraph(
     val hideChrome = currentRoute?.startsWith("capture") == true ||
             currentRoute?.startsWith("analysis") == true ||
             currentRoute == "set_goal" ||
+            currentRoute == "set_profile" ||
             currentRoute == "log_viewer"
 
     // Hide AiBar on chat tab too (it has its own input)
@@ -192,6 +194,7 @@ fun FatLossTrackNavGraph(
                 composable(Tab.Settings.route) {
                     SettingsScreen(
                         onEditGoal = { navController.navigate("set_goal") },
+                        onEditProfile = { navController.navigate("set_profile") },
                         authManager = authManager,
                         preferencesManager = preferencesManager,
                         healthConnectManager = healthConnectManager,
@@ -214,6 +217,14 @@ fun FatLossTrackNavGraph(
                 // Set Goal
                 composable("set_goal") {
                     SetGoalScreen(
+                        onBack = { navController.popBackStack() },
+                        preferencesManager = preferencesManager,
+                    )
+                }
+
+                // Set Profile
+                composable("set_profile") {
+                    SetProfileScreen(
                         onBack = { navController.popBackStack() },
                         preferencesManager = preferencesManager,
                     )

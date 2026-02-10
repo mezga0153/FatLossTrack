@@ -63,6 +63,20 @@ fun HomeScreen(
     val weeklyRate by preferencesManager.weeklyRate.collectAsState(initial = null)
     val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
 
+    // TDEE / daily target
+    val savedSex by preferencesManager.sex.collectAsState(initial = null)
+    val savedAge by preferencesManager.age.collectAsState(initial = null)
+    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
+    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
+    val dailyTargetKcal = remember(savedSex, savedAge, savedHeight, startWeight, weeklyRate, savedActivityLevel) {
+        val sex = savedSex ?: return@remember null
+        val age = savedAge ?: return@remember null
+        val height = savedHeight ?: return@remember null
+        val weight = startWeight ?: return@remember null
+        val rate = weeklyRate ?: return@remember null
+        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(weight, height, age, sex, savedActivityLevel, rate)
+    }
+
     val startDate = startDateStr?.let {
         try { LocalDate.parse(it) } catch (_: Exception) { null }
     }
@@ -398,6 +412,7 @@ Rules:
             date = today,
             log = todayLog,
             meals = todayMeals,
+            dailyTargetKcal = dailyTargetKcal,
             onEdit = { editingDate = today },
             onMealClick = { selectedMeal = it },
             onAddMeal = { addMealForDate = today },
@@ -409,6 +424,7 @@ Rules:
                 date = yesterday,
                 log = yesterdayLog,
                 meals = yesterdayMeals,
+                dailyTargetKcal = dailyTargetKcal,
                 onEdit = { editingDate = yesterday },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = yesterday },
