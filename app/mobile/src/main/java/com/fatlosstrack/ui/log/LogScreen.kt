@@ -199,7 +199,15 @@ fun LogScreen(
 
     // ── Daily log edit sheet ──
     if (editingDate != null) {
-        ModalBottomSheet(onDismissRequest = { editingDate = null }, sheetState = editSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                    editingDate = null
+                }
+            },
+            sheetState = editSheetState,
+            containerColor = CardSurface,
+        ) {
             DailyLogEditSheet(
                 date = editingDate!!,
                 existingLog = logsByDate[editingDate!!],
@@ -212,22 +220,36 @@ fun LogScreen(
                     it.restingHr?.let { h -> parts += "hr=$h" }
                     AppLogger.instance?.user("DailyLog saved ${it.date}: ${parts.joinToString(", ")}")
                     launchSummary(it.date, dailyLogDao, daySummaryGenerator, "LogScreen:dailyLogEdit")
+                    editSheetState.hide()
                     editingDate = null
                 } },
-                onDismiss = { editingDate = null },
+                onDismiss = {
+                    scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                        editingDate = null
+                    }
+                },
             )
         }
     }
 
     // ── Meal detail / edit sheet ──
     if (selectedMeal != null) {
-        ModalBottomSheet(onDismissRequest = { selectedMeal = null }, sheetState = mealSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { mealSheetState.hide() }.invokeOnCompletion {
+                    selectedMeal = null
+                }
+            },
+            sheetState = mealSheetState,
+            containerColor = CardSurface,
+        ) {
             MealEditSheet(
                 meal = selectedMeal!!,
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
                     AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, date=${updated.date}")
                     launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealEdit")
+                    mealSheetState.hide()
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
@@ -235,29 +257,49 @@ fun LogScreen(
                     AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
                     mealDao.delete(meal)
                     launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealDelete")
+                    mealSheetState.hide()
                     selectedMeal = null
                 } },
-                onDismiss = { selectedMeal = null },
+                onDismiss = {
+                    scope.launch { mealSheetState.hide() }.invokeOnCompletion {
+                        selectedMeal = null
+                    }
+                },
             )
         }
     }
 
     // ── Add meal manually sheet ──
     if (addMealForDate != null) {
-        ModalBottomSheet(onDismissRequest = { addMealForDate = null }, sheetState = addMealSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                    addMealForDate = null
+                }
+            },
+            sheetState = addMealSheetState,
+            containerColor = CardSurface,
+        ) {
             AddMealSheet(
                 date = addMealForDate!!,
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
                     AppLogger.instance?.meal("Manual add: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
                     launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "LogScreen:mealAdd")
+                    addMealSheetState.hide()
                     addMealForDate = null
                 } },
-                onDismiss = { addMealForDate = null },
+                onDismiss = {
+                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                        addMealForDate = null
+                    }
+                },
                 onCamera = {
                     val date = addMealForDate!!
-                    addMealForDate = null
-                    onCameraForDate(date)
+                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                        addMealForDate = null
+                        onCameraForDate(date)
+                    }
                 },
             )
         }

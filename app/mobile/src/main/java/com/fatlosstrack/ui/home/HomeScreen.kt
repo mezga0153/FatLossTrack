@@ -436,54 +436,96 @@ Rules:
 
     // ── Edit sheets (same as Log tab) ──
     if (editingDate != null) {
-        ModalBottomSheet(onDismissRequest = { editingDate = null }, sheetState = editSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                    editingDate = null
+                }
+            },
+            sheetState = editSheetState,
+            containerColor = CardSurface,
+        ) {
             DailyLogEditSheet(
                 date = editingDate!!,
                 existingLog = logsByDate[editingDate!!],
                 onSave = { scope.launch {
                     dailyLogDao.upsert(it)
                     launchSummary(it.date, dailyLogDao, daySummaryGenerator, "HomeScreen:dailyLogEdit")
+                    editSheetState.hide()
                     editingDate = null
                 } },
-                onDismiss = { editingDate = null },
+                onDismiss = {
+                    scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                        editingDate = null
+                    }
+                },
             )
         }
     }
 
     if (selectedMeal != null) {
-        ModalBottomSheet(onDismissRequest = { selectedMeal = null }, sheetState = mealSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { mealSheetState.hide() }.invokeOnCompletion {
+                    selectedMeal = null
+                }
+            },
+            sheetState = mealSheetState,
+            containerColor = CardSurface,
+        ) {
             MealEditSheet(
                 meal = selectedMeal!!,
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
                     launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealEdit")
+                    mealSheetState.hide()
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
                     val meal = selectedMeal!!
                     mealDao.delete(meal)
                     launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealDelete")
+                    mealSheetState.hide()
                     selectedMeal = null
                 } },
-                onDismiss = { selectedMeal = null },
+                onDismiss = {
+                    scope.launch { mealSheetState.hide() }.invokeOnCompletion {
+                        selectedMeal = null
+                    }
+                },
             )
         }
     }
 
     if (addMealForDate != null) {
-        ModalBottomSheet(onDismissRequest = { addMealForDate = null }, sheetState = addMealSheetState, containerColor = CardSurface) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                    addMealForDate = null
+                }
+            },
+            sheetState = addMealSheetState,
+            containerColor = CardSurface,
+        ) {
             AddMealSheet(
                 date = addMealForDate!!,
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
                     launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealAdd")
+                    addMealSheetState.hide()
                     addMealForDate = null
                 } },
-                onDismiss = { addMealForDate = null },
+                onDismiss = {
+                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                        addMealForDate = null
+                    }
+                },
                 onCamera = {
                     val date = addMealForDate!!
-                    addMealForDate = null
-                    onCameraForDate(date)
+                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
+                        addMealForDate = null
+                        onCameraForDate(date)
+                    }
                 },
             )
         }
