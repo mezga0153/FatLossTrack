@@ -13,6 +13,7 @@
     <string name="button_cancel">Prekliči</string>
     <string name="button_edit">Uredi</string>
     <string name="button_delete">Izbriši</string>
+    <string name="button_ai_edit">AI uredi</string>
     <string name="button_ok">V redu</string>
     <string name="cd_back">Nazaj</string>
     <string name="cd_close">Zapri</string>
@@ -111,6 +112,10 @@
     <string name="field_note">Opomba</string>
     <string name="label_coach_said">Trener je rekel</string>
     <string name="label_note_prefix">Opomba: </string>
+    <string name="ai_edit_label">Kaj naj popravim?</string>
+    <string name="ai_edit_placeholder">npr. piščanec je bil 200g ne 100g, imel sem tudi solato</string>
+    <string name="ai_edit_send">Popravi z AI</string>
+    <string name="ai_edit_loading">Popravljam…</string>
 
     <!-- DailyLogEditSheet -->
     <string name="field_weight_kg">Teža (kg)</string>

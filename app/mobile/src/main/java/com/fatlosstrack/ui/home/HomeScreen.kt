@@ -493,6 +493,7 @@ Rules:
                         selectedMeal = null
                     }
                 },
+                openAiService = openAiService,
             )
         }
     }

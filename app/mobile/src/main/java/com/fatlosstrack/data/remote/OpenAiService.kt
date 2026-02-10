@@ -221,6 +221,21 @@ class OpenAiService @Inject constructor(
         content
     }
 
+    /**
+     * AI-powered meal correction: sends the current meal definition + user comment
+     * describing what's wrong, returns corrected JSON in the same format as meal log.
+     */
+    suspend fun editMealWithAi(
+        mealJson: String,
+        userCorrection: String,
+    ): Result<String> {
+        appLogger.ai("AI meal edit: ${userCorrection.take(80)}")
+        return chat(
+            userMessage = "Here is my current meal entry:\n$mealJson\n\nCorrection: $userCorrection",
+            systemPrompt = AI_MEAL_EDIT_PROMPT,
+        )
+    }
+
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val stream = ByteArrayOutputStream()
         // Resize if too large to save tokens/bandwidth
@@ -338,4 +353,38 @@ If it is NOT a meal description (general question, greeting, etc.), respond with
 {"is_meal": false}
 
 Estimate portions generously. Err on the side of slightly overestimating calories.
+"""
+
+private const val AI_MEAL_EDIT_PROMPT = """You are FatLoss Track's meal correction assistant.
+The user will provide an existing meal entry (as JSON) and a correction comment describing what's wrong.
+Apply the correction to the meal and respond with ONLY the corrected JSON (no markdown fences, no extra text).
+
+Use this exact JSON format:
+{
+  "description": "Updated meal description",
+  "source": "home|restaurant|fast_food",
+  "meal_type": "breakfast|brunch|lunch|dinner|snack",
+  "items": [
+    {
+      "name": "Item name",
+      "portion": "Estimated portion size",
+      "calories": 0,
+      "protein_g": 0,
+      "fat_g": 0,
+      "carbs_g": 0
+    }
+  ],
+  "total_calories": 0,
+  "total_protein_g": 0,
+  "total_carbs_g": 0,
+  "total_fat_g": 0,
+  "coach_note": "Brief coaching comment about the corrected meal"
+}
+
+Rules:
+- Keep fields the user did NOT mention unchanged unless they logically need updating (e.g. recalculate totals).
+- Recalculate total_calories, total_protein_g, total_carbs_g, total_fat_g from the items array.
+- If the user says to add an item, add it. If they say to remove one, remove it.
+- If the user says portions were different, adjust the specific item's portion, calories, and macros.
+- Err on the side of slightly overestimating calories.
 """

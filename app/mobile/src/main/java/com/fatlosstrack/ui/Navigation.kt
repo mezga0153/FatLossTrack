@@ -186,6 +186,7 @@ fun FatLossTrackNavGraph(
                         dailyLogDao = dailyLogDao,
                         preferencesManager = preferencesManager,
                         daySummaryGenerator = daySummaryGenerator,
+                        openAiService = openAiService,
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
                         },

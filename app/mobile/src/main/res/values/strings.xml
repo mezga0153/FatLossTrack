@@ -13,6 +13,7 @@
     <string name="button_cancel">Cancel</string>
     <string name="button_edit">Edit</string>
     <string name="button_delete">Delete</string>
+    <string name="button_ai_edit">AI Edit</string>
     <string name="button_ok">OK</string>
     <string name="cd_back">Back</string>
     <string name="cd_close">Close</string>
@@ -111,6 +112,10 @@
     <string name="field_note">Note</string>
     <string name="label_coach_said">Coach said</string>
     <string name="label_note_prefix">Note: </string>
+    <string name="ai_edit_label">What should be corrected?</string>
+    <string name="ai_edit_placeholder">e.g. the chicken was 200g not 100g, also had a side salad</string>
+    <string name="ai_edit_send">Fix with AI</string>
+    <string name="ai_edit_loading">Fixing…</string>
 
     <!-- DailyLogEditSheet -->
     <string name="field_weight_kg">Weight (kg)</string>

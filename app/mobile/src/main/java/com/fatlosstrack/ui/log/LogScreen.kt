@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +37,7 @@ import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
+import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
@@ -82,6 +85,7 @@ fun LogScreen(
     dailyLogDao: DailyLogDao,
     preferencesManager: PreferencesManager,
     daySummaryGenerator: DaySummaryGenerator? = null,
+    openAiService: OpenAiService? = null,
     onCameraForDate: (LocalDate) -> Unit = {},
 ) {
     val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
@@ -265,6 +269,7 @@ fun LogScreen(
                         selectedMeal = null
                     }
                 },
+                openAiService = openAiService,
             )
         }
     }
@@ -764,6 +769,7 @@ internal fun MealEditSheet(
     onSave: (MealEntry) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    openAiService: OpenAiService? = null,
 ) {
     var description by remember { mutableStateOf(meal.description) }
     var kcalStr by remember { mutableStateOf(meal.totalKcal.toString()) }
@@ -774,15 +780,27 @@ internal fun MealEditSheet(
     var selectedMealType by remember { mutableStateOf(meal.mealType) }
     var note by remember { mutableStateOf(meal.note ?: "") }
     var editing by remember { mutableStateOf(false) }
+    var aiEditing by remember { mutableStateOf(false) }
+    var aiPrompt by remember { mutableStateOf("") }
+    var aiLoading by remember { mutableStateOf(false) }
+    var aiError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val aiFocusRequester = remember { FocusRequester() }
 
     val items = remember { parseItems(meal.itemsJson) }
     val dateFmt = DateTimeFormatter.ofPattern("EEEE, d MMM \u00b7 h:mm a")
+    val scrollState = rememberScrollState()
+
+    // Auto-scroll to bottom when AI edit card appears
+    LaunchedEffect(aiEditing) {
+        if (aiEditing) scrollState.animateScrollTo(scrollState.maxValue)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // Header + close
@@ -973,25 +991,144 @@ internal fun MealEditSheet(
                 Text(stringResource(R.string.label_note_prefix) + meal.note, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
             }
 
-            // Action buttons
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { editing = true },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.button_edit))
+            if (!aiEditing) {
+                // Action buttons
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { editing = true },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.button_edit))
+                    }
+                    if (openAiService != null) {
+                        OutlinedButton(
+                            onClick = { aiEditing = true; aiError = null },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.button_ai_edit))
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Tertiary),
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.button_delete))
+                    }
                 }
-                OutlinedButton(
-                    onClick = onDelete,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Tertiary),
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.button_delete))
+            } else {
+                // AI edit card (replaces action buttons)
+                Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(12.dp)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.ai_edit_label), style = MaterialTheme.typography.labelMedium, color = Accent)
+                        OutlinedTextField(
+                            value = aiPrompt,
+                            onValueChange = { aiPrompt = it },
+                            placeholder = { Text(stringResource(R.string.ai_edit_placeholder), color = OnSurfaceVariant.copy(alpha = 0.5f)) },
+                            modifier = Modifier.fillMaxWidth().focusRequester(aiFocusRequester),
+                            colors = editFieldColors(),
+                            minLines = 2,
+                            maxLines = 4,
+                            enabled = !aiLoading,
+                        )
+                        if (aiError != null) {
+                            Text(aiError!!, style = MaterialTheme.typography.bodySmall, color = Tertiary)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { aiEditing = false; aiPrompt = ""; aiError = null }) {
+                                Text(stringResource(R.string.button_cancel), color = OnSurfaceVariant)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (aiPrompt.isBlank()) return@Button
+                                aiLoading = true
+                                aiError = null
+                                val mealJson = buildJsonObject {
+                                    put("description", meal.description)
+                                    put("source", meal.category.name.lowercase())
+                                    meal.mealType?.let { put("meal_type", it.name.lowercase()) }
+                                    meal.itemsJson?.let { put("items", Json.parseToJsonElement(it)) }
+                                    put("total_calories", meal.totalKcal)
+                                    put("total_protein_g", meal.totalProteinG)
+                                    put("total_carbs_g", meal.totalCarbsG)
+                                    put("total_fat_g", meal.totalFatG)
+                                    meal.coachNote?.let { put("coach_note", it) }
+                                }.toString()
+                                scope.launch {
+                                    val result = openAiService!!.editMealWithAi(mealJson, aiPrompt)
+                                    result.onSuccess { raw ->
+                                        try {
+                                            val clean = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+                                            val obj = Json.parseToJsonElement(clean).jsonObject
+                                            description = obj["description"]?.jsonPrimitive?.content ?: description
+                                            kcalStr = (obj["total_calories"]?.jsonPrimitive?.intOrNull ?: meal.totalKcal).toString()
+                                            proteinStr = (obj["total_protein_g"]?.jsonPrimitive?.intOrNull ?: meal.totalProteinG).toString()
+                                            carbsStr = (obj["total_carbs_g"]?.jsonPrimitive?.intOrNull ?: meal.totalCarbsG).toString()
+                                            fatStr = (obj["total_fat_g"]?.jsonPrimitive?.intOrNull ?: meal.totalFatG).toString()
+                                            val src = obj["source"]?.jsonPrimitive?.content
+                                            if (src != null) selectedCategory = when (src) {
+                                                "restaurant" -> MealCategory.RESTAURANT
+                                                "fast_food" -> MealCategory.FAST_FOOD
+                                                else -> MealCategory.HOME
+                                            }
+                                            val mt = obj["meal_type"]?.jsonPrimitive?.content
+                                            if (mt != null) selectedMealType = when (mt) {
+                                                "breakfast" -> MealType.BREAKFAST
+                                                "brunch" -> MealType.BRUNCH
+                                                "lunch" -> MealType.LUNCH
+                                                "dinner" -> MealType.DINNER
+                                                "snack" -> MealType.SNACK
+                                                else -> selectedMealType
+                                            }
+                                            val coachNote = obj["coach_note"]?.jsonPrimitive?.content
+                                            val itemsArr = obj["items"]?.jsonArray
+                                            onSave(meal.copy(
+                                                description = description,
+                                                totalKcal = kcalStr.toIntOrNull() ?: meal.totalKcal,
+                                                totalProteinG = proteinStr.toIntOrNull() ?: meal.totalProteinG,
+                                                totalCarbsG = carbsStr.toIntOrNull() ?: meal.totalCarbsG,
+                                                totalFatG = fatStr.toIntOrNull() ?: meal.totalFatG,
+                                                category = selectedCategory,
+                                                mealType = selectedMealType,
+                                                coachNote = coachNote ?: meal.coachNote,
+                                                itemsJson = itemsArr?.toString() ?: meal.itemsJson,
+                                            ))
+                                        } catch (e: Exception) {
+                                            aiError = e.message ?: "Failed to parse AI response"
+                                        }
+                                    }.onFailure { e ->
+                                        aiError = e.message ?: "AI request failed"
+                                    }
+                                    aiLoading = false
+                                }
+                            },
+                            enabled = !aiLoading && aiPrompt.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                        ) {
+                            if (aiLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Surface, strokeWidth = 2.dp)
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(if (aiLoading) stringResource(R.string.ai_edit_loading) else stringResource(R.string.ai_edit_send))
+                        }
+                        }
+                    }
+                }
+
+                LaunchedEffect(Unit) {
+                    aiFocusRequester.requestFocus()
+                    // Wait for layout to settle before scrolling
+                    kotlinx.coroutines.delay(150)
+                    scrollState.animateScrollTo(scrollState.maxValue)
                 }
             }
         }
