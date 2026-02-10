@@ -314,76 +314,90 @@ internal fun DayCard(
                 Spacer(Modifier.height(4.dp))
                 // Sort: breakfast → brunch → lunch → dinner, snacks between, null-type at end
                 val sortedMeals = meals.sortedWith(compareByDescending(nullsFirst()) { it.mealType?.ordinal })
+                val dayTotalKcal = meals.sumOf { it.totalKcal }
+                val dayTotalProtein = meals.sumOf { it.totalProteinG }
+                val dayTotalCarbs = meals.sumOf { it.totalCarbsG }
+                val dayTotalFat = meals.sumOf { it.totalFatG }
                 sortedMeals.forEach { meal ->
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(Surface)
                             .clickable { onMealClick(meal) }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Category icon
-                        Icon(
-                            categoryIcon(meal.category),
-                            contentDescription = null,
-                            tint = categoryColor(meal.category),
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        if (meal.mealType != null) {
-                            Text(
-                                mealTypeLabel(meal.mealType),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Accent,
+                        // Line 1: icon, meal type, description
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                categoryIcon(meal.category),
+                                contentDescription = null,
+                                tint = categoryColor(meal.category),
+                                modifier = Modifier.size(14.dp),
                             )
-                            Spacer(Modifier.width(4.dp))
-                            Text("·", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Text(
-                            meal.description.take(35) + if (meal.description.length > 35) "\u2026" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = OnSurface,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "${meal.totalKcal} kcal",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = Primary,
-                        )
-                        if (meal.totalProteinG > 0) {
                             Spacer(Modifier.width(6.dp))
+                            if (meal.mealType != null) {
+                                Text(
+                                    mealTypeLabel(meal.mealType),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Accent,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("·", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                                Spacer(Modifier.width(4.dp))
+                            }
                             Text(
-                                "${meal.totalProteinG}g P",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = Secondary,
+                                meal.description.take(40) + if (meal.description.length > 40) "\u2026" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurface,
+                                maxLines = 1,
                             )
                         }
-                        if (meal.totalCarbsG > 0) {
-                            Spacer(Modifier.width(6.dp))
+                        // Line 2: kcal P C F with percentages
+                        Row(
+                            modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
-                                "${meal.totalCarbsG}g C",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = OnSurfaceVariant,
+                                "${meal.totalKcal} kcal",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Primary,
                             )
-                        }
-                        if (meal.totalFatG > 0) {
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "${meal.totalFatG}g F",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = OnSurfaceVariant,
-                            )
+                            if (meal.totalProteinG > 0) {
+                                val pct = if (dayTotalProtein > 0) (meal.totalProteinG * 100 / dayTotalProtein) else 0
+                                Text(
+                                    "P ${meal.totalProteinG}g ($pct%)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Secondary,
+                                )
+                            }
+                            if (meal.totalCarbsG > 0) {
+                                val pct = if (dayTotalCarbs > 0) (meal.totalCarbsG * 100 / dayTotalCarbs) else 0
+                                Text(
+                                    "C ${meal.totalCarbsG}g ($pct%)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceVariant,
+                                )
+                            }
+                            if (meal.totalFatG > 0) {
+                                val pct = if (dayTotalFat > 0) (meal.totalFatG * 100 / dayTotalFat) else 0
+                                Text(
+                                    "F ${meal.totalFatG}g ($pct%)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceVariant,
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                val totalKcal = meals.sumOf { it.totalKcal }
-                val totalProtein = meals.sumOf { it.totalProteinG }
-                val totalCarbs = meals.sumOf { it.totalCarbsG }
-                val totalFat = meals.sumOf { it.totalFatG }
+                val totalKcal = dayTotalKcal
+                val totalProtein = dayTotalProtein
+                val totalCarbs = dayTotalCarbs
+                val totalFat = dayTotalFat
                 val macroSuffix = buildString {
                     if (totalProtein > 0) append(" · ${totalProtein}g P")
                     if (totalCarbs > 0) append(" · ${totalCarbs}g C")
