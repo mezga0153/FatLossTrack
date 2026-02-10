@@ -1,7 +1,7 @@
 package com.fatlosstrack.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -21,22 +22,22 @@ import com.fatlosstrack.ui.theme.ConfidenceBand
 import com.fatlosstrack.ui.theme.OnSurface
 import com.fatlosstrack.ui.theme.OnSurfaceVariant
 import com.fatlosstrack.ui.theme.Primary
+import com.fatlosstrack.ui.theme.Secondary
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.pow
 
 /**
- * Sparkline-style weight trend chart with drag-to-inspect.
- *
- * Draws a smooth line with subtle dots. When the user touches/drags,
- * a vertical indicator + bubble shows the exact weight and date label for
- * the nearest data point.
+ * Sparkline-style weight trend chart with drag-to-inspect,
+ * faint horizontal grid lines and right-side Y-axis labels.
  */
 @Composable
 fun TrendChart(
     dataPoints: List<Pair<Int, Double>>,  // (dayIndex, weight)
-    avg7d: Double = 0.0,
-    targetKg: Double = 0.0,
-    confidenceLow: Double = 0.0,
-    confidenceHigh: Double = 0.0,
-    dateLabels: List<String> = emptyList(), // optional: matching labels per dataPoint
+    dateLabels: List<String> = emptyList(),
+    startLineKg: Double? = null,
+    targetLineKg: Double? = null,
     modifier: Modifier = Modifier,
 ) {
     if (dataPoints.size < 2) return
@@ -44,29 +45,37 @@ fun TrendChart(
     val density = LocalDensity.current
     var touchX by remember { mutableStateOf<Float?>(null) }
 
-    // Pre-compute layout constants
-    val paddingDp = 12.dp
     val lineColor = Primary
     val dotColor = Primary.copy(alpha = 0.5f)
     val indicatorColor = OnSurfaceVariant.copy(alpha = 0.5f)
     val bubbleBg = Color(0xFF252540)
     val bubbleText = OnSurface
+    val gridColor = OnSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = OnSurfaceVariant
 
     val values = dataPoints.map { it.second }
-    val minVal = values.min() - 0.3
-    val maxVal = values.max() + 0.3
+    val allValues = buildList {
+        addAll(values)
+        startLineKg?.let { add(it) }
+        targetLineKg?.let { add(it) }
+    }
+    val minVal = allValues.min() - 0.3
+    val maxVal = allValues.max() + 0.3
     val range = (maxVal - minVal).coerceAtLeast(0.1)
 
     val minIdx = dataPoints.minOf { it.first }
     val maxIdx = dataPoints.maxOf { it.first }
     val idxRange = (maxIdx - minIdx).coerceAtLeast(1)
 
+    // Pre-compute nice ticks
+    val ticks = remember(minVal, maxVal) { niceTicks(minVal, maxVal, 4) }
+
     Box(modifier = modifier) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(dataPoints) {
-                    detectDragGestures(
+                    detectDragGesturesAfterLongPress(
                         onDragStart = { offset -> touchX = offset.x },
                         onDrag = { change, _ ->
                             change.consume()
@@ -78,23 +87,55 @@ fun TrendChart(
                 }
                 .pointerInput(dataPoints) {
                     detectTapGestures(
-                        onPress = { offset ->
-                            touchX = offset.x
-                            val released = tryAwaitRelease()
-                            if (released) touchX = null
+                        onTap = { offset ->
+                            touchX = if (touchX == null) offset.x else null
                         },
                     )
                 }
         ) {
-            val padding = paddingDp.toPx()
-            val chartWidth = size.width - padding * 2
-            val chartHeight = size.height - padding * 2
+            val padLeft = 4.dp.toPx()
+            val padRight = 34.dp.toPx()
+            val padTop = 4.dp.toPx()
+            val padBottom = 2.dp.toPx()
+            val chartWidth = size.width - padLeft - padRight
+            val chartHeight = size.height - padTop - padBottom
 
             fun xFor(index: Int): Float =
-                padding + (index - minIdx).toFloat() / idxRange * chartWidth
+                padLeft + (index - minIdx).toFloat() / idxRange * chartWidth
 
             fun yFor(value: Double): Float =
-                padding + ((maxVal - value) / range * chartHeight).toFloat()
+                padTop + ((maxVal - value) / range * chartHeight).toFloat()
+
+            // Grid lines + right labels
+            val d = density.density
+            val labelPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.argb(
+                    (labelColor.alpha * 255).toInt(),
+                    (labelColor.red * 255).toInt(),
+                    (labelColor.green * 255).toInt(),
+                    (labelColor.blue * 255).toInt(),
+                )
+                textSize = 9 * d
+                isAntiAlias = true
+            }
+            ticks.forEach { tick ->
+                val y = yFor(tick)
+                if (y in padTop..padTop + chartHeight) {
+                    drawLine(
+                        color = gridColor,
+                        start = Offset(padLeft, y),
+                        end = Offset(padLeft + chartWidth, y),
+                        strokeWidth = 0.5.dp.toPx(),
+                    )
+                    val lbl = formatTickLabel(tick)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        lbl,
+                        padLeft + chartWidth + 4 * d,
+                        y + 3.5f * d,
+                        labelPaint,
+                    )
+                }
+            }
 
             // Gradient fill under line
             val fillPath = Path().apply {
@@ -103,8 +144,8 @@ fun TrendChart(
                     val y = yFor(value)
                     if (i == 0) moveTo(x, y) else lineTo(x, y)
                 }
-                lineTo(xFor(dataPoints.last().first), padding + chartHeight)
-                lineTo(xFor(dataPoints.first().first), padding + chartHeight)
+                lineTo(xFor(dataPoints.last().first), padTop + chartHeight)
+                lineTo(xFor(dataPoints.first().first), padTop + chartHeight)
                 close()
             }
             drawPath(fillPath, color = ConfidenceBand)
@@ -123,7 +164,7 @@ fun TrendChart(
                 style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
             )
 
-            // Small dots at each data point
+            // Small dots
             dataPoints.forEach { (dayIdx, value) ->
                 drawCircle(
                     color = dotColor,
@@ -132,10 +173,17 @@ fun TrendChart(
                 )
             }
 
+            // Reference lines (start & target weight)
+            startLineKg?.let { kg ->
+                drawRefLine(yFor(kg), "%.1f".format(kg), OnSurfaceVariant, padLeft, chartWidth, d)
+            }
+            targetLineKg?.let { kg ->
+                drawRefLine(yFor(kg), "%.1f".format(kg), Secondary, padLeft, chartWidth, d)
+            }
+
             // Touch indicator
             val tx = touchX
             if (tx != null) {
-                // Find nearest data point
                 val nearest = dataPoints.minByOrNull {
                     kotlin.math.abs(xFor(it.first) - tx)
                 } ?: return@Canvas
@@ -143,19 +191,16 @@ fun TrendChart(
                 val nx = xFor(nearest.first)
                 val ny = yFor(nearest.second)
 
-                // Vertical indicator line
                 drawLine(
                     color = indicatorColor,
-                    start = Offset(nx, padding),
-                    end = Offset(nx, padding + chartHeight),
+                    start = Offset(nx, padTop),
+                    end = Offset(nx, padTop + chartHeight),
                     strokeWidth = 1.dp.toPx(),
                 )
 
-                // Highlighted dot
                 drawCircle(color = lineColor, radius = 5.dp.toPx(), center = Offset(nx, ny))
                 drawCircle(color = bubbleBg, radius = 3.dp.toPx(), center = Offset(nx, ny))
 
-                // Bubble with weight text
                 val label = "%.1f kg".format(nearest.second)
                 val dateLabel = dateLabels.getOrNull(nearestIdx)
                 val fullLabel = if (dateLabel != null) "$dateLabel  $label" else label
@@ -164,10 +209,10 @@ fun TrendChart(
                     text = fullLabel,
                     x = nx,
                     chartWidth = size.width,
-                    padding = padding,
+                    padding = padLeft,
                     bgColor = bubbleBg,
                     textColor = bubbleText,
-                    density = density.density,
+                    density = d,
                 )
             }
         }
@@ -198,9 +243,8 @@ private fun DrawScope.drawBubble(
     val textWidth = textPaint.measureText(text)
     val bubbleW = textWidth + 16 * density
     val bubbleH = 22 * density
-    val bubbleY = 2 * density  // near top
+    val bubbleY = 2 * density
 
-    // Clamp bubble horizontally so it doesn't go off-screen
     val bubbleX = (x - bubbleW / 2).coerceIn(padding, chartWidth - padding - bubbleW)
 
     val rect = android.graphics.RectF(bubbleX, bubbleY, bubbleX + bubbleW, bubbleY + bubbleH)
@@ -224,3 +268,70 @@ private fun DrawScope.drawBubble(
         )
     }
 }
+
+private fun DrawScope.drawRefLine(
+    y: Float,
+    label: String,
+    lineColor: Color,
+    padLeft: Float,
+    chartWidth: Float,
+    density: Float,
+) {
+    drawLine(
+        color = lineColor.copy(alpha = 0.4f),
+        start = Offset(padLeft, y),
+        end = Offset(padLeft + chartWidth, y),
+        strokeWidth = 1.dp.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+    )
+    val textPaint = android.graphics.Paint().apply {
+        color = android.graphics.Color.argb(
+            255,
+            (lineColor.red * 255).toInt(),
+            (lineColor.green * 255).toInt(),
+            (lineColor.blue * 255).toInt(),
+        )
+        textSize = 9 * density
+        isAntiAlias = true
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    val bgPaint = android.graphics.Paint().apply {
+        color = android.graphics.Color.argb(210, 13, 13, 26)
+        isAntiAlias = true
+    }
+    val tw = textPaint.measureText(label)
+    val px = 4 * density
+    val badgeH = 14 * density
+    val badgeX = padLeft + chartWidth - tw - px * 2
+    val badgeY = y - badgeH - 1 * density
+    val rect = android.graphics.RectF(badgeX, badgeY, badgeX + tw + px * 2, badgeY + badgeH)
+    drawContext.canvas.nativeCanvas.apply {
+        drawRoundRect(rect, 3 * density, 3 * density, bgPaint)
+        drawText(label, badgeX + px, badgeY + badgeH - 3.5f * density, textPaint)
+    }
+}
+
+/**
+ * Compute ~[targetCount] "nice" round tick values spanning [min]..[max].
+ */
+internal fun niceTicks(min: Double, max: Double, targetCount: Int = 4): List<Double> {
+    val r = max - min
+    if (r <= 0) return listOf(min)
+    val rough = r / targetCount
+    val mag = 10.0.pow(floor(log10(rough)))
+    val frac = rough / mag
+    val niceStep = when {
+        frac < 1.5 -> mag
+        frac < 3.0 -> 2 * mag
+        frac < 7.0 -> 5 * mag
+        else -> 10 * mag
+    }
+    val start = ceil(min / niceStep) * niceStep
+    return generateSequence(start) { it + niceStep }
+        .takeWhile { it <= max + niceStep * 0.01 }
+        .toList()
+}
+
+/** Format a tick value: show integers when whole, one decimal otherwise. */
+internal fun formatTickLabel(v: Double): String =
+    if (v == floor(v) && v < 10_000) "%.0f".format(v) else "%.1f".format(v)

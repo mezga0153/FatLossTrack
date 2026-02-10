@@ -3,6 +3,8 @@ package com.fatlosstrack.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +28,7 @@ import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.components.InfoCard
+import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
@@ -33,7 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 /**
  * Home screen — "Am I on track?"
@@ -46,6 +51,12 @@ import java.time.temporal.ChronoUnit
 
 /** Module-level cache: (dataFingerprint, summary). Survives recomposition & navigation. */
 private var periodSummaryCache: Pair<String?, String?> = null to null
+
+private fun dateLabelFor(date: LocalDate): String {
+    val month = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+    return "${date.dayOfMonth}. $month"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,6 +123,23 @@ fun HomeScreen(
 
     val weights = weightData.map { it.second }
     val latestWeight = weightData.lastOrNull()?.second
+
+    // Chart data for calorie/sleep/steps trends
+    val kcalByDay = remember(meals) {
+        meals.groupBy { it.date }
+            .map { (date, dayMeals) -> date to dayMeals.sumOf { it.totalKcal } }
+            .sortedBy { it.first }
+    }
+    val sleepChartData = remember(logs) {
+        logs.filter { it.sleepHours != null }
+            .sortedBy { it.date }
+            .map { it.date to it.sleepHours!! }
+    }
+    val stepsChartData = remember(logs) {
+        logs.filter { it.steps != null }
+            .sortedBy { it.date }
+            .map { it.date to it.steps!! }
+    }
 
     // Stats — exclude today (shown separately as DayCard)
     val pastLogs = logs.filter { it.date != today }
@@ -296,37 +324,85 @@ Rules:
             }
         }
 
-        // ── Weight Trend (compact sparkline with range toggle) ──
-        if (weightData.size >= 2) {
+        // ── Chart Carousel (Weight / Calories / Sleep / Steps) ──
+        run {
             val allWeightEntries by weightDao.getAllEntries().collectAsState(initial = emptyList())
             var chartRange by remember { mutableStateOf("7d") }
+            val trendCutoff = when (chartRange) {
+                "7d" -> today.minusDays(7)
+                "1m" -> today.minusDays(30)
+                else -> LocalDate.MIN
+            }
+
             val chartData = remember(chartRange, weightData, allWeightEntries) {
-                val cutoff = when (chartRange) {
-                    "7d" -> today.minusDays(7)
-                    "1m" -> today.minusDays(30)
-                    else -> LocalDate.MIN // "all"
-                }
+                val cutoff = trendCutoff
                 if (chartRange == "all" || chartRange == "1m") {
-                    // For ranges beyond lookback, use allWeightEntries
                     val src = if (chartRange == "all") allWeightEntries else allWeightEntries.filter { it.date >= cutoff }
                     src.sortedBy { it.date }.map { it.date to it.valueKg }
                 } else {
                     weightData.filter { (date, _) -> date >= cutoff }
                 }
             }
-            if (chartData.size >= 2) {
+            val filteredKcal = remember(kcalByDay, chartRange) {
+                kcalByDay.filter { (d, _) -> d >= trendCutoff }
+            }
+            val filteredSleep = remember(sleepChartData, chartRange) {
+                sleepChartData.filter { (d, _) -> d >= trendCutoff }
+            }
+            val filteredSteps = remember(stepsChartData, chartRange) {
+                stepsChartData.filter { (d, _) -> d >= trendCutoff }
+            }
+
+            // Build the list of available chart pages
+            data class ChartPage(val label: String, val icon: ImageVector, val titleRes: Int)
+            val pages = remember(chartData, filteredKcal, filteredSleep, filteredSteps) {
+                buildList {
+                    if (chartData.size >= 2) add(ChartPage("weight", Icons.Default.MonitorWeight, R.string.home_weight_trend))
+                    if (filteredKcal.size >= 2) add(ChartPage("kcal", Icons.Default.LocalFireDepartment, R.string.trends_calories))
+                    if (filteredSleep.size >= 2) add(ChartPage("sleep", Icons.Default.Bedtime, R.string.trends_sleep))
+                    if (filteredSteps.size >= 2) add(ChartPage("steps", Icons.AutoMirrored.Filled.DirectionsWalk, R.string.trends_steps))
+                }
+            }
+
+            if (pages.isNotEmpty()) {
+                val pagerState = rememberPagerState(pageCount = { pages.size })
+
                 InfoCard(label = null) {
-                    // Header row: label + range chips
+                    // Header: title + page indicator icons + range chips
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            stringResource(R.string.home_weight_trend).uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = OnSurfaceVariant,
-                        )
+                        // Current chart title + page indicator icons
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stringResource(pages[pagerState.currentPage].titleRes).uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Primary,
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                pages.forEachIndexed { idx, page ->
+                                    val selected = pagerState.currentPage == idx
+                                    val scope = rememberCoroutineScope()
+                                    Icon(
+                                        imageVector = page.icon,
+                                        contentDescription = page.label,
+                                        tint = if (selected) Primary else OnSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier
+                                            .size(if (selected) 20.dp else 16.dp)
+                                            .clickable { scope.launch { pagerState.animateScrollToPage(idx) } },
+                                    )
+                                }
+                            }
+                        }
+                        // Range toggle chips
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf("7d", "1m", "all").forEach { range ->
                                 val selected = chartRange == range
@@ -343,20 +419,74 @@ Rules:
                             }
                         }
                     }
-                    val firstDate = chartData.first().first
-                    val dataPoints = chartData.map { (date, w) ->
-                        java.time.temporal.ChronoUnit.DAYS.between(firstDate, date).toInt() to w
+
+                    // Swipable chart pager
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth(),
+                        beyondViewportPageCount = 1,
+                    ) { pageIdx ->
+                        val page = pages[pageIdx]
+                        when (page.label) {
+                            "weight" -> {
+                                val firstDate = chartData.first().first
+                                val dataPoints = chartData.map { (date, w) ->
+                                    ChronoUnit.DAYS.between(firstDate, date).toInt() to w
+                                }
+                                val dateLabels = chartData.map { (date, _) -> dateLabelFor(date) }
+                                TrendChart(
+                                    dataPoints = dataPoints,
+                                    dateLabels = dateLabels,
+                                    startLineKg = chartData.firstOrNull()?.second,
+                                    targetLineKg = when (chartRange) {
+                                        "all" -> goalWeight?.toDouble()
+                                        else -> {
+                                            val firstW = chartData.firstOrNull()?.second
+                                            val f = chartData.firstOrNull()?.first
+                                            val l = chartData.lastOrNull()?.first
+                                            val days = if (f != null && l != null)
+                                                ChronoUnit.DAYS.between(f, l).toInt().coerceAtLeast(1) else 7
+                                            firstW?.let { it - (weeklyRate ?: 0f).toDouble() * days / 7.0 }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                )
+                            }
+                            "kcal" -> {
+                                val labels = filteredKcal.map { (d, _) -> dateLabelFor(d) }
+                                SimpleLineChart(
+                                    data = filteredKcal.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
+                                    color = Accent,
+                                    dateLabels = labels,
+                                    unit = "kcal",
+                                    refLineValue = dailyTargetKcal?.toDouble(),
+                                    refLineColor = Secondary,
+                                    refLineLabel = dailyTargetKcal?.let { "$it kcal" },
+                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                )
+                            }
+                            "sleep" -> {
+                                val labels = filteredSleep.map { (d, _) -> dateLabelFor(d) }
+                                SimpleLineChart(
+                                    data = filteredSleep.mapIndexed { i, (_, h) -> i to h },
+                                    color = Primary,
+                                    dateLabels = labels,
+                                    unit = "h",
+                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                )
+                            }
+                            "steps" -> {
+                                val labels = filteredSteps.map { (d, _) -> dateLabelFor(d) }
+                                SimpleLineChart(
+                                    data = filteredSteps.mapIndexed { i, (_, s) -> i to s.toDouble() },
+                                    color = Secondary,
+                                    dateLabels = labels,
+                                    unit = "steps",
+                                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                                )
+                            }
+                        }
                     }
-                    val dateLabels = chartData.map { (date, _) ->
-                        val monthName = date.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.getDefault())
-                            .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
-                        "%d. %s".format(date.dayOfMonth, monthName)
-                    }
-                    TrendChart(
-                        dataPoints = dataPoints,
-                        dateLabels = dateLabels,
-                        modifier = Modifier.height(120.dp),
-                    )
                 }
             }
         }

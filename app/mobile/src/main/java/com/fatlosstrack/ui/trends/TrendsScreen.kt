@@ -1,6 +1,5 @@
 package com.fatlosstrack.ui.trends
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,10 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -25,6 +20,7 @@ import com.fatlosstrack.R
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.ui.components.InfoCard
+import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
@@ -62,6 +58,22 @@ fun TrendsScreen(
     val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
 
     val goalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
+    val weeklyRate by preferencesManager.weeklyRate.collectAsState(initial = null)
+    val startWeight by preferencesManager.startWeight.collectAsState(initial = null)
+
+    // TDEE / daily target
+    val savedSex by preferencesManager.sex.collectAsState(initial = null)
+    val savedAge by preferencesManager.age.collectAsState(initial = null)
+    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
+    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
+    val dailyTargetKcal = remember(savedSex, savedAge, savedHeight, startWeight, weeklyRate, savedActivityLevel) {
+        val sex = savedSex ?: return@remember null
+        val age = savedAge ?: return@remember null
+        val height = savedHeight ?: return@remember null
+        val weight = startWeight ?: return@remember null
+        val rate = weeklyRate ?: return@remember null
+        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(weight, height, age, sex, savedActivityLevel, rate)
+    }
 
     // Weight data — merge DailyLog weights + WeightEntry
     val weightData = remember(logs, weightEntries) {
@@ -147,13 +159,25 @@ fun TrendsScreen(
         // ── Weight Trend Chart ──
         if (weightData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_weight)) {
-                val goalW = goalWeight?.toDouble() ?: 80.0
+                val firstWeight = weightData.firstOrNull()?.second
+                val lastDate = weightData.lastOrNull()?.first
+                val firstDate = weightData.firstOrNull()?.first
+                val actualDays = if (firstDate != null && lastDate != null)
+                    java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toInt().coerceAtLeast(1) else 1
+                val refTarget = when (selectedRange) {
+                    "90d" -> goalWeight?.toDouble()
+                    else -> firstWeight?.let { it - (weeklyRate ?: 0f).toDouble() * actualDays / 7.0 }
+                }
+                val dateLabels = weightData.map { (date, _) ->
+                    val monthName = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "%d. %s".format(date.dayOfMonth, monthName)
+                }
                 TrendChart(
                     dataPoints = weightData.mapIndexed { i, (_, w) -> i to w },
-                    avg7d = avg7d ?: 0.0,
-                    targetKg = goalW,
-                    confidenceLow = (avg30d ?: avg7d ?: 0.0) - 0.5,
-                    confidenceHigh = (avg30d ?: avg7d ?: 0.0) + 0.5,
+                    dateLabels = dateLabels,
+                    startLineKg = firstWeight,
+                    targetLineKg = refTarget,
                     modifier = Modifier.height(220.dp),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -194,9 +218,19 @@ fun TrendsScreen(
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_calories)) {
+                val labels = kcalByDay.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
                 SimpleLineChart(
                     data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                     color = Accent,
+                    dateLabels = labels,
+                    unit = "kcal",
+                    refLineValue = dailyTargetKcal?.toDouble(),
+                    refLineColor = Secondary,
+                    refLineLabel = dailyTargetKcal?.let { "$it kcal" },
                     modifier = Modifier.height(140.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -214,9 +248,16 @@ fun TrendsScreen(
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_sleep)) {
+                val labels = sleepData.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
                 SimpleLineChart(
                     data = sleepData.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
+                    dateLabels = labels,
+                    unit = "h",
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -235,9 +276,16 @@ fun TrendsScreen(
         // ── Steps Trend ──
         if (stepsData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_steps)) {
+                val labels = stepsData.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
                 SimpleLineChart(
                     data = stepsData.mapIndexed { i, (_, s) -> i to s.toDouble() },
                     color = Secondary,
+                    dateLabels = labels,
+                    unit = "steps",
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -293,59 +341,5 @@ private fun StatColumn(
     Column {
         Text(label, style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
         Text(value, style = MaterialTheme.typography.titleMedium, color = valueColor)
-    }
-}
-
-/**
- * Minimal line chart — just a line + dots, no axes. Used for calories, sleep, steps.
- */
-@Composable
-private fun SimpleLineChart(
-    data: List<Pair<Int, Double>>,
-    color: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier.fillMaxWidth()) {
-        if (data.size < 2) return@Canvas
-
-        val padding = 16.dp.toPx()
-        val chartWidth = size.width - padding * 2
-        val chartHeight = size.height - padding * 2
-
-        val values = data.map { it.second }
-        val minVal = values.min() * 0.9
-        val maxVal = values.max() * 1.1
-        val range = (maxVal - minVal).coerceAtLeast(1.0)
-
-        fun xFor(index: Int): Float {
-            val maxIdx = data.maxOf { it.first }
-            val minIdx = data.minOf { it.first }
-            val idxRange = (maxIdx - minIdx).coerceAtLeast(1)
-            return padding + (index - minIdx).toFloat() / idxRange * chartWidth
-        }
-
-        fun yFor(value: Double): Float {
-            return padding + ((maxVal - value) / range * chartHeight).toFloat()
-        }
-
-        val path = Path()
-        data.forEachIndexed { i, (dayIdx, value) ->
-            val x = xFor(dayIdx)
-            val y = yFor(value)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-        }
-        drawPath(
-            path = path,
-            color = color,
-            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
-        )
-
-        data.forEach { (dayIdx, value) ->
-            drawCircle(
-                color = color.copy(alpha = 0.5f),
-                radius = 2.5.dp.toPx(),
-                center = Offset(xFor(dayIdx), yFor(value)),
-            )
-        }
     }
 }
