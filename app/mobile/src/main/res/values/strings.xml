@@ -275,6 +275,7 @@
     <string name="trends_range">Range</string>
     <string name="format_sleep_range">%.1f – %.1fh</string>
     <string name="trends_steps">Steps</string>
+    <string name="trends_macros">Macros</string>
     <string name="format_steps_k_day">%dk/day</string>
     <string name="trends_habits">Habits</string>
     <string name="trends_logging_rate">logging rate</string>

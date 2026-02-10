@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -396,17 +397,10 @@ internal fun DayCard(
                             .clickable { onMealClick(meal) }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
-                        // Line 1: icon, meal type, description
+                        // Line 1: meal type, description
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                categoryIcon(meal.category),
-                                contentDescription = null,
-                                tint = categoryColor(meal.category),
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(6.dp))
                             if (meal.mealType != null) {
                                 Text(
                                     mealTypeLabel(meal.mealType),
@@ -426,7 +420,7 @@ internal fun DayCard(
                         }
                         // Line 2: kcal P C F with percentages (of daily target when available, else day total)
                         Row(
-                            modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                            modifier = Modifier.padding(top = 2.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -435,13 +429,13 @@ internal fun DayCard(
                                 Text(
                                     "${meal.totalKcal} kcal ($kcalPct%)",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = Primary,
+                                    color = Secondary,
                                 )
                             } else {
                                 Text(
                                     "${meal.totalKcal} kcal",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = Primary,
+                                    color = Secondary,
                                 )
                             }
                             if (meal.totalProteinG > 0) {
@@ -449,7 +443,7 @@ internal fun DayCard(
                                 Text(
                                     "P ${meal.totalProteinG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Secondary,
+                                    color = Primary,
                                 )
                             }
                             if (meal.totalCarbsG > 0) {
@@ -457,7 +451,7 @@ internal fun DayCard(
                                 Text(
                                     "C ${meal.totalCarbsG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = OnSurfaceVariant,
+                                    color = Tertiary,
                                 )
                             }
                             if (meal.totalFatG > 0) {
@@ -465,7 +459,7 @@ internal fun DayCard(
                                 Text(
                                     "F ${meal.totalFatG}g ($pct%)",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = OnSurfaceVariant,
+                                    color = Accent,
                                 )
                             }
                         }
@@ -488,7 +482,7 @@ internal fun DayCard(
                 Text(
                     stringResource(R.string.meals_total_kcal, totalKcal) + targetSuffix + macroSuffix,
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = Primary,
+                    color = Secondary,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             } else {
@@ -654,6 +648,7 @@ internal fun AddMealSheet(
             value = kcalStr,
             onValueChange = { kcalStr = it },
             keyboardType = KeyboardType.Number,
+            iconTint = Secondary,
         )
 
         // Protein
@@ -663,6 +658,7 @@ internal fun AddMealSheet(
             value = proteinStr,
             onValueChange = { proteinStr = it },
             keyboardType = KeyboardType.Number,
+            iconTint = Primary,
         )
 
         // Carbs
@@ -672,6 +668,7 @@ internal fun AddMealSheet(
             value = carbsStr,
             onValueChange = { carbsStr = it },
             keyboardType = KeyboardType.Number,
+            iconTint = Tertiary,
         )
 
         // Fat
@@ -681,6 +678,7 @@ internal fun AddMealSheet(
             value = fatStr,
             onValueChange = { fatStr = it },
             keyboardType = KeyboardType.Number,
+            iconTint = Accent,
         )
 
         // Category selector
@@ -838,6 +836,7 @@ internal fun MealEditSheet(
                 value = kcalStr,
                 onValueChange = { kcalStr = it },
                 keyboardType = KeyboardType.Number,
+                iconTint = Secondary,
             )
 
             EditField(
@@ -846,6 +845,7 @@ internal fun MealEditSheet(
                 value = proteinStr,
                 onValueChange = { proteinStr = it },
                 keyboardType = KeyboardType.Number,
+                iconTint = Primary,
             )
 
             EditField(
@@ -854,6 +854,7 @@ internal fun MealEditSheet(
                 value = carbsStr,
                 onValueChange = { carbsStr = it },
                 keyboardType = KeyboardType.Number,
+                iconTint = Tertiary,
             )
 
             EditField(
@@ -862,6 +863,7 @@ internal fun MealEditSheet(
                 value = fatStr,
                 onValueChange = { fatStr = it },
                 keyboardType = KeyboardType.Number,
+                iconTint = Accent,
             )
 
             Text(stringResource(R.string.section_source), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
@@ -946,7 +948,7 @@ internal fun MealEditSheet(
                                 Text(item.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
                                 Text(item.portion, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
                             }
-                            Text("${item.calories} kcal", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Primary)
+                            Text("${item.calories} kcal", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Secondary)
                         }
                     }
                 }
@@ -960,16 +962,15 @@ internal fun MealEditSheet(
                 Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(stringResource(R.string.label_total), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = OnSurface)
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("${meal.totalKcal} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Primary)
+                        Text("${meal.totalKcal} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Secondary)
                         if (meal.totalProteinG > 0) {
-                            Text("${meal.totalProteinG}g protein", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Secondary)
+                            Text("${meal.totalProteinG}g protein", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Primary)
                         }
-                        val macros = buildString {
-                            if (meal.totalCarbsG > 0) append("${meal.totalCarbsG}g C")
-                            if (meal.totalFatG > 0) { if (isNotEmpty()) append("  "); append("${meal.totalFatG}g F") }
+                        if (meal.totalCarbsG > 0) {
+                            Text("${meal.totalCarbsG}g carbs", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Tertiary)
                         }
-                        if (macros.isNotEmpty()) {
-                            Text(macros, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+                        if (meal.totalFatG > 0) {
+                            Text("${meal.totalFatG}g fat", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Accent)
                         }
                     }
                 }
@@ -1252,10 +1253,10 @@ internal fun DailyLogEditSheet(
 // ── Shared field composables ──
 
 @Composable
-internal fun EditField(icon: ImageVector, label: String, value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text) {
+internal fun EditField(icon: ImageVector, label: String, value: String, onValueChange: (String) -> Unit, keyboardType: KeyboardType = KeyboardType.Text, iconTint: Color = Primary) {
     OutlinedTextField(
         value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), label = { Text(label) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp)) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp)) },
         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Next),
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = OnSurface), colors = editFieldColors(), shape = RoundedCornerShape(10.dp),
     )

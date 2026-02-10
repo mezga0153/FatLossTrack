@@ -275,6 +275,7 @@
     <string name="trends_range">Razpon</string>
     <string name="format_sleep_range">%.1f – %.1fh</string>
     <string name="trends_steps">Koraki</string>
+    <string name="trends_macros">Makri</string>
     <string name="format_steps_k_day">%dk/dan</string>
     <string name="trends_habits">Navade</string>
     <string name="trends_logging_rate">stopnja beleženja</string>

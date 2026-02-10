@@ -21,6 +21,7 @@ import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
+import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
@@ -103,6 +104,19 @@ fun TrendsScreen(
             .sortedBy { it.first }
     }
     val avgKcal = if (kcalByDay.isNotEmpty()) kcalByDay.map { it.second }.average().toInt() else null
+
+    // Macro data per day
+    val macrosByDay = remember(meals) {
+        meals.groupBy { it.date }
+            .map { (date, dayMeals) ->
+                val p = dayMeals.sumOf { it.totalProteinG }
+                val c = dayMeals.sumOf { it.totalCarbsG }
+                val f = dayMeals.sumOf { it.totalFatG }
+                date to Triple(p, c, f)
+            }
+            .filter { (_, t) -> t.first + t.second + t.third > 0 }
+            .sortedBy { it.first }
+    }
 
     // Sleep data
     val sleepData = remember(logs) {
@@ -228,7 +242,7 @@ fun TrendsScreen(
                 val xLabels = kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 SimpleLineChart(
                     data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
-                    color = Accent,
+                    color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "kcal",
@@ -245,6 +259,41 @@ fun TrendsScreen(
                     StatColumn(stringResource(R.string.trends_avg), stringResource(R.string.format_kcal_day, avgKcal ?: 0))
                     StatColumn(stringResource(R.string.trends_total), "${kcalByDay.sumOf { it.second }} kcal")
                     StatColumn(stringResource(R.string.trends_days_tracked), "${kcalByDay.size}")
+                }
+            }
+        }
+
+        // ── Macros Trend ──
+        if (macrosByDay.size >= 2) {
+            InfoCard(label = stringResource(R.string.trends_macros)) {
+                val labels = macrosByDay.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = macrosByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val targets = dailyTargetKcal?.let {
+                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it)
+                }
+                MacroBarChart(
+                    data = macrosByDay.map { it.second },
+                    macroTargets = targets,
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    colors = Triple(Primary, Tertiary, Accent),
+                    modifier = Modifier.height(140.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    val avgP = macrosByDay.map { it.second.first }.average().toInt()
+                    val avgC = macrosByDay.map { it.second.second }.average().toInt()
+                    val avgF = macrosByDay.map { it.second.third }.average().toInt()
+                    StatColumn(stringResource(R.string.trends_avg) + " P", "${avgP}g", Primary)
+                    StatColumn(stringResource(R.string.trends_avg) + " C", "${avgC}g", Tertiary)
+                    StatColumn(stringResource(R.string.trends_avg) + " F", "${avgF}g", Accent)
                 }
             }
         }

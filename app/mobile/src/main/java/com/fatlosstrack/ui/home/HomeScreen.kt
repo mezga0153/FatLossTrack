@@ -29,6 +29,7 @@ import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
+import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
@@ -150,6 +151,18 @@ fun HomeScreen(
         logs.filter { it.steps != null }
             .sortedBy { it.date }
             .map { it.date to it.steps!! }
+    }
+    val macrosByDay = remember(meals) {
+        meals.groupBy { it.date }
+            .map { (date, dayMeals) ->
+                date to Triple(
+                    dayMeals.sumOf { it.totalProteinG },
+                    dayMeals.sumOf { it.totalCarbsG },
+                    dayMeals.sumOf { it.totalFatG },
+                )
+            }
+            .filter { (_, m) -> m.first + m.second + m.third > 0 }
+            .sortedBy { it.first }
     }
 
     // Stats — exclude today (shown separately as DayCard)
@@ -363,13 +376,17 @@ Rules:
             val filteredSteps = remember(stepsChartData, chartRange) {
                 stepsChartData.filter { (d, _) -> d >= trendCutoff }
             }
+            val filteredMacros = remember(macrosByDay, chartRange) {
+                macrosByDay.filter { (d, _) -> d >= trendCutoff }
+            }
 
             // Build the list of available chart pages
             data class ChartPage(val label: String, val icon: ImageVector, val titleRes: Int)
-            val pages = remember(chartData, filteredKcal, filteredSleep, filteredSteps) {
+            val pages = remember(chartData, filteredKcal, filteredSleep, filteredSteps, filteredMacros) {
                 buildList {
                     if (chartData.size >= 2) add(ChartPage("weight", Icons.Default.MonitorWeight, R.string.home_weight_trend))
                     if (filteredKcal.size >= 2) add(ChartPage("kcal", Icons.Default.LocalFireDepartment, R.string.trends_calories))
+                    if (filteredMacros.size >= 2) add(ChartPage("macros", Icons.Default.PieChart, R.string.trends_macros))
                     if (filteredSleep.size >= 2) add(ChartPage("sleep", Icons.Default.Bedtime, R.string.trends_sleep))
                     if (filteredSteps.size >= 2) add(ChartPage("steps", Icons.AutoMirrored.Filled.DirectionsWalk, R.string.trends_steps))
                 }
@@ -471,13 +488,28 @@ Rules:
                                 val xLabels = filteredKcal.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 SimpleLineChart(
                                     data = filteredKcal.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
-                                    color = Accent,
+                                    color = Secondary,
                                     dateLabels = labels,
                                     xAxisLabels = xLabels,
                                     unit = "kcal",
                                     refLineValue = dailyTargetKcal?.toDouble(),
                                     refLineColor = Secondary,
                                     refLineLabel = dailyTargetKcal?.let { "$it kcal" },
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
+                                )
+                            }
+                            "macros" -> {
+                                val labels = filteredMacros.map { (d, _) -> dateLabelFor(d) }
+                                val xLabels = filteredMacros.map { (d, _) -> xAxisLabelFor(d, is7d) }
+                                val targets = dailyTargetKcal?.let {
+                                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it)
+                                }
+                                MacroBarChart(
+                                    data = filteredMacros.map { (_, m) -> m },
+                                    macroTargets = targets,
+                                    dateLabels = labels,
+                                    xAxisLabels = xLabels,
+                                    colors = Triple(Primary, Tertiary, Accent),
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }

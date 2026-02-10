@@ -521,24 +521,27 @@ private fun ResultContent(
                                 Text(
                                     text = stringResource(R.string.format_kcal, result.totalCalories),
                                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Primary,
+                                    color = Secondary,
                                 )
                                 if (result.totalProteinG > 0) {
                                     Text(
                                         text = stringResource(R.string.format_protein_full, result.totalProteinG),
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = Secondary,
+                                        color = Primary,
                                     )
                                 }
-                                val macros = buildString {
-                                    if (result.totalCarbsG > 0) append("${result.totalCarbsG}g C")
-                                    if (result.totalFatG > 0) { if (isNotEmpty()) append("  "); append("${result.totalFatG}g F") }
-                                }
-                                if (macros.isNotEmpty()) {
+                                if (result.totalCarbsG > 0) {
                                     Text(
-                                        macros,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = OnSurfaceVariant,
+                                        "${result.totalCarbsG}g carbs",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Tertiary,
+                                    )
+                                }
+                                if (result.totalFatG > 0) {
+                                    Text(
+                                        "${result.totalFatG}g fat",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Accent,
                                     )
                                 }
                             }
@@ -769,7 +772,14 @@ private fun NutritionCard(item: MealItem) {
 
             // Rows
             item.nutrition.forEachIndexed { idx, row ->
-                val isCalories = row.name == "Calories"
+                val rowColor = when (row.name) {
+                    "Calories" -> Secondary
+                    "Protein" -> Primary
+                    "Carbs" -> Tertiary
+                    "Fat" -> Accent
+                    else -> OnSurface
+                }
+                val isBold = row.name == "Calories"
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -785,17 +795,17 @@ private fun NutritionCard(item: MealItem) {
                     Text(
                         text = row.name,
                         style = MaterialTheme.typography.bodyMedium.let {
-                            if (isCalories) it.copy(fontWeight = FontWeight.SemiBold) else it
+                            if (isBold) it.copy(fontWeight = FontWeight.SemiBold) else it
                         },
-                        color = if (isCalories) Primary else OnSurface,
+                        color = rowColor,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
                         text = "${row.amount} ${row.unit}",
                         style = MaterialTheme.typography.bodyMedium.let {
-                            if (isCalories) it.copy(fontWeight = FontWeight.SemiBold) else it
+                            if (isBold) it.copy(fontWeight = FontWeight.SemiBold) else it
                         },
-                        color = if (isCalories) Primary else OnSurface,
+                        color = rowColor,
                         modifier = Modifier.width(72.dp),
                     )
                 }
