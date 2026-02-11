@@ -244,13 +244,33 @@ fun HomeScreen(
                     if (startW != null) appendLine("Start weight: %.1f kg".format(startW))
                     if (latestWeight != null) appendLine("Current weight: %.1f kg".format(latestWeight))
                     if (weeklyRate != null) appendLine("Target rate: %.1f kg/week".format(weeklyRate))
+
+                    // Daily targets (TDEE-based)
+                    if (dailyTargetKcal != null) {
+                        val mt = com.fatlosstrack.domain.TdeeCalculator.macroTargets(dailyTargetKcal)
+                        appendLine("Daily target: $dailyTargetKcal kcal (protein ${mt.first}g / carbs ${mt.second}g / fat ${mt.third}g)")
+                    }
+
                     appendLine()
                     appendLine("Period stats (last $lookbackDays days, excluding today):")
                     appendLine("- Meals logged: $totalMeals")
-                    if (avgKcalPerDay != null) appendLine("- Avg kcal/day: $avgKcalPerDay")
-                    if (avgProteinPerDay != null && avgProteinPerDay > 0) appendLine("- Avg protein/day: ${avgProteinPerDay}g")
-                    if (avgCarbsPerDay != null && avgCarbsPerDay > 0) appendLine("- Avg carbs/day: ${avgCarbsPerDay}g")
-                    if (avgFatPerDay != null && avgFatPerDay > 0) appendLine("- Avg fat/day: ${avgFatPerDay}g")
+                    if (avgKcalPerDay != null) {
+                        val kcalPct = if (dailyTargetKcal != null) " (${avgKcalPerDay * 100 / dailyTargetKcal}% of target)" else ""
+                        appendLine("- Avg kcal/day: $avgKcalPerDay$kcalPct")
+                    }
+                    val mt = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+                    if (avgProteinPerDay != null && avgProteinPerDay > 0) {
+                        val pct = mt?.let { " (${avgProteinPerDay * 100 / it.first}% of target)" } ?: ""
+                        appendLine("- Avg protein/day: ${avgProteinPerDay}g$pct")
+                    }
+                    if (avgCarbsPerDay != null && avgCarbsPerDay > 0) {
+                        val pct = mt?.let { " (${avgCarbsPerDay * 100 / it.second}% of target)" } ?: ""
+                        appendLine("- Avg carbs/day: ${avgCarbsPerDay}g$pct")
+                    }
+                    if (avgFatPerDay != null && avgFatPerDay > 0) {
+                        val pct = mt?.let { " (${avgFatPerDay * 100 / it.third}% of target)" } ?: ""
+                        appendLine("- Avg fat/day: ${avgFatPerDay}g$pct")
+                    }
                     if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
                     if (avgSleep != null) appendLine("- Avg sleep: %.1fh".format(avgSleep))
                     appendLine("- Days with data: $daysLogged / $lookbackDays")

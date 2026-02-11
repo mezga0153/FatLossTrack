@@ -533,6 +533,9 @@ private suspend fun buildContextBlock(
     val coachTone = preferencesManager.coachTone.first()
     val heightCm = preferencesManager.heightCm.first()
     val startDate = preferencesManager.startDate.first()
+    val sex = preferencesManager.sex.first()
+    val age = preferencesManager.age.first()
+    val activityLevel = preferencesManager.activityLevel.first()
 
     // Weight entries (last 7 days)
     val weights = weightDao.getEntriesSince(sevenDaysAgo).first()
@@ -560,6 +563,15 @@ private suspend fun buildContextBlock(
         sb.appendLine("User guidance/preferences: $guidance")
     }
 
+    // Daily targets (TDEE-based)
+    val dailyTargetKcal = if (sex != null && age != null && heightCm != null && startWeight != null) {
+        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(startWeight, heightCm, age, sex, activityLevel, goalRate)
+    } else null
+    val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+    if (dailyTargetKcal != null && macroTargets != null) {
+        sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
+    }
+
     if (weights.isNotEmpty()) {
         sb.appendLine("\nWeights:")
         weights.sortedByDescending { it.date }.forEach { w ->
@@ -582,11 +594,29 @@ private suspend fun buildContextBlock(
 
     if (meals.isNotEmpty()) {
         sb.appendLine("\nMeals:")
-        meals.sortedByDescending { it.date }.forEach { m ->
-            val prot = if (m.totalProteinG > 0) ", ${m.totalProteinG}g protein" else ""
-            val carb = if (m.totalCarbsG > 0) ", ${m.totalCarbsG}g carbs" else ""
-            val fat = if (m.totalFatG > 0) ", ${m.totalFatG}g fat" else ""
-            sb.appendLine("  ${fmt.format(m.date)}: ${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
+        // Group meals by date for daily totals
+        val mealsByDate = meals.groupBy { it.date }.toSortedMap(compareByDescending { it })
+        mealsByDate.forEach { (date, dayMeals) ->
+            val totalKcal = dayMeals.sumOf { it.totalKcal }
+            val totalP = dayMeals.sumOf { it.totalProteinG }
+            val totalC = dayMeals.sumOf { it.totalCarbsG }
+            val totalF = dayMeals.sumOf { it.totalFatG }
+            val pctStr = buildString {
+                if (dailyTargetKcal != null) append(" [${totalKcal * 100 / dailyTargetKcal}% kcal")
+                if (macroTargets != null) {
+                    if (totalP > 0) append(", ${totalP * 100 / macroTargets.first}% P")
+                    if (totalC > 0) append(", ${totalC * 100 / macroTargets.second}% C")
+                    if (totalF > 0) append(", ${totalF * 100 / macroTargets.third}% F")
+                }
+                if (dailyTargetKcal != null) append("]")
+            }
+            sb.appendLine("  ${fmt.format(date)}: ${totalKcal} kcal, ${totalP}g P, ${totalC}g C, ${totalF}g F$pctStr")
+            dayMeals.forEach { m ->
+                val prot = if (m.totalProteinG > 0) ", ${m.totalProteinG}g P" else ""
+                val carb = if (m.totalCarbsG > 0) ", ${m.totalCarbsG}g C" else ""
+                val fat = if (m.totalFatG > 0) ", ${m.totalFatG}g F" else ""
+                sb.appendLine("    - ${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
+            }
         }
     }
 

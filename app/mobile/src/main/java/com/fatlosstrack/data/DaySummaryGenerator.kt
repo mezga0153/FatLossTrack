@@ -1,6 +1,7 @@
 package com.fatlosstrack.data
 
 import com.fatlosstrack.data.local.AppLogger
+import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.GoalDao
@@ -8,6 +9,7 @@ import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.Goal
 import com.fatlosstrack.data.remote.OpenAiService
+import com.fatlosstrack.domain.TdeeCalculator
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import javax.inject.Inject
@@ -24,6 +26,7 @@ class DaySummaryGenerator @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val mealDao: MealDao,
     private val goalDao: GoalDao,
+    private val preferencesManager: PreferencesManager,
     private val appLogger: AppLogger,
 ) {
     /** Maps date → hash of the data that was used to generate its current summary. */
@@ -84,8 +87,20 @@ class DaySummaryGenerator @Inject constructor(
                 return
             }
 
+            // Compute TDEE & macro targets from profile
+            val sex = preferencesManager.sex.first()
+            val age = preferencesManager.age.first()
+            val height = preferencesManager.heightCm.first()
+            val weight = preferencesManager.startWeight.first()
+            val rate = preferencesManager.weeklyRate.first()
+            val activityLevel = preferencesManager.activityLevel.first()
+            val dailyTargetKcal = if (sex != null && age != null && height != null && weight != null) {
+                TdeeCalculator.dailyTarget(weight, height, age, sex, activityLevel, rate)
+            } else null
+            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it) }
+
             appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, hash=$dataHash, prevHash=$cachedHash)")
-            val prompt = buildPrompt(date, log, meals, goal)
+            val prompt = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
             val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT)
 
             result.onSuccess { summary ->
@@ -117,6 +132,8 @@ class DaySummaryGenerator @Inject constructor(
         log: DailyLog?,
         meals: List<MealEntry>,
         goal: Goal?,
+        dailyTargetKcal: Int?,
+        macroTargets: Triple<Int, Int, Int>?,
     ): String {
         val parts = mutableListOf<String>()
         parts += "Date: $date"
@@ -132,6 +149,17 @@ class DaySummaryGenerator @Inject constructor(
             goal.dailyDeficitKcal?.let { parts += "Target daily deficit: $it kcal" }
         }
 
+        // Daily targets (TDEE-based)
+        if (dailyTargetKcal != null) {
+            val targetLine = buildString {
+                append("Daily target: $dailyTargetKcal kcal")
+                if (macroTargets != null) {
+                    append(" (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
+                }
+            }
+            parts += targetLine
+        }
+
         if (log != null) {
             log.weightKg?.let { parts += "Weight: %.1f kg".format(it) }
             log.steps?.let { parts += "Steps: %,d".format(it) }
@@ -145,12 +173,24 @@ class DaySummaryGenerator @Inject constructor(
             val totalProtein = meals.sumOf { it.totalProteinG }
             val totalCarbs = meals.sumOf { it.totalCarbsG }
             val totalFat = meals.sumOf { it.totalFatG }
+
+            // Build summary with absolute + % of target
             val macroStr = buildString {
-                if (totalProtein > 0) append(", ${totalProtein}g protein")
-                if (totalCarbs > 0) append(", ${totalCarbs}g carbs")
-                if (totalFat > 0) append(", ${totalFat}g fat")
+                if (totalProtein > 0) {
+                    append(", ${totalProtein}g protein")
+                    macroTargets?.let { append(" (${(totalProtein * 100 / it.first)}%)") }
+                }
+                if (totalCarbs > 0) {
+                    append(", ${totalCarbs}g carbs")
+                    macroTargets?.let { append(" (${(totalCarbs * 100 / it.second)}%)") }
+                }
+                if (totalFat > 0) {
+                    append(", ${totalFat}g fat")
+                    macroTargets?.let { append(" (${(totalFat * 100 / it.third)}%)") }
+                }
             }
-            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$macroStr)"
+            val kcalPctStr = dailyTargetKcal?.let { " (${totalKcal * 100 / it}%)" } ?: ""
+            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$kcalPctStr$macroStr)"
             meals.forEach { m ->
                 val macroPart = buildString {
                     if (m.totalProteinG > 0) append(", ${m.totalProteinG}g P")
