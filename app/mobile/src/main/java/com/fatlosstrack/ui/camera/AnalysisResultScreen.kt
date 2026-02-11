@@ -459,7 +459,7 @@ private fun ResultContent(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     ) {
-                        Text(stringResource(R.string.button_log_meal), color = Color.Black)
+                        Text(stringResource(R.string.button_log_meal), color = MaterialTheme.colorScheme.onPrimary)
                     }
                 } else {
                     Button(
@@ -467,7 +467,7 @@ private fun ResultContent(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = Secondary),
                     ) {
-                        Text(stringResource(R.string.button_sounds_good), color = Color.Black)
+                        Text(stringResource(R.string.button_sounds_good), color = Surface)
                     }
                 }
                 OutlinedButton(

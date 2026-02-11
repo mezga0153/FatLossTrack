@@ -344,13 +344,13 @@ fun SetGoalScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(14.dp),
             ) {
                 Text(
                     stringResource(R.string.button_save_changes),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onPrimary,
                 )
             }
 
