@@ -36,6 +36,7 @@ import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
+import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.camera.CameraModeSheet
 import com.fatlosstrack.ui.camera.CaptureMode
 import com.fatlosstrack.ui.camera.MealCaptureScreen
@@ -78,6 +79,7 @@ fun FatLossTrackNavGraph(
     appLogger: AppLogger? = null,
     chatStateHolder: ChatStateHolder,
     aiBarStateHolder: AiBarStateHolder,
+    analysisResultStateHolder: AnalysisResultStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -255,12 +257,10 @@ fun FatLossTrackNavGraph(
                 // Text meal analysis (from AiBar)
                 composable("analysis/text") {
                     AnalysisResultScreen(
+                        state = analysisResultStateHolder,
                         mode = CaptureMode.LogMeal,
                         photoCount = 0,
-                        openAiService = openAiService,
-                        mealDao = mealDao,
                         isTextMode = true,
-                        daySummaryGenerator = daySummaryGenerator,
                         onDone = {
                             navController.popBackStack()
                         },
@@ -296,12 +296,10 @@ fun FatLossTrackNavGraph(
                     } else java.time.LocalDate.now()
                     val mode = if (modeStr == "SuggestMeal") CaptureMode.SuggestMeal else CaptureMode.LogMeal
                     AnalysisResultScreen(
+                        state = analysisResultStateHolder,
                         mode = mode,
                         photoCount = count,
-                        openAiService = openAiService,
-                        mealDao = mealDao,
                         targetDate = targetDate,
-                        daySummaryGenerator = daySummaryGenerator,
                         onDone = {
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },

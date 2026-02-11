@@ -1,9 +1,5 @@
 package com.fatlosstrack.ui.camera
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -24,166 +20,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
-import com.fatlosstrack.data.local.CapturedPhotoStore
-import com.fatlosstrack.data.local.AppLogger
-import com.fatlosstrack.data.local.PendingTextMealStore
-import com.fatlosstrack.data.DaySummaryGenerator
-import kotlinx.coroutines.Dispatchers
 import com.fatlosstrack.data.local.db.MealCategory
-import com.fatlosstrack.data.local.db.MealDao
-import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
-import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.*
-
-// ── Data models ──
-
-data class NutritionRow(
-    val name: String,
-    val amount: String,
-    val unit: String,
-)
-
-data class MealItem(
-    val name: String,
-    val portion: String,
-    val nutrition: List<NutritionRow>,
-)
-
-data class AnalysisResult(
-    val description: String,
-    val items: List<MealItem>,
-    val totalCalories: Int,
-    val totalProteinG: Int = 0,
-    val totalCarbsG: Int = 0,
-    val totalFatG: Int = 0,
-    val aiNote: String,
-    val source: MealCategory = MealCategory.HOME,
-    val mealType: MealType? = null,
-)
 
 /**
- * Calls OpenAI vision API with captured photos. Parses structured JSON response
- * into meal items with nutrition data. Supports user corrections for re-analysis.
+ * Pure UI renderer for meal analysis results (photo or text mode).
+ * All business logic lives in [AnalysisResultStateHolder].
  */
 @Composable
 fun AnalysisResultScreen(
+    state: AnalysisResultStateHolder,
     mode: CaptureMode,
     photoCount: Int,
-    openAiService: OpenAiService,
-    mealDao: MealDao,
     targetDate: java.time.LocalDate = java.time.LocalDate.now(),
     isTextMode: Boolean = false,
-    daySummaryGenerator: DaySummaryGenerator? = null,
     onDone: () -> Unit,
     onLogged: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var analyzing by remember { mutableStateOf(!isTextMode) }
-    var result by remember { mutableStateOf<AnalysisResult?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var effectiveDate by remember { mutableStateOf(targetDate) }
-
-    // Keep bitmaps in memory for re-analysis with corrections
-    val bitmaps = remember { mutableStateListOf<Bitmap>() }
-
-    // For text mode: load from PendingTextMealStore
-    LaunchedEffect(isTextMode) {
+    // Initialize state holder on first composition
+    LaunchedEffect(Unit) {
         if (isTextMode) {
-            val pending = PendingTextMealStore.consume()
-            if (pending != null) {
-                val (raw, date) = pending
-                effectiveDate = date
-                try {
-                    result = parseAnalysisJson(raw)
-                } catch (e: Exception) {
-                    Log.e("Analysis", "Text meal parse failed: $raw", e)
-                    errorMessage = "Failed to parse meal data" // internal error, not localized
-                }
-                PendingTextMealStore.clear()
-            } else {
-                errorMessage = "No meal data available"
-            }
+            state.startTextAnalysis()
+        } else {
+            state.startPhotoAnalysis(mode, targetDate)
         }
     }
-
-    // Runs analysis (initial or with correction)
-    fun runAnalysis(correction: String? = null) {
-        analyzing = true
-        errorMessage = null
-        scope.launch {
-            try {
-                // Load bitmaps on first run
-                if (bitmaps.isEmpty()) {
-                    val photoUris = CapturedPhotoStore.consume()
-                    if (photoUris.isEmpty()) {
-                        errorMessage = "No photos to analyze."
-                        analyzing = false
-                        return@launch
-                    }
-                    val loaded = withContext(Dispatchers.IO) {
-                        photoUris.mapNotNull { uri ->
-                            try {
-                                context.contentResolver.openInputStream(uri)?.use { stream ->
-                                    BitmapFactory.decodeStream(stream)
-                                }
-                            } catch (e: Exception) {
-                                Log.e("Analysis", "Failed to load photo: $uri", e)
-                                null
-                            }
-                        }
-                    }
-                    if (loaded.isEmpty()) {
-                        errorMessage = "Could not load photos."
-                        analyzing = false
-                        return@launch
-                    }
-                    bitmaps.addAll(loaded)
-                }
-
-                val modeStr = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
-                AppLogger.instance?.ai("Image analysis: mode=$modeStr, photos=${bitmaps.size}${if (correction != null) ", correction" else ""}")
-                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction)
-
-                apiResult.fold(
-                    onSuccess = { raw ->
-                        try {
-                            result = parseAnalysisJson(raw)
-                        } catch (e: Exception) {
-                            Log.e("Analysis", "JSON parse failed, raw: $raw", e)
-                            result = AnalysisResult(
-                                description = raw,
-                                items = emptyList(),
-                                totalCalories = 0,
-                                aiNote = "",
-                            )
-                        }
-                        analyzing = false
-                    },
-                    onFailure = { e ->
-                        errorMessage = e.message ?: "Analysis failed"
-                        analyzing = false
-                    },
-                )
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Unexpected error"
-                analyzing = false
-            }
-        }
-    }
-
-    // Initial analysis on launch (photo mode only)
-    LaunchedEffect(Unit) { if (!isTextMode) runAnalysis() }
 
     Column(
         modifier = Modifier
@@ -199,8 +66,7 @@ fun AnalysisResultScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = {
-                CapturedPhotoStore.clear()
-                PendingTextMealStore.clear()
+                state.cleanup()
                 onBack()
             }) {
                 Icon(
@@ -218,147 +84,28 @@ fun AnalysisResultScreen(
         }
 
         when {
-            analyzing -> AnalyzingState(photoCount)
-            errorMessage != null -> ErrorState(errorMessage!!, onBack = {
-                CapturedPhotoStore.clear()
-                PendingTextMealStore.clear()
+            state.analyzing -> AnalyzingState(photoCount)
+            state.errorMessage != null -> ErrorState(state.errorMessage!!, onBack = {
+                state.cleanup()
                 onBack()
             })
-            result != null -> ResultContent(
-                result = result!!,
+            state.result != null -> ResultContent(
+                result = state.result!!,
                 mode = if (isTextMode) CaptureMode.LogMeal else mode,
                 showCorrection = !isTextMode,
                 onDone = {
-                    CapturedPhotoStore.clear()
-                    PendingTextMealStore.clear()
+                    state.cleanup()
                     onDone()
                 },
                 onLog = { analysisResult, overrideCategory, overrideMealType ->
-                    scope.launch {
-                        val itemsJson = kotlinx.serialization.json.buildJsonArray {
-                            analysisResult.items.forEach { item ->
-                                add(kotlinx.serialization.json.buildJsonObject {
-                                    put("name", item.name)
-                                    put("portion", item.portion)
-                                    item.nutrition.forEach { n ->
-                                        when (n.name) {
-                                            "Calories" -> put("calories", n.amount.toIntOrNull() ?: 0)
-                                            "Protein" -> put("protein_g", n.amount.toIntOrNull() ?: 0)
-                                            "Fat" -> put("fat_g", n.amount.toIntOrNull() ?: 0)
-                                            "Carbs" -> put("carbs_g", n.amount.toIntOrNull() ?: 0)
-                                        }
-                                    }
-                                })
-                            }
-                        }.toString()
-                        mealDao.insert(
-                            MealEntry(
-                                date = effectiveDate,
-                                description = analysisResult.description,
-                                itemsJson = itemsJson,
-                                totalKcal = analysisResult.totalCalories,
-                                totalProteinG = analysisResult.totalProteinG,
-                                totalCarbsG = analysisResult.totalCarbsG,
-                                totalFatG = analysisResult.totalFatG,
-                                coachNote = analysisResult.aiNote,
-                                category = overrideCategory,
-                                mealType = overrideMealType,
-                            )
-                        )
-                        AppLogger.instance?.meal("Logged via AI: ${analysisResult.description.take(50)} — ${analysisResult.totalCalories} kcal, cat=$overrideCategory, type=$overrideMealType, date=$effectiveDate")
-                        // Fire-and-forget summary generation
-                        daySummaryGenerator?.launchForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
-                        CapturedPhotoStore.clear()
-                        PendingTextMealStore.clear()
+                    state.logMeal(analysisResult, overrideCategory, overrideMealType) {
                         onLogged()
                     }
                 },
-                onCorrection = { correction -> runAnalysis(correction) },
+                onCorrection = { correction -> state.runAnalysis(correction) },
             )
         }
     }
-}
-
-// ── JSON parsing ──
-
-private fun parseAnalysisJson(raw: String): AnalysisResult {
-    // Strip markdown code fences if present
-    val cleaned = raw
-        .replace(Regex("^```json\\s*", RegexOption.MULTILINE), "")
-        .replace(Regex("^```\\s*", RegexOption.MULTILINE), "")
-        .trim()
-
-    val json = Json.parseToJsonElement(cleaned).jsonObject
-
-    val description = json["description"]?.jsonPrimitive?.content ?: ""
-    val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
-    val totalProteinFromJson = json["total_protein_g"]?.jsonPrimitive?.intOrNull
-    val totalCarbsFromJson = json["total_carbs_g"]?.jsonPrimitive?.intOrNull
-    val totalFatFromJson = json["total_fat_g"]?.jsonPrimitive?.intOrNull
-    val aiNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
-    val sourceStr = json["source"]?.jsonPrimitive?.content ?: "home"
-    val source = when (sourceStr.lowercase()) {
-        "restaurant" -> MealCategory.RESTAURANT
-        "fast_food", "fastfood", "fast food" -> MealCategory.FAST_FOOD
-        else -> MealCategory.HOME
-    }
-
-    val mealTypeStr = json["meal_type"]?.jsonPrimitive?.content ?: ""
-    val mealType = when (mealTypeStr.lowercase()) {
-        "breakfast" -> MealType.BREAKFAST
-        "brunch" -> MealType.BRUNCH
-        "lunch" -> MealType.LUNCH
-        "dinner" -> MealType.DINNER
-        "snack" -> MealType.SNACK
-        else -> null
-    }
-
-    val items = json["items"]?.jsonArray?.map { itemEl ->
-        val item = itemEl.jsonObject
-        val name = item["name"]?.jsonPrimitive?.content ?: "Unknown"
-        val portion = item["portion"]?.jsonPrimitive?.content ?: ""
-        val calories = item["calories"]?.jsonPrimitive?.int ?: 0
-        val protein = item["protein_g"]?.jsonPrimitive?.intOrNull ?: item["protein_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
-        val fat = item["fat_g"]?.jsonPrimitive?.intOrNull ?: item["fat_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
-        val carbs = item["carbs_g"]?.jsonPrimitive?.intOrNull ?: item["carbs_g"]?.jsonPrimitive?.floatOrNull?.toInt() ?: 0
-
-        MealItem(
-            name = name,
-            portion = portion,
-            nutrition = listOf(
-                NutritionRow("Calories", "$calories", "kcal"),
-                NutritionRow("Protein", "$protein", "g"),
-                NutritionRow("Fat", "$fat", "g"),
-                NutritionRow("Carbs", "$carbs", "g"),
-            ),
-        )
-    } ?: emptyList()
-
-    // Use explicit totals from AI, or sum from items as fallback
-    val totalProteinG = totalProteinFromJson
-        ?: items.sumOf { item ->
-            item.nutrition.find { it.name == "Protein" }?.amount?.toIntOrNull() ?: 0
-        }
-    val totalCarbsG = totalCarbsFromJson
-        ?: items.sumOf { item ->
-            item.nutrition.find { it.name == "Carbs" }?.amount?.toIntOrNull() ?: 0
-        }
-    val totalFatG = totalFatFromJson
-        ?: items.sumOf { item ->
-            item.nutrition.find { it.name == "Fat" }?.amount?.toIntOrNull() ?: 0
-        }
-
-    return AnalysisResult(
-        description = description,
-        items = items,
-        totalCalories = totalCalories,
-        totalProteinG = totalProteinG,
-        totalCarbsG = totalCarbsG,
-        totalFatG = totalFatG,
-        aiNote = aiNote,
-        source = source,
-        mealType = mealType,
-    )
 }
 
 // ── UI states ──
