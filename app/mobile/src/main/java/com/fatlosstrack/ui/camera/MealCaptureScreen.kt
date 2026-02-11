@@ -104,6 +104,38 @@ fun MealCaptureScreen(
     val imageCapture = remember { ImageCapture.Builder().build() }
     val coroutineScope = rememberCoroutineScope()
 
+    // Shared capture action (used by shutter button + volume keys)
+    val doCapture: () -> Unit = {
+        if (capturedPhotos.size < 3 && hasCameraPermission) {
+            val photoFile = File(
+                context.cacheDir,
+                "meal_${System.currentTimeMillis()}.jpg"
+            )
+            val outputOptions = ImageCapture.OutputFileOptions
+                .Builder(photoFile)
+                .build()
+            imageCapture.takePicture(
+                outputOptions,
+                ContextCompat.getMainExecutor(context),
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                        capturedPhotos.add(Uri.fromFile(photoFile))
+                    }
+                    override fun onError(exc: ImageCaptureException) {
+                        Log.e("MealCapture", "Photo capture failed", exc)
+                    }
+                },
+            )
+        }
+    }
+
+    // Register volume key callback while this screen is active
+    val volumeInterceptor = com.fatlosstrack.ui.LocalVolumeKeyInterceptor.current
+    DisposableEffect(Unit) {
+        volumeInterceptor.onVolumeKey = doCapture
+        onDispose { volumeInterceptor.onVolumeKey = null }
+    }
+
     // Bind camera when permission granted
     val previewView = remember { PreviewView(context) }
     LaunchedEffect(hasCameraPermission) {
@@ -194,7 +226,7 @@ fun MealCaptureScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(Color.Black.copy(alpha = 0.7f))
-                .padding(vertical = 12.dp),
+                .padding(top = 12.dp, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // Photo thumbnails strip
@@ -254,29 +286,7 @@ fun MealCaptureScreen(
                         .size(72.dp)
                         .clip(CircleShape)
                         .border(3.dp, if (canCapture) Primary else TrendFlat, CircleShape)
-                        .clickable(enabled = canCapture) {
-                            val photoFile = File(
-                                context.cacheDir,
-                                "meal_${System.currentTimeMillis()}.jpg"
-                            )
-                            val outputOptions = ImageCapture.OutputFileOptions
-                                .Builder(photoFile)
-                                .build()
-
-                            imageCapture.takePicture(
-                                outputOptions,
-                                ContextCompat.getMainExecutor(context),
-                                object : ImageCapture.OnImageSavedCallback {
-                                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                        capturedPhotos.add(Uri.fromFile(photoFile))
-                                    }
-
-                                    override fun onError(exc: ImageCaptureException) {
-                                        Log.e("MealCapture", "Photo capture failed", exc)
-                                    }
-                                },
-                            )
-                        }
+                        .clickable(enabled = canCapture) { doCapture() }
                         .padding(6.dp)
                         .clip(CircleShape)
                         .background(if (canCapture) Primary.copy(alpha = 0.15f) else Color.Transparent),

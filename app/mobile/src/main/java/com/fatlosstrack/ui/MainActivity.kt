@@ -2,6 +2,7 @@ package com.fatlosstrack.ui
 
 import android.graphics.Color
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -25,8 +26,31 @@ import com.fatlosstrack.ui.theme.purpleDarkColors
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+/**
+ * Allows composables (e.g. camera screen) to intercept volume key presses.
+ * Set [onVolumeKey] to a non-null callback to consume volume events;
+ * clear it (set to null) when leaving the screen.
+ */
+class VolumeKeyInterceptor {
+    var onVolumeKey: (() -> Unit)? = null
+}
+
+val LocalVolumeKeyInterceptor = staticCompositionLocalOf { VolumeKeyInterceptor() }
+
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    val volumeKeyInterceptor = VolumeKeyInterceptor()
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            volumeKeyInterceptor.onVolumeKey?.let {
+                it()
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
 
     @Inject
     lateinit var preferencesManager: PreferencesManager
@@ -87,19 +111,21 @@ class MainActivity : AppCompatActivity() {
             }
 
             FatLossTrackTheme(appColors = appColors) {
-                FatLossTrackNavGraph(
-                    preferencesManager = preferencesManager,
-                    healthConnectSyncService = healthConnectSyncService,
-                    appLogger = appLogger,
-                    aiUsageDao = aiUsageDao,
-                    chatStateHolder = chatStateHolder,
-                    aiBarStateHolder = aiBarStateHolder,
-                    analysisResultStateHolder = analysisResultStateHolder,
-                    homeStateHolder = homeStateHolder,
-                    trendsStateHolder = trendsStateHolder,
-                    logStateHolder = logStateHolder,
-                    settingsStateHolder = settingsStateHolder,
-                )
+                CompositionLocalProvider(LocalVolumeKeyInterceptor provides volumeKeyInterceptor) {
+                    FatLossTrackNavGraph(
+                        preferencesManager = preferencesManager,
+                        healthConnectSyncService = healthConnectSyncService,
+                        appLogger = appLogger,
+                        aiUsageDao = aiUsageDao,
+                        chatStateHolder = chatStateHolder,
+                        aiBarStateHolder = aiBarStateHolder,
+                        analysisResultStateHolder = analysisResultStateHolder,
+                        homeStateHolder = homeStateHolder,
+                        trendsStateHolder = trendsStateHolder,
+                        logStateHolder = logStateHolder,
+                        settingsStateHolder = settingsStateHolder,
+                    )
+                }
             }
         }
     }
