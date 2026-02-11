@@ -7,14 +7,14 @@ Guide for AI agents working on this codebase.
 | Item | Value |
 |---|---|
 | Package | `com.fatlosstrack` |
-| Language | Kotlin 2.1.0 |
-| UI | Jetpack Compose + Material 3 (BOM 2024.12.01) |
-| DI | Hilt 2.54 |
-| DB | Room 2.6.1, version **8** |
+| Language | Kotlin 2.3.0 |
+| UI | Jetpack Compose + Material 3 (BOM 2026.01.01) |
+| DI | Hilt 2.57.2 |
+| DB | Room 2.8.4, version **8** |
 | HTTP | Ktor 3.0.3 (OkHttp engine) |
 | Health | Health Connect 1.2.0-alpha02 |
 | Camera | CameraX 1.4.1 |
-| Build | Gradle 8.11.1, AGP 8.9.1, KSP 2.1.0-1.0.29 |
+| Build | Gradle 8.11.1, AGP 8.9.1, KSP 2.3.5 |
 | SDK | compileSdk/targetSdk 36, minSdk 28 |
 | JDK | 17 (`/opt/homebrew/opt/openjdk@17`) |
 | Device | Pixel 10 Pro XL, Android 16 (USB adb) |
@@ -77,9 +77,9 @@ fatloss_track/
         │   │   ├── CapturedPhotoStore.kt    # In-memory photo URIs between screens
         │   │   ├── PendingTextMealStore.kt  # In-memory text meal data
         │   │   └── db/
-        │   │       ├── Entities.kt          # 5 Room entities
-        │   │       ├── Daos.kt              # 5 DAOs
-        │   │       ├── FatLossDatabase.kt   # DB v5
+        │   │       ├── Entities.kt          # 6 Room entities (includes chat_messages)
+        │   │       ├── Daos.kt              # 6 DAOs
+        │   │       ├── FatLossDatabase.kt   # DB v8
         │   │       └── Converters.kt        # LocalDate↔String, Instant↔Long
         │   └── remote/
         │       ├── OpenAiService.kt         # Direct OpenAI calls (chat, meal parse, photo)
@@ -93,7 +93,7 @@ fatloss_track/
             ├── Navigation.kt                # NavHost + bottom bar + floating AiBar
             ├── theme/Theme.kt               # Dark Material 3 palette
             ├── home/HomeScreen.kt           # Goal progress, trend chart, N-day stats, AI summary
-            ├── log/LogScreen.kt             # Day cards with edit/add sheets (~970 lines)
+            ├── log/LogScreen.kt             # Day cards with edit/add sheets (~1300 lines)
             ├── trends/TrendsScreen.kt       # Weight/cal/sleep/steps charts with time toggle
             ├── login/LoginScreen.kt         # Google sign-in gate
             ├── settings/
@@ -113,7 +113,7 @@ fatloss_track/
 
 ---
 
-## Database (Room, v5)
+## Database (Room, v8)
 
 ### Entities
 
@@ -144,7 +144,7 @@ fatloss_track/
 
 ## Navigation
 
-### Bottom tabs: `Home` | `Trends` | `Log` | `Settings`
+### Bottom tabs: `Home` | `Trends` | `Log` | `Chat` | `Settings`
 
 ### Routes
 
@@ -154,18 +154,20 @@ fatloss_track/
 | `trends` | TrendsScreen | |
 | `log` | LogScreen | |
 | `settings` | SettingsScreen | |
+| `chat` | ChatScreen | |
 | `set_goal` | SetGoalScreen | From settings |
+| `set_profile` | SetProfileScreen | From settings |
 | `log_viewer` | LogViewerScreen | From settings (debug) |
 | `capture/{mode}?targetDate={date}` | MealCaptureScreen | mode = "log" or "suggest" |
 | `analysis/{mode}/{count}?targetDate={date}` | AnalysisResultScreen | Photo analysis |
 | `analysis/text` | AnalysisResultScreen | Text meal analysis |
 
-The **AiBar** floats above the bottom nav on all main screens. It handles:
+The **AiBar** floats above the bottom nav on main screens except Chat/camera/analysis. It handles:
 - Text meal parsing → `analysis/text`
 - Camera → `CameraModeSheet` → `capture/{mode}`
 - Freeform chat → inline response card
 
-Chrome (bottom bar + AiBar) hides on camera, analysis, set_goal, log_viewer screens.
+Chrome (bottom bar + AiBar) hides on camera, analysis, set_goal, set_profile, log_viewer screens; AiBar also hides on Chat.
 
 ---
 
