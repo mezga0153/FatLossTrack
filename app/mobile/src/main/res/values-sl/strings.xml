@@ -254,6 +254,8 @@
     <string name="dialog_clear_log_text">To bo izbrisalo vse zabeležene vnose aktivnosti.</string>
     <string name="dialog_clear_confirm">Počisti</string>
     <string name="log_viewer_empty">(prazen dnevnik)</string>
+    <string name="cd_share">Deli dnevnik</string>
+    <string name="log_saved">Dnevnik shranjen</string>
 
     <!-- TrendsScreen -->
     <string name="trends_title">Trendi</string>

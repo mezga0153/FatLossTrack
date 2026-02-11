@@ -32,6 +32,7 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.fatlosstrack.R
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingChatStore
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.*
@@ -128,6 +129,7 @@ fun ChatScreen(
     // Helper to send a message
     fun sendMessage(text: String) {
         if (text.isBlank() || isLoading) return
+        AppLogger.instance?.ai("Chat: ${text.take(80)}")
         isLoading = true
         scope.launch {
             chatMessageDao.insert(ChatMessage(role = "user", content = text))

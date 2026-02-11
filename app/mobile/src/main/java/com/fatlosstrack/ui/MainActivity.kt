@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appLogger.user("App opened")
         enableEdgeToEdge()
         setContent {
             FatLossTrackTheme {

@@ -89,6 +89,7 @@ fun FatLossTrackNavGraph(
     // Auto-sync Health Connect on first composition
     val syncScope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
+        AppLogger.instance?.user("HC sync: auto (7 days)")
         val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
         if (changedDates.isNotEmpty()) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -120,6 +121,7 @@ fun FatLossTrackNavGraph(
                         NavigationBarItem(
                             selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true,
                             onClick = {
+                                AppLogger.instance?.nav("Tab: ${tab.route}")
                                 navController.navigate(tab.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
@@ -201,6 +203,7 @@ fun FatLossTrackNavGraph(
                         healthConnectManager = healthConnectManager,
                         onSyncHealthConnect = {
                             syncScope.launch {
+                                AppLogger.instance?.user("HC sync: manual")
                                 val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
                                 if (changedDates.isNotEmpty()) {
                                     launch {
@@ -376,6 +379,7 @@ fun FatLossTrackNavGraph(
             onSelect = { mode ->
                 showCameraModeSheet = false
                 val modeArg = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
+                AppLogger.instance?.user("Camera opened: mode=$modeArg")
                 navController.navigate("capture/$modeArg")
             },
             onDismiss = { showCameraModeSheet = false },

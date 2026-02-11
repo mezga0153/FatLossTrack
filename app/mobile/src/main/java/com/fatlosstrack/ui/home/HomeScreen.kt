@@ -652,6 +652,7 @@ Rules:
                 existingLog = logsByDate[editingDate!!],
                 onSave = { scope.launch {
                     dailyLogDao.upsert(it)
+                    AppLogger.instance?.user("DailyLog edited: ${it.date}")
                     launchSummary(it.date, dailyLogDao, daySummaryGenerator, "HomeScreen:dailyLogEdit")
                     editSheetState.hide()
                     editingDate = null
@@ -679,12 +680,14 @@ Rules:
                 meal = selectedMeal!!,
                 onSave = { updated -> scope.launch {
                     mealDao.update(updated)
+                    AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, ${updated.totalProteinG}g P, ${updated.totalCarbsG}g C, ${updated.totalFatG}g F, date=${updated.date}")
                     launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealEdit")
                     mealSheetState.hide()
                     selectedMeal = null
                 } },
                 onDelete = { scope.launch {
                     val meal = selectedMeal!!
+                    AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
                     mealDao.delete(meal)
                     launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealDelete")
                     mealSheetState.hide()
@@ -714,6 +717,7 @@ Rules:
                 date = addMealForDate!!,
                 onSave = { newMeal -> scope.launch {
                     mealDao.insert(newMeal)
+                    AppLogger.instance?.meal("Added: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, ${newMeal.totalProteinG}g P, ${newMeal.totalCarbsG}g C, ${newMeal.totalFatG}g F, date=${newMeal.date}")
                     launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealAdd")
                     addMealSheetState.hide()
                     addMealForDate = null

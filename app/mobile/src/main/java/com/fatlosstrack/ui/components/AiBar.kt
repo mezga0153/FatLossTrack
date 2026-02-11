@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
@@ -210,6 +211,7 @@ fun AiBar(
                             mealLogged = false
                             scope.launch {
                                 // Try to parse as a meal first
+                                AppLogger.instance?.ai("AiBar: text query — ${query.take(60)}")
                                 val mealResult = openAiService.parseTextMeal(query)
                                 mealResult.fold(
                                     onSuccess = { raw ->
@@ -217,12 +219,14 @@ fun AiBar(
                                         if (parsed != null && onTextMealAnalyzed != null) {
                                             // It's a meal — store for analysis screen
                                             val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
+                                            AppLogger.instance?.ai("AiBar: text meal parsed — ${parsed.description.take(40)}, ${parsed.totalCalories} kcal")
                                             PendingTextMealStore.store(raw, targetDate)
                                             isLoading = false
                                             onTextMealAnalyzed(targetDate)
                                         } else if (parsed != null && mealDao != null) {
                                             // Fallback: direct insert if no nav callback
                                             val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
+                                            AppLogger.instance?.meal("AiBar direct: ${parsed.description.take(40)} — ${parsed.totalCalories} kcal, ${parsed.totalProteinG}g P, ${parsed.totalCarbsG}g C, ${parsed.totalFatG}g F")
                                             mealDao.insert(
                                                 MealEntry(
                                                     date = targetDate,
@@ -245,6 +249,7 @@ fun AiBar(
                                                 if (parsed.coachNote.isNotBlank()) "\n\n${parsed.coachNote}" else ""
                                         } else if (parsed == null) {
                                             // Not a meal — open chat screen
+                                            AppLogger.instance?.ai("AiBar: not meal, opening chat")
                                             isLoading = false
                                             if (onChatOpen != null) {
                                                 onChatOpen(query)

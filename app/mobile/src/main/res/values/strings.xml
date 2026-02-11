@@ -254,6 +254,8 @@
     <string name="dialog_clear_log_text">This will delete all logged activity entries.</string>
     <string name="dialog_clear_confirm">Clear</string>
     <string name="log_viewer_empty">(empty log)</string>
+    <string name="cd_share">Share log</string>
+    <string name="log_saved">Log saved</string>
 
     <!-- TrendsScreen -->
     <string name="trends_title">Trends</string>

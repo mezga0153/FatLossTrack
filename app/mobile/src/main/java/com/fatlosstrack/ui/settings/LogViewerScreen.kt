@@ -1,5 +1,7 @@
 package com.fatlosstrack.ui.settings
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -11,21 +13,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.ui.theme.*
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +42,7 @@ fun LogViewerScreen(
     var logText by remember { mutableStateOf(appLogger.readAll()) }
     var sizeText by remember { mutableStateOf(formatSize(appLogger.sizeBytes())) }
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var showClearDialog by remember { mutableStateOf(false) }
     val emptyLogText = stringResource(R.string.log_viewer_empty)
 
@@ -59,6 +66,32 @@ fun LogViewerScreen(
                         clipboard.setText(AnnotatedString(logText))
                     }) {
                         Icon(Icons.Default.ContentCopy, stringResource(R.string.cd_copy), tint = OnSurfaceVariant)
+                    }
+                    IconButton(onClick = {
+                        try {
+                            val logFile = appLogger.getLogFile()
+                            if (logFile.exists()) {
+                                val shareDir = File(context.cacheDir, "shared_logs")
+                                shareDir.mkdirs()
+                                val shareFile = File(shareDir, "fatlosstrack_log.txt")
+                                logFile.copyTo(shareFile, overwrite = true)
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    shareFile,
+                                )
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, null))
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.instance?.error("LogViewer", "Share failed", e)
+                        }
+                    }) {
+                        Icon(Icons.Default.Share, stringResource(R.string.cd_share), tint = OnSurfaceVariant)
                     }
                     IconButton(onClick = { showClearDialog = true }) {
                         Icon(Icons.Default.DeleteForever, stringResource(R.string.cd_clear), tint = Tertiary)

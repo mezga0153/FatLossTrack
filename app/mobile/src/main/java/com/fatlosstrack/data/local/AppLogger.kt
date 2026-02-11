@@ -70,6 +70,9 @@ class AppLogger @Inject constructor(
     /** File size in bytes */
     fun sizeBytes(): Long = try { if (file.exists()) file.length() else 0 } catch (_: Exception) { 0 }
 
+    /** Return the log file for sharing / saving */
+    fun getLogFile(): File = file
+
     // ── Convenience methods ──
 
     fun hc(message: String) = log("HC", message)

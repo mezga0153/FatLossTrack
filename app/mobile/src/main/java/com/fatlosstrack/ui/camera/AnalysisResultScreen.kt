@@ -154,6 +154,7 @@ fun AnalysisResultScreen(
                 }
 
                 val modeStr = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
+                AppLogger.instance?.ai("Image analysis: mode=$modeStr, photos=${bitmaps.size}${if (correction != null) ", correction" else ""}")
                 val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction)
 
                 apiResult.fold(
