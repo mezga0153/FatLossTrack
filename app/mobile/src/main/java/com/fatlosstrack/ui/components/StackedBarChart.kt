@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -47,10 +48,10 @@ fun MacroBarChart(
     val density = LocalDensity.current
     var touchX by remember { mutableStateOf<Float?>(null) }
 
-    val gridColor = Color(0xFF8B8BA3).copy(alpha = 0.12f)
-    val labelColor = Color(0xFF8B8BA3)
-    val bubbleBg = Color(0xFF252540)
-    val bubbleText = Color(0xFFE8E8F0)
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val bubbleBg = MaterialTheme.colorScheme.inverseSurface
+    val bubbleText = MaterialTheme.colorScheme.inverseOnSurface
     val refLineColor = Color(0xFF59D8A0).copy(alpha = 0.45f)
 
     // When targets available ⇒ Y is percentage, else absolute grams

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import com.fatlosstrack.ui.theme.ConfidenceBand
 import com.fatlosstrack.ui.theme.OnSurface
 import com.fatlosstrack.ui.theme.OnSurfaceVariant
@@ -49,13 +50,14 @@ fun TrendChart(
     val lineColor = Primary
     val dotColor = Primary.copy(alpha = 0.5f)
     val indicatorColor = OnSurfaceVariant.copy(alpha = 0.5f)
-    val bubbleBg = Color(0xFF252540)
-    val bubbleText = OnSurface
+    val bubbleBg = MaterialTheme.colorScheme.inverseSurface
+    val bubbleText = MaterialTheme.colorScheme.inverseOnSurface
     val gridColor = OnSurfaceVariant.copy(alpha = 0.12f)
     val labelColor = OnSurfaceVariant
     val confidenceBandColor = ConfidenceBand
     val refLineDefaultColor = OnSurfaceVariant
     val refLineTargetColor = Secondary
+    val refLineBadgeBg = MaterialTheme.colorScheme.surfaceVariant
 
     val values = dataPoints.map { it.second }
     val allValues = buildList {
@@ -210,10 +212,10 @@ fun TrendChart(
 
             // Reference lines (start & target weight)
             startLineKg?.let { kg ->
-                drawRefLine(yFor(kg), "%.1f".format(kg), refLineDefaultColor, padLeft, chartWidth, d)
+                drawRefLine(yFor(kg), "%.1f".format(kg), refLineDefaultColor, padLeft, chartWidth, d, refLineBadgeBg)
             }
             targetLineKg?.let { kg ->
-                drawRefLine(yFor(kg), "%.1f".format(kg), refLineTargetColor, padLeft, chartWidth, d)
+                drawRefLine(yFor(kg), "%.1f".format(kg), refLineTargetColor, padLeft, chartWidth, d, refLineBadgeBg)
             }
 
             // Touch indicator
@@ -311,6 +313,7 @@ private fun DrawScope.drawRefLine(
     padLeft: Float,
     chartWidth: Float,
     density: Float,
+    badgeBgColor: Color,
 ) {
     drawLine(
         color = lineColor.copy(alpha = 0.4f),
@@ -331,7 +334,12 @@ private fun DrawScope.drawRefLine(
         typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
     val bgPaint = android.graphics.Paint().apply {
-        color = android.graphics.Color.argb(210, 13, 13, 26)
+        color = android.graphics.Color.argb(
+            (badgeBgColor.alpha * 255).toInt(),
+            (badgeBgColor.red * 255).toInt(),
+            (badgeBgColor.green * 255).toInt(),
+            (badgeBgColor.blue * 255).toInt(),
+        )
         isAntiAlias = true
     }
     val tw = textPaint.measureText(label)

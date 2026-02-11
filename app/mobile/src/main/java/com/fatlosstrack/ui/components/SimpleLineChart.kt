@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -40,11 +41,12 @@ fun SimpleLineChart(
     val density = LocalDensity.current
     var touchX by remember { mutableStateOf<Float?>(null) }
 
-    val gridColor = Color(0xFF8B8BA3).copy(alpha = 0.12f)
-    val labelColor = Color(0xFF8B8BA3)
-    val indicatorColor = Color(0xFF8B8BA3).copy(alpha = 0.5f)
-    val bubbleBg = Color(0xFF252540)
-    val bubbleText = Color(0xFFE8E8F0)
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val indicatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val bubbleBg = MaterialTheme.colorScheme.inverseSurface
+    val bubbleText = MaterialTheme.colorScheme.inverseOnSurface
+    val refBadgeBg = MaterialTheme.colorScheme.surfaceVariant
 
     val values = data.map { it.second }
     val allValues = buildList {
@@ -204,7 +206,12 @@ fun SimpleLineChart(
                         typeface = android.graphics.Typeface.DEFAULT_BOLD
                     }
                     val bgPaint = android.graphics.Paint().apply {
-                        this.color = android.graphics.Color.argb(210, 13, 13, 26)
+                        this.color = android.graphics.Color.argb(
+                            (refBadgeBg.alpha * 255).toInt(),
+                            (refBadgeBg.red * 255).toInt(),
+                            (refBadgeBg.green * 255).toInt(),
+                            (refBadgeBg.blue * 255).toInt(),
+                        )
                         isAntiAlias = true
                     }
                     val tw = textPaint.measureText(refLineLabel)

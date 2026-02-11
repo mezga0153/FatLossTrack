@@ -377,8 +377,8 @@ private fun DailyUsageBarChart(
     val density = LocalDensity.current
     val inputColor = Primary
     val outputColor = Secondary
-    val gridColor = Color(0xFF8B8BA3).copy(alpha = 0.12f)
-    val labelColor = Color(0xFF8B8BA3)
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val maxTokens = data.maxOf { it.promptTokens + it.completionTokens }.coerceAtLeast(100)
 
@@ -518,8 +518,8 @@ private fun DailyCostBarChart(
 ) {
     val density = LocalDensity.current
     val barColor = Secondary
-    val gridColor = Color(0xFF8B8BA3).copy(alpha = 0.12f)
-    val labelColor = Color(0xFF8B8BA3)
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val maxCost = data.maxOf { it.second }.coerceAtLeast(0.001)
 
