@@ -235,6 +235,7 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
                 val images = attachedImages.toList()
                 inputText = ""
                 attachedImages.clear()
+                CapturedPhotoStore.clear()
                 state.sendMessage(query, images)
             },
             onFocused = {

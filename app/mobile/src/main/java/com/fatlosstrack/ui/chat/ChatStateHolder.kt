@@ -90,6 +90,7 @@ class ChatStateHolder @Inject constructor(
         val pending = PendingChatStore.consume()
         val pendingImages = PendingChatStore.consumeImages()
         if (!pending.isNullOrBlank()) {
+            com.fatlosstrack.data.local.CapturedPhotoStore.clear()
             isLoading = true
             appScope.launch {
                 val urisString = if (pendingImages.isNotEmpty()) pendingImages.joinToString(",") { it.toString() } else null

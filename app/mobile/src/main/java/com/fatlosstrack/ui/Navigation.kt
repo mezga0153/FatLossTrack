@@ -358,6 +358,7 @@ fun FatLossTrackNavGraph(
                                 CaptureMode.SuggestMeal -> {
                                     // Redirect suggest mode to chat with photos + prompt
                                     val photos = com.fatlosstrack.data.local.CapturedPhotoStore.peek()
+                                    com.fatlosstrack.data.local.CapturedPhotoStore.clear()
                                     com.fatlosstrack.data.local.PendingChatStore.store(
                                         captureContext.getString(R.string.chat_suggest_prompt),
                                         photos,
