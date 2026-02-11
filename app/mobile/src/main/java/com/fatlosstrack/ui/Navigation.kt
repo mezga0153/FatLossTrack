@@ -42,6 +42,7 @@ import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.chat.ChatScreen
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.components.AiBar
+import com.fatlosstrack.ui.components.AiBarStateHolder
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
 import com.fatlosstrack.R
@@ -76,6 +77,7 @@ fun FatLossTrackNavGraph(
     daySummaryGenerator: DaySummaryGenerator? = null,
     appLogger: AppLogger? = null,
     chatStateHolder: ChatStateHolder,
+    aiBarStateHolder: AiBarStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -328,9 +330,7 @@ fun FatLossTrackNavGraph(
             if (!hideAiBar) {
                 AiBar(
                     modifier = Modifier.align(Alignment.BottomCenter),
-                    openAiService = openAiService,
-                    mealDao = mealDao,
-                    daySummaryGenerator = daySummaryGenerator,
+                    state = aiBarStateHolder,
                     onCameraClick = { showCameraModeSheet = true },
                     onTextMealAnalyzed = { _ ->
                         navController.navigate("analysis/text")

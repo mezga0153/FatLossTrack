@@ -20,48 +20,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.local.AppLogger
-import com.fatlosstrack.data.local.PendingTextMealStore
-import com.fatlosstrack.data.local.db.MealCategory
-import com.fatlosstrack.data.local.db.MealDao
-import com.fatlosstrack.data.local.db.MealEntry
-import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
 import androidx.compose.ui.res.stringResource
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.*
 import java.time.LocalDate
 
 /**
  * Floating AI bar — persistent pill above bottom nav.
  * Text input + send/camera. Shows AI response in a card above.
+ *
+ * Pure UI — all logic lives in [AiBarStateHolder].
  */
 @Composable
 fun AiBar(
     modifier: Modifier = Modifier,
-    openAiService: OpenAiService? = null,
-    mealDao: MealDao? = null,
-    daySummaryGenerator: DaySummaryGenerator? = null,
-    onSend: (String) -> Unit = {},
+    state: AiBarStateHolder,
     onCameraClick: () -> Unit = {},
     onTextMealAnalyzed: ((LocalDate) -> Unit)? = null,
     onChatOpen: ((String) -> Unit)? = null,
 ) {
     var text by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var aiResponse by remember { mutableStateOf<String?>(null) }
-    var aiError by remember { mutableStateOf<String?>(null) }
-    var mealLogged by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val pillShape = RoundedCornerShape(28.dp)
     val errorFallback = stringResource(R.string.error_something_went_wrong)
 
     Column(modifier = modifier) {
         // Response card (above the bar)
         AnimatedVisibility(
-            visible = aiResponse != null || aiError != null || isLoading,
+            visible = state.aiResponse != null || state.aiError != null || state.isLoading,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
         ) {
@@ -75,7 +60,7 @@ fun AiBar(
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
             ) {
                 Box(Modifier.fillMaxWidth()) {
-                    if (isLoading) {
+                    if (state.isLoading) {
                         Row(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -100,14 +85,14 @@ fun AiBar(
                                 .padding(16.dp)
                                 .padding(end = 32.dp),
                         ) {
-                            if (aiError != null) {
+                            if (state.aiError != null) {
                                 Text(
-                                    aiError!!,
+                                    state.aiError!!,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Tertiary,
                                 )
-                            } else if (aiResponse != null) {
-                                if (mealLogged) {
+                            } else if (state.aiResponse != null) {
+                                if (state.mealLogged) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             Icons.Default.CheckCircle,
@@ -131,7 +116,7 @@ fun AiBar(
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    aiResponse!!,
+                                    state.aiResponse!!,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = OnSurface,
                                 )
@@ -139,13 +124,9 @@ fun AiBar(
                         }
                     }
                     // Close button
-                    if (!isLoading) {
+                    if (!state.isLoading) {
                         IconButton(
-                            onClick = {
-                                aiResponse = null
-                                aiError = null
-                                mealLogged = false
-                            },
+                            onClick = { state.dismiss() },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .size(32.dp),
@@ -201,86 +182,9 @@ fun AiBar(
                     onClick = {
                         val query = text.trim()
                         text = ""
-                        if (openAiService != null) {
-                            isLoading = true
-                            aiResponse = null
-                            aiError = null
-                            mealLogged = false
-                            scope.launch {
-                                // Try to parse as a meal first
-                                AppLogger.instance?.ai("AiBar: text query — ${query.take(60)}")
-                                val mealResult = openAiService.parseTextMeal(query)
-                                mealResult.fold(
-                                    onSuccess = { raw ->
-                                        val parsed = tryParseMealJson(raw)
-                                        if (parsed != null && onTextMealAnalyzed != null) {
-                                            // It's a meal — store for analysis screen
-                                            val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
-                                            AppLogger.instance?.ai("AiBar: text meal parsed — ${parsed.description.take(40)}, ${parsed.totalCalories} kcal")
-                                            PendingTextMealStore.store(raw, targetDate)
-                                            isLoading = false
-                                            onTextMealAnalyzed(targetDate)
-                                        } else if (parsed != null && mealDao != null) {
-                                            // Fallback: direct insert if no nav callback
-                                            val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
-                                            AppLogger.instance?.meal("AiBar direct: ${parsed.description.take(40)} — ${parsed.totalCalories} kcal, ${parsed.totalProteinG}g P, ${parsed.totalCarbsG}g C, ${parsed.totalFatG}g F")
-                                            mealDao.insert(
-                                                MealEntry(
-                                                    date = targetDate,
-                                                    description = parsed.description,
-                                                    itemsJson = parsed.itemsJson,
-                                                    totalKcal = parsed.totalCalories,
-                                                    totalProteinG = parsed.totalProteinG,
-                                                    totalCarbsG = parsed.totalCarbsG,
-                                                    totalFatG = parsed.totalFatG,
-                                                    coachNote = parsed.coachNote,
-                                                    category = parsed.source,
-                                                )
-                                            )
-                                            daySummaryGenerator?.launchForDate(targetDate, "AiBar:textMealLogged")
-                                            isLoading = false
-                                            mealLogged = true
-                                            aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +
-                                                if (parsed.coachNote.isNotBlank()) "\n\n${parsed.coachNote}" else ""
-                                        } else if (parsed == null) {
-                                            // Not a meal — open chat screen
-                                            AppLogger.instance?.ai("AiBar: not meal, opening chat")
-                                            isLoading = false
-                                            if (onChatOpen != null) {
-                                                onChatOpen(query)
-                                            } else {
-                                                val chatResult = openAiService.chat(query)
-                                                chatResult.fold(
-                                                    onSuccess = { aiResponse = it },
-                                                    onFailure = { aiError = it.message ?: errorFallback },
-                                                )
-                                            }
-                                        } else {
-                                            // Parsed a meal but no mealDao — show it as text
-                                            isLoading = false
-                                            aiResponse = raw
-                                        }
-                                    },
-                                    onFailure = {
-                                        // parseTextMeal failed — open chat screen
-                                        isLoading = false
-                                        if (onChatOpen != null) {
-                                            onChatOpen(query)
-                                        } else {
-                                            val chatResult = openAiService.chat(query)
-                                            chatResult.fold(
-                                                onSuccess = { aiResponse = it },
-                                                onFailure = { e -> aiError = e.message ?: errorFallback },
-                                            )
-                                        }
-                                    },
-                                )
-                            }
-                        } else {
-                            onSend(query)
-                        }
+                        state.submit(query, errorFallback, onTextMealAnalyzed, onChatOpen)
                     },
-                    enabled = !isLoading,
+                    enabled = !state.isLoading,
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
@@ -306,72 +210,5 @@ fun AiBar(
                 }
             }
         }
-    }
-}
-
-// ── Parsed meal helper ──
-
-private data class ParsedMeal(
-    val dayOffset: Int,
-    val description: String,
-    val source: MealCategory,
-    val itemsJson: String,
-    val totalCalories: Int,
-    val totalProteinG: Int,
-    val totalCarbsG: Int,
-    val totalFatG: Int,
-    val coachNote: String,
-)
-
-private fun tryParseMealJson(raw: String): ParsedMeal? {
-    return try {
-        val cleaned = raw
-            .replace(Regex("^```json\\s*", RegexOption.MULTILINE), "")
-            .replace(Regex("^```\\s*", RegexOption.MULTILINE), "")
-            .trim()
-        val json = Json.parseToJsonElement(cleaned).jsonObject
-        val isMeal = json["is_meal"]?.jsonPrimitive?.boolean ?: return null
-        if (!isMeal) return null
-
-        val dayOffset = json["day_offset"]?.jsonPrimitive?.int ?: 0
-        val description = json["description"]?.jsonPrimitive?.content ?: ""
-        val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
-        val coachNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
-        val sourceStr = json["source"]?.jsonPrimitive?.content ?: "home"
-        val source = when (sourceStr.lowercase()) {
-            "restaurant" -> MealCategory.RESTAURANT
-            "fast_food", "fastfood", "fast food" -> MealCategory.FAST_FOOD
-            else -> MealCategory.HOME
-        }
-
-        val itemsJson = json["items"]?.jsonArray?.let { items ->
-            buildJsonArray {
-                items.forEach { itemEl ->
-                    val item = itemEl.jsonObject
-                    add(buildJsonObject {
-                        put("name", item["name"]?.jsonPrimitive?.content ?: "Unknown")
-                        put("portion", item["portion"]?.jsonPrimitive?.content ?: "")
-                        put("calories", item["calories"]?.jsonPrimitive?.int ?: 0)
-                        put("protein_g", item["protein_g"]?.jsonPrimitive?.intOrNull ?: 0)
-                        put("fat_g", item["fat_g"]?.jsonPrimitive?.intOrNull ?: 0)
-                        put("carbs_g", item["carbs_g"]?.jsonPrimitive?.intOrNull ?: 0)
-                    })
-                }
-            }.toString()
-        } ?: "[]"
-
-        ParsedMeal(
-            dayOffset = dayOffset,
-            description = description,
-            source = source,
-            itemsJson = itemsJson,
-            totalCalories = totalCalories,
-            totalProteinG = json["total_protein_g"]?.jsonPrimitive?.intOrNull ?: 0,
-            totalCarbsG = json["total_carbs_g"]?.jsonPrimitive?.intOrNull ?: 0,
-            totalFatG = json["total_fat_g"]?.jsonPrimitive?.intOrNull ?: 0,
-            coachNote = coachNote,
-        )
-    } catch (_: Exception) {
-        null
     }
 }
