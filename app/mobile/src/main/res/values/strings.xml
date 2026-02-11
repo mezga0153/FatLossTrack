@@ -277,6 +277,8 @@
     <string name="chip_keto_friendly">Keto-friendly</string>
     <string name="chip_low_sodium">Low sodium</string>
     <string name="button_save_changes">Save changes</string>
+    <string name="button_save_continue">Save &amp; continue</string>
+    <string name="hint_change_later">You can always change this later in Settings.</string>
 
     <!-- LogViewerScreen -->
     <string name="log_viewer_title">Activity Log</string>

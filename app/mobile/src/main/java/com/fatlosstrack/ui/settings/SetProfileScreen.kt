@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 fun SetProfileScreen(
     onBack: () -> Unit,
     preferencesManager: PreferencesManager,
+    showBackArrow: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -81,14 +83,18 @@ fun SetProfileScreen(
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.cd_back),
-                    tint = OnSurface,
-                )
+            if (showBackArrow) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.cd_back),
+                        tint = OnSurface,
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+            } else {
+                Spacer(Modifier.width(16.dp))
             }
-            Spacer(Modifier.width(4.dp))
             Text(
                 text = stringResource(R.string.set_profile_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -180,9 +186,20 @@ fun SetProfileScreen(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 Text(
-                    stringResource(R.string.button_save_changes),
+                    stringResource(if (showBackArrow) R.string.button_save_changes else R.string.button_save_continue),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+
+            if (!showBackArrow) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.hint_change_later),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
                 )
             }
 

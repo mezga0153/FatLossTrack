@@ -277,6 +277,8 @@
     <string name="chip_keto_friendly">Keto prilagojeno</string>
     <string name="chip_low_sodium">Malo natrija</string>
     <string name="button_save_changes">Shrani spremembe</string>
+    <string name="button_save_continue">Shrani in nadaljuj</string>
+    <string name="hint_change_later">To lahko kasneje spremeniš v nastavitvah.</string>
 
     <!-- LogViewerScreen -->
     <string name="log_viewer_title">Dnevnik aktivnosti</string>

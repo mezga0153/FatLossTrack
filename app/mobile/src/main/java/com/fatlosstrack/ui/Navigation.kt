@@ -120,6 +120,8 @@ fun FatLossTrackNavGraph(
             currentRoute?.startsWith("onboarding") == true ||
             currentRoute == "set_goal" ||
             currentRoute == "set_profile" ||
+            currentRoute == "set_profile_onboarding" ||
+            currentRoute == "set_goal_onboarding" ||
             currentRoute == "log_viewer" ||
             currentRoute == "ai_usage"
 
@@ -275,6 +277,7 @@ fun FatLossTrackNavGraph(
                 // Profile (during onboarding — same screen, different onBack target)
                 composable("set_profile_onboarding") {
                     SetProfileScreen(
+                        showBackArrow = false,
                         onBack = {
                             navController.popBackStack()
                             navController.navigate("set_goal_onboarding") {
@@ -288,6 +291,7 @@ fun FatLossTrackNavGraph(
                 // Goal (during onboarding)
                 composable("set_goal_onboarding") {
                     SetGoalScreen(
+                        showBackArrow = false,
                         onBack = {
                             navController.popBackStack()
                             navController.navigate("onboarding/apikey") {

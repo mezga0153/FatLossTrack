@@ -277,6 +277,8 @@
     <string name="chip_keto_friendly">Keto-barát</string>
     <string name="chip_low_sodium">Alacsony nátrium</string>
     <string name="button_save_changes">Változtatások mentése</string>
+    <string name="button_save_continue">Mentés és tovább</string>
+    <string name="hint_change_later">Ezt később bármikor módosíthatod a Beállításokban.</string>
 
     <!-- LogViewerScreen -->
     <string name="log_viewer_title">Tevékenységnapló</string>
