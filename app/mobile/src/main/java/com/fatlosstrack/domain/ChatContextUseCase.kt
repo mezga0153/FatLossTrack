@@ -116,7 +116,11 @@ class ChatContextUseCase @Inject constructor(
                     val prot = if (m.totalProteinG > 0) ", ${m.totalProteinG}g P" else ""
                     val carb = if (m.totalCarbsG > 0) ", ${m.totalCarbsG}g C" else ""
                     val fat = if (m.totalFatG > 0) ", ${m.totalFatG}g F" else ""
-                    sb.appendLine("    - ${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
+                    val typeTag = m.mealType?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+                    val catTag = m.category.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+                    val prefix = listOfNotNull(typeTag.ifEmpty { null }, catTag).joinToString(", ")
+                    val prefixStr = if (prefix.isNotEmpty()) "[$prefix] " else ""
+                    sb.appendLine("    - $prefixStr${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
                 }
             }
         }

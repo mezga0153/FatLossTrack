@@ -223,7 +223,11 @@ class DaySummaryGenerator @Inject constructor(
                     if (m.totalCarbsG > 0) append(", ${m.totalCarbsG}g C")
                     if (m.totalFatG > 0) append(", ${m.totalFatG}g F")
                 }
-                val desc = "${m.description.take(50)} — ${m.totalKcal} kcal$macroPart"
+                val typeTag = m.mealType?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+                val catTag = m.category.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+                val tags = listOfNotNull(typeTag.ifEmpty { null }, catTag).joinToString(", ")
+                val tagsStr = if (tags.isNotEmpty()) "[$tags] " else ""
+                val desc = "$tagsStr${m.description.take(50)} — ${m.totalKcal} kcal$macroPart"
                 parts += "  • $desc"
             }
         } else {
