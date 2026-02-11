@@ -94,10 +94,6 @@ fun LogScreen(
         contentPadding = PaddingValues(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item(key = "header") {
-            Text(stringResource(R.string.log_screen_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface)
-        }
-
         // Today summary
         item(key = "today-summary") {
             val todayLog = logsByDate[today]

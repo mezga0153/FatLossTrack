@@ -168,7 +168,7 @@ fun AiBar(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .clip(pillShape)
-                .border(width = 1.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
+                .border(width = 1.5.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
                 .background(AiBarBg)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

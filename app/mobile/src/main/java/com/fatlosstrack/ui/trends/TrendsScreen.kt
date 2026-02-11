@@ -134,13 +134,6 @@ fun TrendsScreen(
             .padding(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Header ──
-        Text(
-            text = stringResource(R.string.trends_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = OnSurface,
-        )
-
         // ── Time range toggle ──
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ranges.forEach { range ->
@@ -186,7 +179,7 @@ fun TrendsScreen(
                     xAxisLabels = xLabels,
                     startLineKg = firstWeight,
                     targetLineKg = refTarget,
-                    modifier = Modifier.height(220.dp),
+                    modifier = Modifier.height(160.dp),
                 )
                 Spacer(Modifier.height(12.dp))
 
