@@ -1,12 +1,16 @@
 package com.fatlosstrack.data.health
 
 import android.util.Log
+import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.local.db.WeightEntry
 import com.fatlosstrack.data.local.db.WeightSource
+import com.fatlosstrack.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,6 +25,8 @@ class HealthConnectSyncService @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val weightDao: WeightDao,
     private val appLogger: AppLogger,
+    private val daySummaryGenerator: DaySummaryGenerator,
+    @ApplicationScope private val appScope: CoroutineScope,
 ) {
     companion object {
         private const val TAG = "HCSyncService"
@@ -55,6 +61,19 @@ class HealthConnectSyncService @Inject constructor(
         Log.d(TAG, "Sync complete: ${updatedDates.size} days updated")
         appLogger.hc("Sync complete: ${updatedDates.size}/$days days had data")
         return updatedDates
+    }
+
+    /**
+     * Fire-and-forget: syncs recent days on the application scope and
+     * triggers summary generation for any dates that changed.
+     */
+    fun launchSync(days: Int = 7, reason: String = "unknown") {
+        appScope.launch {
+            val changedDates = syncRecentDays(days)
+            if (changedDates.isNotEmpty()) {
+                daySummaryGenerator.launchForDates(changedDates, reason)
+            }
+        }
     }
 
     /**

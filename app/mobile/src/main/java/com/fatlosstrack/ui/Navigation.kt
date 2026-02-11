@@ -50,7 +50,6 @@ import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
-import kotlinx.coroutines.launch
 
 // ---- Navigation destinations ----
 
@@ -87,13 +86,8 @@ fun FatLossTrackNavGraph(
     var showCameraModeSheet by remember { mutableStateOf(false) }
 
     // Auto-sync Health Connect on first composition
-    val syncScope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        AppLogger.instance?.user("HC sync: auto (7 days)")
-        val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
-        if (changedDates.isNotEmpty()) {
-            daySummaryGenerator?.launchForDates(changedDates, "Navigation:autoHcSync")
-        }
+        healthConnectSyncService?.launchSync(7, "Navigation:autoHcSync")
     }
 
     // Hide bottom bar + AI bar on camera/analysis/goal/log viewer screens
@@ -200,13 +194,7 @@ fun FatLossTrackNavGraph(
                         preferencesManager = preferencesManager,
                         healthConnectManager = healthConnectManager,
                         onSyncHealthConnect = {
-                            syncScope.launch {
-                                AppLogger.instance?.user("HC sync: manual")
-                                val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
-                                if (changedDates.isNotEmpty()) {
-                                    daySummaryGenerator?.launchForDates(changedDates, "Settings:manualHcSync")
-                                }
-                            }
+                            healthConnectSyncService?.launchSync(7, "Settings:manualHcSync")
                         },
                         onViewLog = if (appLogger != null) {
                             { navController.navigate("log_viewer") }
