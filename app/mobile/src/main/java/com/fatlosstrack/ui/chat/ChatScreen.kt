@@ -1,18 +1,23 @@
 package com.fatlosstrack.ui.chat
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Refresh
@@ -22,20 +27,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.fatlosstrack.R
+import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.db.ChatMessage
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
-fun ChatScreen(state: ChatStateHolder) {
+fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     val messages by state.messages.collectAsState(initial = emptyList())
     val streamingContent = state.streamingContent
     val isLoading = state.isLoading
@@ -45,6 +53,20 @@ fun ChatScreen(state: ChatStateHolder) {
     val listState = rememberLazyListState()
     var showClearDialog by remember { mutableStateOf(false) }
     val androidContext = LocalContext.current
+
+    // Image attachment state
+    val attachedImages = remember { mutableStateListOf<Uri>() }
+
+    // Consume photos from CapturedPhotoStore (coming back from camera)
+    val photoStoreVersion = CapturedPhotoStore.version.intValue
+    LaunchedEffect(photoStoreVersion) {
+        val photos = CapturedPhotoStore.peek()
+        if (photos.isNotEmpty()) {
+            attachedImages.clear()
+            attachedImages.addAll(photos)
+            CapturedPhotoStore.clear()
+        }
+    }
 
     // Pick up pending message from AiBar (once)
     val initialHandled = remember { mutableStateOf(false) }
@@ -56,9 +78,10 @@ fun ChatScreen(state: ChatStateHolder) {
     }
 
     // Auto-scroll to bottom when new messages arrive or streaming starts
-    LaunchedEffect(messages.size, streamingContent) {
-        if (messages.isNotEmpty() || streamingContent != null) {
-            listState.animateScrollToItem(0)
+    val isStreaming = streamingContent != null
+    LaunchedEffect(messages.size, isStreaming) {
+        if (messages.isNotEmpty() || isStreaming) {
+            listState.scrollToItem(0)
         }
     }
 
@@ -113,25 +136,11 @@ fun ChatScreen(state: ChatStateHolder) {
                         )
                         Spacer(Modifier.height(2.dp))
                         if (streamingContent.isNotEmpty()) {
-                            Markdown(
-                                content = streamingContent,
-                                colors = markdownColor(
-                                    text = OnSurface,
-                                    codeBackground = CardSurface,
-                                    inlineCodeBackground = CardSurface,
-                                    dividerColor = OnSurfaceVariant.copy(alpha = 0.3f),
-                                    tableBackground = CardSurface,
-                                ),
-                                typography = markdownTypography(
-                                    h1 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                                    h2 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                                    h3 = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = OnSurface),
-                                    text = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    paragraph = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    bullet = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    list = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    ordered = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                ),
+                            // Use plain Text during streaming to avoid Markdown re-parse jitter
+                            Text(
+                                text = streamingContent,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = OnSurface,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         } else {
@@ -218,10 +227,15 @@ fun ChatScreen(state: ChatStateHolder) {
             text = inputText,
             onTextChange = { inputText = it },
             isLoading = isLoading,
+            attachedImages = attachedImages,
+            onAttachImage = onNavigateToCamera,
+            onRemoveImage = { attachedImages.removeAt(it) },
             onSend = {
                 val query = inputText.trim()
+                val images = attachedImages.toList()
                 inputText = ""
-                state.sendMessage(query)
+                attachedImages.clear()
+                state.sendMessage(query, images)
             },
             onFocused = {
                 if (messages.isNotEmpty()) {
@@ -260,11 +274,32 @@ private fun ChatBubble(
                     .background(PrimaryContainer)
                     .padding(12.dp),
             ) {
-                Text(
-                    message.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = OnSurface,
-                )
+                Column {
+                    // Display attached images
+                    val imageUriList = message.imageUris?.split(",")?.filter { it.isNotBlank() }
+                    if (!imageUriList.isNullOrEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        ) {
+                            items(imageUriList) { uriStr ->
+                                AsyncImage(
+                                    model = Uri.parse(uriStr),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop,
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        message.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurface,
+                    )
+                }
             }
         }
     } else {
@@ -395,62 +430,107 @@ private fun ChatInputBar(
     text: String,
     onTextChange: (String) -> Unit,
     isLoading: Boolean,
+    attachedImages: List<Uri> = emptyList(),
+    onAttachImage: () -> Unit = {},
+    onRemoveImage: (Int) -> Unit = {},
     onSend: () -> Unit,
     onFocused: () -> Unit = {},
 ) {
     val pillShape = RoundedCornerShape(28.dp)
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .clip(pillShape)
-            .border(width = 1.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
-            .background(AiBarBg)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Icon(
-            Icons.Default.AutoAwesome,
-            contentDescription = null,
-            tint = Primary,
+        // Image preview strip
+        if (attachedImages.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
+            ) {
+                items(attachedImages.size) { index ->
+                    Box(contentAlignment = Alignment.TopEnd) {
+                        AsyncImage(
+                            model = attachedImages[index],
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                        IconButton(
+                            onClick = { onRemoveImage(index) },
+                            modifier = Modifier
+                                .size(20.dp)
+                                .offset(x = 4.dp, y = (-4).dp)
+                                .background(Surface.copy(alpha = 0.8f), CircleShape),
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.cd_close),
+                                tint = OnSurface,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(
             modifier = Modifier
-                .size(18.dp)
-                .padding(start = 6.dp),
-        )
-        Spacer(Modifier.width(4.dp))
-        TextField(
-            value = text,
-            onValueChange = onTextChange,
-            placeholder = {
-                Text(
-                    stringResource(R.string.chat_input_placeholder),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            modifier = Modifier
-                .weight(1f)
-                .onFocusChanged { if (it.isFocused) onFocused() },
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = AiBarBg,
-                unfocusedContainerColor = AiBarBg,
-                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-            ),
-            singleLine = false,
-            maxLines = 5,
-            textStyle = MaterialTheme.typography.bodyLarge,
-        )
-        if (text.isNotBlank()) {
+                .fillMaxWidth()
+                .clip(pillShape)
+                .border(width = 1.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
+                .background(AiBarBg)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             IconButton(
-                onClick = onSend,
-                enabled = !isLoading,
+                onClick = onAttachImage,
+                modifier = Modifier.size(32.dp),
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.cd_send),
-                    tint = if (isLoading) OnSurfaceVariant else Primary,
+                    Icons.Default.AddAPhoto,
+                    contentDescription = stringResource(R.string.chat_attach_image),
+                    tint = OnSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
+            }
+            TextField(
+                value = text,
+                onValueChange = onTextChange,
+                placeholder = {
+                    Text(
+                        stringResource(R.string.chat_input_placeholder),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { if (it.isFocused) onFocused() },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = AiBarBg,
+                    unfocusedContainerColor = AiBarBg,
+                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                ),
+                singleLine = false,
+                maxLines = 5,
+                textStyle = MaterialTheme.typography.bodyLarge,
+            )
+            if (text.isNotBlank() || attachedImages.isNotEmpty()) {
+                IconButton(
+                    onClick = onSend,
+                    enabled = !isLoading && text.isNotBlank(),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = stringResource(R.string.cd_send),
+                        tint = if (isLoading || text.isBlank()) OnSurfaceVariant else Primary,
+                    )
+                }
             }
         }
     }

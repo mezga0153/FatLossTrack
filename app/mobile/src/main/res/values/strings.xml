@@ -362,6 +362,9 @@
     <string name="capture_log_title">Log a meal</string>
     <string name="capture_log_subtitle">Take a photo of what you\'re eating</string>
     <string name="capture_suggest_title">Suggest a meal</string>
+    <string name="capture_chat_title">Attach photo</string>
+    <string name="capture_chat_subtitle">Send a photo to the AI coach</string>
+    <string name="chat_suggest_prompt">Suggest a meal based on these photos</string>
     <string name="capture_suggest_subtitle">Snap your fridge or ingredients</string>
     <string name="camera_permission_required">Camera permission required</string>
     <string name="button_grant_permission">Grant permission</string>
@@ -390,6 +393,7 @@
     <string name="chat_empty_title">Ask me anything</string>
     <string name="chat_empty_subtitle">I have context about your last 7 days of data</string>
     <string name="chat_input_placeholder">Type a message…</string>
+    <string name="chat_attach_image">Attach image</string>
     <string name="chat_clear_title">Clear chat</string>
     <string name="chat_clear_confirm">Delete all chat history?</string>
     <string name="chat_clear_yes">Clear</string>

@@ -341,13 +341,40 @@ fun FatLossTrackNavGraph(
                 ) { entry ->
                     val modeStr = entry.arguments?.getString("mode") ?: "log"
                     val targetDate = entry.arguments?.getString("targetDate") ?: ""
-                    val mode = if (modeStr == "suggest") CaptureMode.SuggestMeal else CaptureMode.LogMeal
+                    val mode = when (modeStr) {
+                        "suggest" -> CaptureMode.SuggestMeal
+                        "chat" -> CaptureMode.ChatPhoto
+                        else -> CaptureMode.LogMeal
+                    }
+                    val captureContext = androidx.compose.ui.platform.LocalContext.current
                     MealCaptureScreen(
                         mode = mode,
                         onAnalyze = { m, count ->
-                            val dateParam = if (targetDate.isNotEmpty()) "?targetDate=$targetDate" else ""
-                            navController.popBackStack()
-                            navController.navigate("analysis/${m.name}/$count$dateParam")
+                            when (m) {
+                                CaptureMode.ChatPhoto -> {
+                                    // Photos already in CapturedPhotoStore — go back to chat
+                                    navController.popBackStack()
+                                }
+                                CaptureMode.SuggestMeal -> {
+                                    // Redirect suggest mode to chat with photos + prompt
+                                    val photos = com.fatlosstrack.data.local.CapturedPhotoStore.peek()
+                                    com.fatlosstrack.data.local.PendingChatStore.store(
+                                        captureContext.getString(R.string.chat_suggest_prompt),
+                                        photos,
+                                    )
+                                    navController.popBackStack()
+                                    navController.navigate(Tab.Chat.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = false }
+                                        launchSingleTop = true
+                                        restoreState = false
+                                    }
+                                }
+                                else -> {
+                                    val dateParam = if (targetDate.isNotEmpty()) "?targetDate=$targetDate" else ""
+                                    navController.popBackStack()
+                                    navController.navigate("analysis/${m.name}/$count$dateParam")
+                                }
+                            }
                         },
                         onBack = { navController.popBackStack() },
                     )
@@ -419,7 +446,10 @@ fun FatLossTrackNavGraph(
 
                 // Chat tab
                 composable(Tab.Chat.route) {
-                    ChatScreen(state = chatStateHolder)
+                    ChatScreen(
+                        state = chatStateHolder,
+                        onNavigateToCamera = { navController.navigate("capture/chat") },
+                    )
                 }
             }
 

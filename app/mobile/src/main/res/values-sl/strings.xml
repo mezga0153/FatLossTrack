@@ -359,6 +359,9 @@
     <string name="capture_log_title">Zabeleži obrok</string>
     <string name="capture_log_subtitle">Fotografiraj, kar ješ</string>
     <string name="capture_suggest_title">Predlagaj obrok</string>
+    <string name="capture_chat_title">Priloži fotografijo</string>
+    <string name="capture_chat_subtitle">Pošlji fotografijo AI trenerju</string>
+    <string name="chat_suggest_prompt">Predlagaj obrok na podlagi teh fotografij</string>
     <string name="capture_suggest_subtitle">Fotografiraj hladilnik ali sestavine</string>
     <string name="camera_permission_required">Potrebno je dovoljenje za kamero</string>
     <string name="button_grant_permission">Dodeli dovoljenje</string>
@@ -387,6 +390,7 @@
     <string name="chat_empty_title">Vprašaj me karkoli</string>
     <string name="chat_empty_subtitle">Imam kontekst tvojih zadnjih 7 dni podatkov</string>
     <string name="chat_input_placeholder">Napiši sporočilo…</string>
+    <string name="chat_attach_image">Priloži sliko</string>
     <string name="chat_clear_title">Počisti klepet</string>
     <string name="chat_clear_confirm">Izbriši vso zgodovino klepeta?</string>
     <string name="chat_clear_yes">Počisti</string>

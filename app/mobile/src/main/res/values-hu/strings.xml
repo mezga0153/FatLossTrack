@@ -362,6 +362,9 @@
     <string name="capture_log_title">Étkezés naplózása</string>
     <string name="capture_log_subtitle">Fotózd le amit eszel</string>
     <string name="capture_suggest_title">Étkezés javaslat</string>
+    <string name="capture_chat_title">Fénykép csatolása</string>
+    <string name="capture_chat_subtitle">Kép küldése az AI edzőnek</string>
+    <string name="chat_suggest_prompt">Javasolj ételt ezek alapján a fotók alapján</string>
     <string name="capture_suggest_subtitle">Fotózd le a hűtőd vagy az alapanyagokat</string>
     <string name="camera_permission_required">Kamera engedély szükséges</string>
     <string name="button_grant_permission">Engedély megadása</string>
@@ -390,6 +393,7 @@
     <string name="chat_empty_title">Kérdezz bármit</string>
     <string name="chat_empty_subtitle">Az utolsó 7 nap adataival rendelkezem</string>
     <string name="chat_input_placeholder">Írj üzenetet…</string>
+    <string name="chat_attach_image">Kép csatolása</string>
     <string name="chat_clear_title">Chat törlése</string>
     <string name="chat_clear_confirm">Törlöd az összes csevegési előzményt?</string>
     <string name="chat_clear_yes">Törlés</string>

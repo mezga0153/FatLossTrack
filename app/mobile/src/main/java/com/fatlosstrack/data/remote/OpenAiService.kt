@@ -176,8 +176,9 @@ class OpenAiService @Inject constructor(
     fun streamChatWithHistory(
         history: List<Pair<String, String>>,
         contextBlock: String,
+        photos: List<Bitmap> = emptyList(),
     ): Flow<String> = flow {
-        appLogger.ai("Streaming chat with history (${history.size} messages)")
+        appLogger.ai("Streaming chat with history (${history.size} messages)${if (photos.isNotEmpty()) ", ${photos.size} photos" else ""}")
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
@@ -197,10 +198,29 @@ class OpenAiService @Inject constructor(
                     put("content", systemContent)
                 }
                 val recentHistory = if (history.size > 30) history.takeLast(30) else history
-                recentHistory.forEach { (role, content) ->
+                recentHistory.forEachIndexed { index, (role, content) ->
                     addJsonObject {
                         put("role", role)
-                        put("content", content)
+                        // Attach photos only to the last user message
+                        if (photos.isNotEmpty() && role == "user" && index == recentHistory.lastIndex) {
+                            put("content", buildJsonArray {
+                                addJsonObject {
+                                    put("type", "text")
+                                    put("text", content)
+                                }
+                                photos.forEach { bitmap ->
+                                    addJsonObject {
+                                        put("type", "image_url")
+                                        putJsonObject("image_url") {
+                                            put("url", "data:image/jpeg;base64,${bitmapToBase64(bitmap)}")
+                                            put("detail", "low")
+                                        }
+                                    }
+                                }
+                            })
+                        } else {
+                            put("content", content)
+                        }
                     }
                 }
             }
@@ -208,41 +228,43 @@ class OpenAiService @Inject constructor(
             put("temperature", 0.7)
         }
 
-        val response = client.post(API_URL) {
+        val statement = client.preparePost(API_URL) {
             contentType(ContentType.Application.Json)
             bearerAuth(apiKey)
             setBody(Json.encodeToString(body))
         }
 
-        if (response.status != HttpStatusCode.OK) {
-            val errorBody = response.bodyAsText()
-            appLogger.error("AI", "Stream API error ${response.status}: ${errorBody.take(200)}")
-            error("OpenAI API error ${response.status}: $errorBody")
-        }
+        statement.execute { response ->
+            if (response.status != HttpStatusCode.OK) {
+                val errorBody = response.bodyAsText()
+                appLogger.error("AI", "Stream API error ${response.status}: ${errorBody.take(200)}")
+                error("OpenAI API error ${response.status}: $errorBody")
+            }
 
-        val channel = response.bodyAsChannel()
-        val sb = StringBuilder()
-        while (!channel.isClosedForRead) {
-            val line = channel.readUTF8Line() ?: break
-            if (!line.startsWith("data: ")) continue
-            val data = line.removePrefix("data: ").trim()
-            if (data == "[DONE]") break
-            try {
-                val chunk = Json.parseToJsonElement(data).jsonObject
-                val delta = chunk["choices"]?.jsonArray?.get(0)?.jsonObject
-                    ?.get("delta")?.jsonObject?.get("content")?.jsonPrimitive?.content
-                if (delta != null) {
-                    sb.append(delta)
-                    emit(delta)
-                }
-                // Record usage from final chunk (has usage field when stream_options.include_usage=true)
-                val usage = chunk["usage"]?.jsonObject
-                if (usage != null) {
-                    recordUsage(chunk, "chat")
-                }
-            } catch (_: Exception) { /* skip malformed chunks */ }
+            val channel = response.bodyAsChannel()
+            val sb = StringBuilder()
+            while (!channel.isClosedForRead) {
+                val line = channel.readUTF8Line() ?: break
+                if (!line.startsWith("data: ")) continue
+                val data = line.removePrefix("data: ").trim()
+                if (data == "[DONE]") break
+                try {
+                    val chunk = Json.parseToJsonElement(data).jsonObject
+                    val delta = chunk["choices"]?.jsonArray?.get(0)?.jsonObject
+                        ?.get("delta")?.jsonObject?.get("content")?.jsonPrimitive?.content
+                    if (delta != null) {
+                        sb.append(delta)
+                        emit(delta)
+                    }
+                    // Record usage from final chunk (has usage field when stream_options.include_usage=true)
+                    val usage = chunk["usage"]?.jsonObject
+                    if (usage != null) {
+                        recordUsage(chunk, "chat")
+                    }
+                } catch (_: Exception) { /* skip malformed chunks */ }
+            }
+            appLogger.ai("Stream complete (${sb.length} chars): ${sb.take(120)}${if (sb.length > 120) "…" else ""}")
         }
-        appLogger.ai("Stream complete (${sb.length} chars): ${sb.take(120)}${if (sb.length > 120) "…" else ""}")
     }
 
     /**

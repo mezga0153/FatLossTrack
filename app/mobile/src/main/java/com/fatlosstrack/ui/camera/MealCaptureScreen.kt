@@ -56,6 +56,7 @@ import java.io.File
 enum class CaptureMode(val titleRes: Int, val subtitleRes: Int) {
     LogMeal(R.string.capture_log_title, R.string.capture_log_subtitle),
     SuggestMeal(R.string.capture_suggest_title, R.string.capture_suggest_subtitle),
+    ChatPhoto(R.string.capture_chat_title, R.string.capture_chat_subtitle),
 }
 
 /**
