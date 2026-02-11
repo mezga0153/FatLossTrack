@@ -52,6 +52,8 @@ import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.settings.AiUsageScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 import com.fatlosstrack.ui.trends.TrendsStateHolder
+import com.fatlosstrack.ui.welcome.OnboardingStep
+import com.fatlosstrack.ui.welcome.WelcomeScreen
 
 // ---- Navigation destinations ----
 
@@ -92,9 +94,30 @@ fun FatLossTrackNavGraph(
         healthConnectSyncService?.launchSync(7, "Navigation:autoHcSync")
     }
 
+    // Show welcome screen on first launch (no goal set yet)
+    // Show API key nudge once per session if goal is set but key is missing
+    val goalWeight by preferencesManager.goalWeight.collectAsState(initial = -1f)
+    val apiKey by preferencesManager.openAiApiKey.collectAsState(initial = "\u0000") // sentinel = still loading
+    val hasCheckedGoal = goalWeight != -1f  // -1f = still loading
+    val hasCheckedKey = apiKey != "\u0000"
+    var dismissedKeyNudge by remember { mutableStateOf(false) }
+    LaunchedEffect(hasCheckedGoal, goalWeight, hasCheckedKey, apiKey) {
+        if (hasCheckedGoal && goalWeight == null) {
+            navController.navigate("onboarding/welcome") {
+                launchSingleTop = true
+            }
+        } else if (hasCheckedGoal && hasCheckedKey && goalWeight != null && apiKey.isBlank() && !dismissedKeyNudge) {
+            dismissedKeyNudge = true
+            navController.navigate("onboarding/apikey") {
+                launchSingleTop = true
+            }
+        }
+    }
+
     // Hide bottom bar + AI bar on camera/analysis/goal/log viewer screens
     val hideChrome = currentRoute?.startsWith("capture") == true ||
             currentRoute?.startsWith("analysis") == true ||
+            currentRoute?.startsWith("onboarding") == true ||
             currentRoute == "set_goal" ||
             currentRoute == "set_profile" ||
             currentRoute == "log_viewer" ||
@@ -189,6 +212,7 @@ fun FatLossTrackNavGraph(
                             { navController.navigate("log_viewer") }
                         } else null,
                         onViewAiUsage = { navController.navigate("ai_usage") },
+                        onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
                     )
                 }
 
@@ -222,6 +246,83 @@ fun FatLossTrackNavGraph(
                 composable("ai_usage") {
                     AiUsageScreen(
                         aiUsageDao = aiUsageDao,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // ── Onboarding flow ──
+
+                // Step 0: Welcome (feature overview)
+                composable(
+                    route = "onboarding/welcome?first={first}",
+                    arguments = listOf(
+                        navArgument("first") { type = NavType.BoolType; defaultValue = true },
+                    ),
+                ) { entry ->
+                    val isFirst = entry.arguments?.getBoolean("first") ?: true
+                    WelcomeScreen(
+                        step = OnboardingStep.WELCOME,
+                        isFirstLaunch = isFirst,
+                        preferencesManager = preferencesManager,
+                        onSetupProfile = {
+                            // Chain: welcome → profile → goal → apikey → tips
+                            navController.navigate("set_profile_onboarding")
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Profile (during onboarding — same screen, different onBack target)
+                composable("set_profile_onboarding") {
+                    SetProfileScreen(
+                        onBack = {
+                            navController.popBackStack()
+                            navController.navigate("set_goal_onboarding") {
+                                launchSingleTop = true
+                            }
+                        },
+                        preferencesManager = preferencesManager,
+                    )
+                }
+
+                // Goal (during onboarding)
+                composable("set_goal_onboarding") {
+                    SetGoalScreen(
+                        onBack = {
+                            navController.popBackStack()
+                            navController.navigate("onboarding/apikey") {
+                                launchSingleTop = true
+                            }
+                        },
+                        preferencesManager = preferencesManager,
+                    )
+                }
+
+                // Step 1: API key setup
+                composable("onboarding/apikey") {
+                    WelcomeScreen(
+                        step = OnboardingStep.API_KEY,
+                        isFirstLaunch = true,
+                        preferencesManager = preferencesManager,
+                        onNext = {
+                            navController.popBackStack()
+                            navController.navigate("onboarding/tips") {
+                                launchSingleTop = true
+                            }
+                        },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Step 2: Usage tips
+                composable("onboarding/tips") {
+                    WelcomeScreen(
+                        step = OnboardingStep.TIPS,
+                        isFirstLaunch = true,
+                        onDone = {
+                            // Clear the entire onboarding back stack → go home
+                            navController.popBackStack(Tab.Home.route, inclusive = false)
+                        },
                         onBack = { navController.popBackStack() },
                     )
                 }

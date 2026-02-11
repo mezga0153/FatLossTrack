@@ -241,6 +241,8 @@
     <string name="account_google_user">Google user</string>
     <string name="account_name">Name</string>
     <string name="account_sign_out">Sign out</string>
+    <string name="account_sign_in">Sign in with Google</string>
+    <string name="account_sign_in_desc">Sign in to enable Google Drive backup. Not required for other features.</string>
     <string name="settings_section_debug">Debug</string>
     <string name="debug_log_desc">View internal activity log — HC sync, AI calls, meal entries, and more.</string>
     <string name="debug_view_log">View activity log</string>
@@ -395,4 +397,45 @@
     <string name="chat_pill_am_i_on_track">Am I on track?</string>
     <string name="chat_action_copy">Copy</string>
     <string name="chat_action_retry">Retry</string>
+
+    <!-- WelcomeScreen -->
+    <string name="welcome_tagline">Your weight trend doesn\'t lie.\nLet the data do the coaching.</string>
+    <string name="welcome_feature_weight_title">Track your weight</string>
+    <string name="welcome_feature_weight_desc">Log daily weigh-ins manually or sync automatically from Health Connect. The app shows the trend, not the noise.</string>
+    <string name="welcome_feature_camera_title">Snap your meals</string>
+    <string name="welcome_feature_camera_desc">Take a photo of your food and AI estimates calories, protein, carbs, and fat instantly.</string>
+    <string name="welcome_feature_ai_title">AI coaching</string>
+    <string name="welcome_feature_ai_desc">Get daily summaries, pattern insights, and chat with your personal coach about nutrition and progress.</string>
+    <string name="welcome_feature_health_title">Health Connect</string>
+    <string name="welcome_feature_health_desc">Steps, sleep, heart rate, and exercise data flow in automatically from your wearable or phone.</string>
+    <string name="welcome_feature_trends_title">Trends &amp; charts</string>
+    <string name="welcome_feature_trends_desc">See weight, calorie, sleep, and step trends over 7, 14, 30, or 90 days with clear charts.</string>
+    <string name="welcome_privacy">All data stays on your device.\nGoogle account is optional, used only for cloud backup.</string>
+    <string name="welcome_get_started">Get started</string>
+    <string name="welcome_got_it">Got it</string>
+    <string name="about_how_it_works">How it works</string>
+
+    <!-- Onboarding: API key setup -->
+    <string name="setup_apikey_title">Unlock AI features</string>
+    <string name="setup_apikey_desc">This app uses OpenAI to analyze meals, generate coaching insights, and answer your questions. You\'ll need your own API key — it costs just pennies per day.</string>
+    <string name="setup_apikey_guide_link">Get your API key at platform.openai.com</string>
+    <string name="setup_apikey_features_title">What needs the key:</string>
+    <string name="setup_apikey_feature_photo">Photo meal scanning</string>
+    <string name="setup_apikey_feature_text">Text meal logging (AI estimates nutrition)</string>
+    <string name="setup_apikey_feature_coach">AI coach chat</string>
+    <string name="setup_apikey_feature_summary">Daily coaching summaries</string>
+    <string name="setup_continue">Continue</string>
+    <string name="setup_skip_for_now">Skip for now</string>
+
+    <!-- Onboarding: Usage tips -->
+    <string name="setup_tips_title">You\'re all set!</string>
+    <string name="setup_tip_text_title">Type your meals</string>
+    <string name="setup_tip_text_desc">Just type what you ate in plain language in the AI bar at the bottom. AI will figure out the calories and macros.</string>
+    <string name="setup_tip_text_example">"I had two eggs and a tea this morning"</string>
+    <string name="setup_tip_photo_title">Snap a photo</string>
+    <string name="setup_tip_photo_desc">Tap the camera icon in the AI bar, take a photo of your meal, and AI will scan it for nutrition info.</string>
+    <string name="setup_tip_chat_title">Ask your coach anything</string>
+    <string name="setup_tip_chat_desc">Open the Chat tab to ask questions about your diet, progress, or get meal ideas based on what\'s in your fridge.</string>
+    <string name="setup_tip_chat_example">"Am I on track this week?"</string>
+    <string name="setup_done">Let\'s go!</string>
 </resources>

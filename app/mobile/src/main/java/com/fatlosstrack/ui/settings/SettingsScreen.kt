@@ -64,6 +64,7 @@ fun SettingsScreen(
     onSyncHealthConnect: (() -> Unit)? = null,
     onViewLog: (() -> Unit)? = null,
     onViewAiUsage: (() -> Unit)? = null,
+    onViewWelcome: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val authManager = state.authManager
@@ -107,8 +108,6 @@ fun SettingsScreen(
             hcLastSyncMsg = "Permissions granted — tap Sync now"
         }
     }
-
-    var backupEnabled by remember { mutableStateOf(false) }
 
     // Backup/restore state
     val driveBackupManager = state.driveBackupManager
@@ -155,6 +154,15 @@ fun SettingsScreen(
             }
         } else {
             driveBackupManager.resetState()
+        }
+    }
+
+    // Google Sign-In launcher (for signing in from Settings)
+    val signInLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        scope.launch {
+            authManager.handleSignInResult(result.data)
         }
     }
 
@@ -517,6 +525,22 @@ fun SettingsScreen(
                         Text(stringResource(R.string.backup_restore_button), color = Primary)
                     }
                 }
+            } else {
+                // Not signed in — offer sign-in for Drive backup
+                Text(
+                    text = stringResource(R.string.account_sign_in_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        signInLauncher.launch(authManager.getSignInIntent())
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    Text(stringResource(R.string.account_sign_in), color = MaterialTheme.colorScheme.onPrimary)
+                }
             }
 
             // ---- Local device backup ----
@@ -530,6 +554,38 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(8.dp))
+
+            // Status messages for local backup too
+            if (signedInState == null) {
+                val isLocalWorking = backupState is DriveBackupManager.BackupState.InProgress
+                when (val bs = backupState) {
+                    is DriveBackupManager.BackupState.InProgress -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Primary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.backup_in_progress),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    is DriveBackupManager.BackupState.Done -> {
+                        Text(bs.message, style = MaterialTheme.typography.bodySmall, color = Secondary)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    is DriveBackupManager.BackupState.Error -> {
+                        Text(bs.message, style = MaterialTheme.typography.bodySmall, color = Tertiary)
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    else -> {}
+                }
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val isWorking2 = backupState is DriveBackupManager.BackupState.InProgress
@@ -551,22 +607,24 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = {
-                    authManager.signOut()
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Tertiary,
-                ),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.account_sign_out), color = Tertiary)
+            if (signedInState != null) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        authManager.signOut()
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Tertiary,
+                    ),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.account_sign_out), color = Tertiary)
+                }
             }
         }
 
@@ -719,6 +777,25 @@ fun SettingsScreen(
             SettingsRow(stringResource(R.string.about_version), stringResource(R.string.about_version_value))
             SettingsRow(stringResource(R.string.about_build), stringResource(R.string.about_build_value))
             Spacer(Modifier.height(8.dp))
+            if (onViewWelcome != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onViewWelcome)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.about_how_it_works), style = MaterialTheme.typography.bodyLarge)
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

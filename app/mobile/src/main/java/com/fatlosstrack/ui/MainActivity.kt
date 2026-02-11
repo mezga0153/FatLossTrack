@@ -7,7 +7,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.*
-import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
@@ -19,7 +18,6 @@ import com.fatlosstrack.ui.trends.TrendsStateHolder
 import com.fatlosstrack.ui.log.LogStateHolder
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
-import com.fatlosstrack.ui.login.LoginScreen
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
 import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
@@ -29,9 +27,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
-
-    @Inject
-    lateinit var authManager: AuthManager
 
     @Inject
     lateinit var preferencesManager: PreferencesManager
@@ -92,35 +87,19 @@ class MainActivity : AppCompatActivity() {
             }
 
             FatLossTrackTheme(appColors = appColors) {
-                val authState by authManager.authState.collectAsState()
-
-                when (authState) {
-                    is AuthManager.AuthState.Loading -> {
-                        // Could show a splash — for now just blank
-                    }
-                    is AuthManager.AuthState.SignedOut,
-                    is AuthManager.AuthState.Error -> {
-                        LoginScreen(
-                            authManager = authManager,
-                            onSignedIn = { /* state flow will trigger recomposition */ },
-                        )
-                    }
-                    is AuthManager.AuthState.SignedIn -> {
-                        FatLossTrackNavGraph(
-                            preferencesManager = preferencesManager,
-                            healthConnectSyncService = healthConnectSyncService,
-                            appLogger = appLogger,
-                            aiUsageDao = aiUsageDao,
-                            chatStateHolder = chatStateHolder,
-                            aiBarStateHolder = aiBarStateHolder,
-                            analysisResultStateHolder = analysisResultStateHolder,
-                            homeStateHolder = homeStateHolder,
-                            trendsStateHolder = trendsStateHolder,
-                            logStateHolder = logStateHolder,
-                            settingsStateHolder = settingsStateHolder,
-                        )
-                    }
-                }
+                FatLossTrackNavGraph(
+                    preferencesManager = preferencesManager,
+                    healthConnectSyncService = healthConnectSyncService,
+                    appLogger = appLogger,
+                    aiUsageDao = aiUsageDao,
+                    chatStateHolder = chatStateHolder,
+                    aiBarStateHolder = aiBarStateHolder,
+                    analysisResultStateHolder = analysisResultStateHolder,
+                    homeStateHolder = homeStateHolder,
+                    trendsStateHolder = trendsStateHolder,
+                    logStateHolder = logStateHolder,
+                    settingsStateHolder = settingsStateHolder,
+                )
             }
         }
     }
