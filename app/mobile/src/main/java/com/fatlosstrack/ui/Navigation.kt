@@ -53,6 +53,7 @@ import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
+import com.fatlosstrack.ui.trends.TrendsStateHolder
 
 // ---- Navigation destinations ----
 
@@ -82,6 +83,7 @@ fun FatLossTrackNavGraph(
     aiBarStateHolder: AiBarStateHolder,
     analysisResultStateHolder: AnalysisResultStateHolder,
     homeStateHolder: HomeStateHolder,
+    trendsStateHolder: TrendsStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -169,10 +171,7 @@ fun FatLossTrackNavGraph(
                 }
                 composable(Tab.Trends.route) {
                     TrendsScreen(
-                        dailyLogDao = dailyLogDao,
-                        mealDao = mealDao,
-                        weightDao = weightDao,
-                        preferencesManager = preferencesManager,
+                        state = trendsStateHolder,
                     )
                 }
                 composable(Tab.Log.route) {

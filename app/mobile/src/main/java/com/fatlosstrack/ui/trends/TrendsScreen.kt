@@ -17,8 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
-import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.*
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
@@ -40,10 +38,7 @@ import java.util.Locale
  */
 @Composable
 fun TrendsScreen(
-    dailyLogDao: DailyLogDao,
-    mealDao: MealDao,
-    weightDao: WeightDao,
-    preferencesManager: PreferencesManager,
+    state: TrendsStateHolder,
 ) {
     var selectedRange by remember { mutableStateOf("30d") }
     val ranges = listOf("7d", "30d", "90d")
@@ -55,16 +50,16 @@ fun TrendsScreen(
     }
     val since = LocalDate.now().minusDays(daysBack)
 
-    val logs by dailyLogDao.getLogsSince(since).collectAsState(initial = emptyList())
-    val meals by mealDao.getMealsSince(since).collectAsState(initial = emptyList())
-    val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
+    val logs by state.logsSince(since).collectAsState(initial = emptyList())
+    val meals by state.mealsSince(since).collectAsState(initial = emptyList())
+    val weightEntries by state.weightsSince(since).collectAsState(initial = emptyList())
 
-    val goalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
-    val weeklyRate by preferencesManager.weeklyRate.collectAsState(initial = null)
-    val startWeight by preferencesManager.startWeight.collectAsState(initial = null)
+    val goalWeight by state.goalWeight.collectAsState(initial = null)
+    val weeklyRate by state.weeklyRate.collectAsState(initial = null)
+    val startWeight by state.startWeight.collectAsState(initial = null)
 
     // TDEE / daily target
-    val dailyTargetKcal = rememberDailyTargetKcal(preferencesManager)
+    val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
 
     // Weight data — merge DailyLog weights + WeightEntry
     val weightData = remember(logs, weightEntries) {
