@@ -13,8 +13,8 @@ if ! "$ADB" devices 2>/dev/null | grep -q "emulator-"; then
   echo "▸ Starting emulator ($AVD)…"
   nohup "$EMU" -avd "$AVD" &>/dev/null &
   echo "▸ Waiting for boot…"
-  "$ADB" wait-for-device
-  "$ADB" shell 'while [[ "$(getprop sys.boot_completed)" != "1" ]]; do sleep 1; done' 2>/dev/null
+  "$ADB" -s emulator-5554 wait-for-device
+  "$ADB" -s emulator-5554 shell 'while [[ "$(getprop sys.boot_completed)" != "1" ]]; do sleep 1; done' 2>/dev/null
   echo "✔ Emulator booted"
 else
   echo "✔ Emulator already running"
