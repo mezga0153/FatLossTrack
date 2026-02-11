@@ -1,6 +1,7 @@
 package com.fatlosstrack.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.auth.AuthManager
+import com.fatlosstrack.data.backup.DriveBackupManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.ui.theme.Accent
@@ -40,6 +42,9 @@ import androidx.compose.foundation.border
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Settings screen — configuration & preferences.
@@ -104,6 +109,61 @@ fun SettingsScreen(
     }
 
     var backupEnabled by remember { mutableStateOf(false) }
+
+    // Backup/restore state
+    val driveBackupManager = state.driveBackupManager
+    val backupState by driveBackupManager.state.collectAsState()
+    val lastBackupTime by preferencesManager.lastBackupTime.collectAsState(initial = null)
+    var showRestoreDialog by remember { mutableStateOf(false) }
+    var showLocalRestoreDialog by remember { mutableStateOf(false) }
+    var pendingLocalRestoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pendingDriveAction by remember { mutableStateOf<DriveBackupManager.PendingAction?>(null) }
+
+    // SAF launcher: export zip to device
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        if (uri != null) {
+            driveBackupManager.resetState()
+            scope.launch { driveBackupManager.localBackup(uri) }
+        }
+    }
+
+    // SAF launcher: import zip from device
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            pendingLocalRestoreUri = uri
+            showLocalRestoreDialog = true
+        }
+    }
+
+    // Launcher for Drive consent screen (if user hasn't yet granted appdata scope)
+    val driveConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val action = pendingDriveAction
+            pendingDriveAction = null
+            scope.launch {
+                when (action) {
+                    DriveBackupManager.PendingAction.BACKUP -> driveBackupManager.backup()
+                    DriveBackupManager.PendingAction.RESTORE -> driveBackupManager.restore()
+                    null -> {}
+                }
+            }
+        } else {
+            driveBackupManager.resetState()
+        }
+    }
+
+    // Auto-launch consent intent when BackupState.NeedsConsent is emitted
+    LaunchedEffect(backupState) {
+        val consent = backupState as? DriveBackupManager.BackupState.NeedsConsent ?: return@LaunchedEffect
+        pendingDriveAction = consent.action
+        driveConsentLauncher.launch(consent.consentIntent)
+    }
 
     // AI settings
     val storedApiKey by preferencesManager.openAiApiKey.collectAsState(initial = "")
@@ -365,23 +425,200 @@ fun SettingsScreen(
             }
         }
 
-        // -- Backup --
-        SettingsSection(stringResource(R.string.settings_section_backup)) {
-            SwitchRow(stringResource(R.string.backup_google_drive), backupEnabled) {
-                backupEnabled = it
-            }
-            if (backupEnabled) {
-                Spacer(Modifier.height(4.dp))
+        // -- Account & Backup (merged) --
+        val signedInState = authState as? AuthManager.AuthState.SignedIn
+        SettingsSection(stringResource(R.string.settings_section_account)) {
+            if (signedInState != null) {
+                SettingsRow(stringResource(R.string.account_signed_in_as), signedInState.user.email ?: stringResource(R.string.account_google_user))
+                SettingsRow(stringResource(R.string.account_name), signedInState.user.displayName ?: "—")
+
+                // ---- Google Drive Backup ----
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+                Spacer(Modifier.height(12.dp))
+
                 Text(
-                    stringResource(R.string.backup_last_never),
+                    text = stringResource(R.string.backup_google_drive),
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+
+                // Last backup info
+                val formattedBackupTime = remember(lastBackupTime) {
+                    if (lastBackupTime != null) {
+                        try {
+                            val instant = Instant.parse(lastBackupTime)
+                            val formatter = DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")
+                                .withZone(ZoneId.systemDefault())
+                            formatter.format(instant)
+                        } catch (_: Exception) {
+                            null
+                        }
+                    } else null
+                }
+                val backupText = if (formattedBackupTime != null) {
+                    stringResource(R.string.backup_last_format, formattedBackupTime)
+                } else {
+                    stringResource(R.string.backup_last_never)
+                }
+                Text(
+                    text = backupText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { }) {
-                    Text(stringResource(R.string.backup_now_button), color = Primary)
+
+                // Progress / status
+                val isWorking = backupState is DriveBackupManager.BackupState.InProgress
+                when (val bs = backupState) {
+                    is DriveBackupManager.BackupState.InProgress -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Primary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.backup_in_progress),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    is DriveBackupManager.BackupState.Done -> {
+                        Text(bs.message, style = MaterialTheme.typography.bodySmall, color = Secondary)
+                    }
+                    is DriveBackupManager.BackupState.Error -> {
+                        Text(bs.message, style = MaterialTheme.typography.bodySmall, color = Tertiary)
+                    }
+                    else -> {}
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            driveBackupManager.resetState()
+                            scope.launch { driveBackupManager.backup() }
+                        },
+                        enabled = !isWorking,
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    ) {
+                        Text(stringResource(R.string.backup_now_button), color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    OutlinedButton(
+                        onClick = { showRestoreDialog = true },
+                        enabled = !isWorking,
+                    ) {
+                        Text(stringResource(R.string.backup_restore_button), color = Primary)
+                    }
                 }
             }
+
+            // ---- Local device backup ----
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = stringResource(R.string.backup_local),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val isWorking2 = backupState is DriveBackupManager.BackupState.InProgress
+                OutlinedButton(
+                    onClick = {
+                        exportLauncher.launch("fatloss_track_backup.zip")
+                    },
+                    enabled = !isWorking2,
+                ) {
+                    Text(stringResource(R.string.backup_save_to_device), color = Primary)
+                }
+                OutlinedButton(
+                    onClick = {
+                        importLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                    },
+                    enabled = !isWorking2,
+                ) {
+                    Text(stringResource(R.string.backup_load_from_device), color = Primary)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    authManager.signOut()
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Tertiary,
+                ),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.account_sign_out), color = Tertiary)
+            }
+        }
+
+        // Restore confirmation dialog
+        if (showRestoreDialog) {
+            AlertDialog(
+                onDismissRequest = { showRestoreDialog = false },
+                title = { Text(stringResource(R.string.restore_confirm_title)) },
+                text = { Text(stringResource(R.string.restore_confirm_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRestoreDialog = false
+                        driveBackupManager.resetState()
+                        scope.launch { driveBackupManager.restore() }
+                    }) {
+                        Text(stringResource(R.string.restore_confirm_yes), color = Tertiary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRestoreDialog = false }) {
+                        Text(stringResource(R.string.restore_confirm_no))
+                    }
+                },
+            )
+        }
+
+        // Local restore confirmation dialog
+        if (showLocalRestoreDialog) {
+            AlertDialog(
+                onDismissRequest = { showLocalRestoreDialog = false },
+                title = { Text(stringResource(R.string.restore_confirm_title)) },
+                text = { Text(stringResource(R.string.restore_confirm_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showLocalRestoreDialog = false
+                        val uri = pendingLocalRestoreUri ?: return@TextButton
+                        pendingLocalRestoreUri = null
+                        driveBackupManager.resetState()
+                        scope.launch { driveBackupManager.localRestore(uri) }
+                    }) {
+                        Text(stringResource(R.string.restore_confirm_yes), color = Tertiary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showLocalRestoreDialog = false
+                        pendingLocalRestoreUri = null
+                    }) {
+                        Text(stringResource(R.string.restore_confirm_no))
+                    }
+                },
+            )
         }
 
         // -- AI --
@@ -498,32 +735,6 @@ fun SettingsScreen(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
-            }
-        }
-
-        // -- Account --
-        val signedInState = authState as? AuthManager.AuthState.SignedIn
-        SettingsSection(stringResource(R.string.settings_section_account)) {
-            if (signedInState != null) {
-                SettingsRow(stringResource(R.string.account_signed_in_as), signedInState.user.email ?: stringResource(R.string.account_google_user))
-                SettingsRow(stringResource(R.string.account_name), signedInState.user.displayName ?: "—")
-            }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = {
-                    authManager.signOut()
-                },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Tertiary,
-                ),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.account_sign_out), color = Tertiary)
             }
         }
 

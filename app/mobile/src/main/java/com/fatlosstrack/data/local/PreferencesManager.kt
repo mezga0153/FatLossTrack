@@ -35,6 +35,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_AGE = intPreferencesKey("age")
         private val KEY_ACTIVITY_LEVEL = stringPreferencesKey("activity_level") // "sedentary", "light", "moderate", "active"
         private val KEY_THEME_PRESET = stringPreferencesKey("theme_preset") // ThemePreset name
+        private val KEY_LAST_BACKUP_TIME = stringPreferencesKey("last_backup_time") // ISO Instant
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -91,6 +92,10 @@ class PreferencesManager @Inject constructor(
 
     val themePreset: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_THEME_PRESET] ?: "PURPLE_DARK"
+    }
+
+    val lastBackupTime: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_LAST_BACKUP_TIME]
     }
 
     suspend fun setOpenAiApiKey(key: String) {
@@ -162,6 +167,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setThemePreset(preset: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_THEME_PRESET] = preset
+        }
+    }
+
+    suspend fun setLastBackupTime(time: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LAST_BACKUP_TIME] = time
         }
     }
 }
