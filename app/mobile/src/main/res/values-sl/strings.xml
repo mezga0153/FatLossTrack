@@ -188,6 +188,7 @@
     <string name="theme_light">Svetla</string>
     <string name="language_english">English</string>
     <string name="language_slovene">Slovenščina</string>
+    <string name="language_hungarian">Magyar</string>
     <string name="settings_section_backup">Varnostna kopija</string>
     <string name="backup_google_drive">Google Drive</string>
     <string name="backup_last_never">Ni varnostnih kopij</string>

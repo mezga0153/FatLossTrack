@@ -38,7 +38,12 @@ class OpenAiService @Inject constructor(
     /** Get the language instruction suffix based on user preference */
     private suspend fun languageSuffix(): String {
         val lang = prefs.language.first()
-        return if (lang == "sl") "\n\nIMPORTANT: Respond in Slovenian (slovenščina)." else ""
+        return when (lang) {
+            "en" -> ""
+            "sl" -> "\n\nIMPORTANT: Respond in Slovenian (slovenščina)."
+            "hu" -> "\n\nIMPORTANT: Respond in Hungarian (magyar)."
+            else -> ""
+        }
     }
 
     /** Record token usage from an API response */

@@ -300,6 +300,14 @@ fun SettingsScreen(
                         )
                     }
                 }
+                ToneChip(stringResource(R.string.language_hungarian), savedLanguage == "hu") {
+                    scope.launch {
+                        preferencesManager.setLanguage("hu")
+                        AppCompatDelegate.setApplicationLocales(
+                            LocaleListCompat.forLanguageTags("hu")
+                        )
+                    }
+                }
             }
         }
 

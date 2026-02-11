@@ -72,6 +72,7 @@ object OnboardingStep {
 enum class AppLanguage(val code: String, val nativeName: String) {
     EN("en", "English"),
     SL("sl", "Slovenščina"),
+    HU("hu", "Magyar"),
     // Add more: DE("de", "Deutsch"), etc.
     ;
     companion object {

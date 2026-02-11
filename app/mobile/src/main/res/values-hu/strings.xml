@@ -1,0 +1,442 @@
+<resources>
+    <string name="app_name">FatLoss Track</string>
+
+    <!-- Navigation tabs -->
+    <string name="tab_home">Kezdőlap</string>
+    <string name="tab_trends">Trendek</string>
+    <string name="tab_log">Napló</string>
+    <string name="tab_chat">Chat</string>
+    <string name="tab_settings">Beállítások</string>
+
+    <!-- Common / shared -->
+    <string name="button_save">Mentés</string>
+    <string name="button_cancel">Mégse</string>
+    <string name="button_edit">Szerkesztés</string>
+    <string name="button_delete">Törlés</string>
+    <string name="button_ai_edit">AI szerkesztés</string>
+    <string name="button_ok">OK</string>
+    <string name="cd_back">Vissza</string>
+    <string name="cd_close">Bezárás</string>
+    <string name="cd_edit">Szerkesztés</string>
+    <string name="cd_remove">Eltávolítás</string>
+    <string name="cd_add">Hozzáadás</string>
+    <string name="cd_send">Küldés</string>
+    <string name="cd_camera">Kamera</string>
+    <string name="cd_dismiss">Elvetés</string>
+    <string name="placeholder_no_data">—</string>
+    <string name="label_total">Összesen</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_hrs">óra</string>
+
+    <!-- Meal categories -->
+    <string name="category_home">Otthon</string>
+    <string name="category_restaurant">Étterem</string>
+    <string name="category_fast_food">Gyorsétterem</string>
+
+    <!-- Meal types -->
+    <string name="meal_type_breakfast">Reggeli</string>
+    <string name="meal_type_brunch">Brunch</string>
+    <string name="meal_type_lunch">Ebéd</string>
+    <string name="meal_type_dinner">Vacsora</string>
+    <string name="meal_type_snack">Snack</string>
+
+    <!-- Stats labels -->
+    <string name="stat_weight">Súly</string>
+    <string name="stat_meals">Étkezések</string>
+    <string name="stat_protein">Fehérje</string>
+    <string name="stat_carbs">Szénhidrát</string>
+    <string name="stat_fat">Zsír</string>
+    <string name="stat_steps">Lépések</string>
+    <string name="stat_sleep">Alvás</string>
+    <string name="stat_heart_rate">Pulzus</string>
+
+    <!-- Format strings -->
+    <string name="format_weight_kg">%.1f kg</string>
+    <string name="format_kcal">%d kcal</string>
+    <string name="format_protein_g">%dg</string>
+    <string name="format_protein_full">%dg fehérje</string>
+    <string name="format_protein_short">%dg F</string>
+    <string name="format_hours">%.1f óra</string>
+    <string name="format_steps_formatted">%,d</string>
+    <string name="format_bpm">%d bpm</string>
+    <string name="format_duration_min">%d perc</string>
+    <string name="format_percent">%.0f%%</string>
+
+    <!-- HomeScreen -->
+    <string name="home_goal_progress">Cél haladás</string>
+    <string name="home_goal_arrow">→ %.1f kg</string>
+    <string name="home_weeks_left">~%d hét van hátra</string>
+    <string name="home_weight_trend">Súly</string>
+    <string name="home_last_n_days">Utolsó %d nap</string>
+    <string name="home_logged_days">%1$d/%2$d napon rögzített adat</string>
+    <string name="stat_label_meals">étkezés</string>
+    <string name="stat_label_kcal_day">kcal/nap</string>
+    <string name="stat_label_protein_day">fehérje/nap</string>
+    <string name="stat_label_carbs_day">szénhidrát/nap</string>
+    <string name="stat_label_fat_day">zsír/nap</string>
+    <string name="stat_label_steps_day">lépés/nap</string>
+    <string name="stat_label_sleep_day">alvás/nap</string>
+    <string name="stat_steps_k">%dk</string>
+
+    <!-- LogScreen -->
+    <string name="log_screen_title">Napi napló</string>
+    <string name="log_set_goal_title">A naplózáshoz állíts be egy célt</string>
+    <string name="log_set_goal_description">Menj a Beállítások → Cél szerkesztése menüpontra a kezdő dátum beállításához, utána megjelennek a napi naplóbejegyzések.</string>
+    <string name="day_today">Ma</string>
+    <string name="day_yesterday">Tegnap</string>
+    <string name="section_meals">Étkezések</string>
+    <string name="cd_add_meal">Étkezés hozzáadása</string>
+    <string name="meals_total_kcal">Összesen: %d kcal</string>
+    <string name="meals_total_protein_suffix"> · %dg fehérje</string>
+    <string name="no_meals_logged">Nincs rögzített étkezés</string>
+    <string name="section_exercises">Edzések</string>
+    <string name="cd_ai_summary">AI összefoglaló</string>
+
+    <!-- AddMealSheet -->
+    <string name="add_meal_title">Étkezés hozzáadása</string>
+    <string name="cd_log_camera">Naplózás kamerával</string>
+    <string name="field_what_did_you_eat">Mit ettél?</string>
+    <string name="placeholder_meal_description">pl. Grillezett csirke rizzsel és salátával</string>
+    <string name="field_estimated_calories">Becsült kalória (kcal)</string>
+    <string name="field_protein_g">Fehérje (g)</string>
+    <string name="field_carbs_g">Szénhidrát (g)</string>
+    <string name="field_fat_g">Zsír (g)</string>
+    <string name="section_source">Forrás</string>
+    <string name="section_meal_type">Étkezés</string>
+    <string name="field_note_optional">Megjegyzés (opcionális)</string>
+    <string name="button_save_meal">Étkezés mentése</string>
+
+    <!-- MealEditSheet -->
+    <string name="field_description">Leírás</string>
+    <string name="field_calories_kcal">Kalória (kcal)</string>
+    <string name="field_note">Megjegyzés</string>
+    <string name="label_coach_said">Az edző mondta</string>
+    <string name="label_note_prefix">Megjegyzés: </string>
+    <string name="ai_edit_label">Mit kellene javítani?</string>
+    <string name="ai_edit_placeholder">pl. a csirke 200g volt, nem 100g, mellé salátát is ettem</string>
+    <string name="ai_edit_send">Javítás AI-val</string>
+    <string name="ai_edit_loading">Javítás…</string>
+
+    <!-- DailyLogEditSheet -->
+    <string name="field_weight_kg">Súly (kg)</string>
+    <string name="field_steps">Lépések</string>
+    <string name="field_sleep_hours">Alvás (óra)</string>
+    <string name="field_resting_hr">Nyugalmi pulzus (bpm)</string>
+    <string name="field_exercise_name">Edzés</string>
+    <string name="field_exercise_min">Perc</string>
+    <string name="field_exercise_kcal">Kcal</string>
+    <string name="field_notes">Megjegyzések</string>
+    <string name="placeholder_notes">Milyen volt a napod? Van valami megfigyelésed…</string>
+
+    <!-- SettingsScreen -->
+    <string name="settings_title">Beállítások</string>
+    <string name="settings_section_profile">Profil</string>
+    <string name="settings_section_user_profile">Felhasználói profil</string>
+    <string name="settings_section_goal">Cél</string>
+    <string name="settings_height">Magasság</string>
+    <string name="format_height_cm">%d cm</string>
+    <string name="settings_sex">Nem</string>
+    <string name="sex_male">Férfi</string>
+    <string name="sex_female">Nő</string>
+    <string name="sex_yes">Igen</string>
+    <string name="settings_age">Kor</string>
+    <string name="settings_activity_level">Aktivitási szint</string>
+    <string name="activity_sedentary">Ülő</string>
+    <string name="activity_light">Könnyű</string>
+    <string name="activity_moderate">Mérsékelt</string>
+    <string name="activity_active">Aktív</string>
+    <string name="settings_start_weight">Kezdő súly</string>
+    <string name="settings_not_set">Nincs beállítva</string>
+    <string name="settings_goal_weight">Célsúly</string>
+    <string name="settings_rate">Ütem</string>
+    <string name="settings_rate_value">%s kg / hét</string>
+    <string name="settings_daily_deficit">Napi deficit cél</string>
+    <string name="settings_deficit_value">~%d kcal</string>
+    <string name="settings_tdee">TDEE (fenntartó)</string>
+    <string name="settings_tdee_value">%d kcal</string>
+    <string name="settings_daily_target">Napi kalória cél</string>
+    <string name="settings_daily_target_value">%d kcal</string>
+    <string name="settings_tdee_incomplete">A számításhoz állítsd be a profilt</string>
+    <string name="settings_start_date">Kezdő dátum</string>
+    <string name="settings_edit_goal">Cél szerkesztése</string>
+    <string name="settings_edit_profile">Profil szerkesztése</string>
+    <string name="set_profile_title">Profil szerkesztése</string>
+    <string name="field_years">Év</string>
+    <string name="activity_sedentary_desc">Kevés vagy semmi testmozgás</string>
+    <string name="activity_light_desc">Könnyű edzés heti 1–3 alkalommal</string>
+    <string name="activity_moderate_desc">Mérsékelt edzés heti 3–5 alkalommal</string>
+    <string name="activity_active_desc">Intenzív edzés heti 6–7 alkalommal</string>
+    <string name="settings_section_coach_tone">Edző stílusa</string>
+    <string name="tone_honest">Őszinte</string>
+    <string name="tone_supportive">Támogató</string>
+    <string name="tone_honest_desc">Nem szépít. Rámutat a kifogásaidra.</string>
+    <string name="tone_supportive_desc">Bátorító. Előbb emeli ki a sikereket, aztán a problémákat.</string>
+    <string name="settings_section_hc">Health Connect</string>
+    <string name="hc_not_available">A Health Connect nem érhető el ezen az eszközön.</string>
+    <string name="hc_install_prompt">Telepítsd a Health Connect alkalmazást a Google Playről a súly, lépések, alvás, pulzus és edzések szinkronizálásához.</string>
+    <string name="hc_status_label">Állapot</string>
+    <string name="hc_connected">Kapcsolódva</string>
+    <string name="hc_not_connected">Nincs kapcsolódva</string>
+    <string name="hc_reads_description">Olvasás: súly, lépések, alvás, pulzus, edzések, aktív kalória</string>
+    <string name="hc_grant_permissions">Engedélyek megadása</string>
+    <string name="hc_sync_now">Szinkronizálás most</string>
+    <string name="hc_permissions_granted">Engedélyek megadva — koppints a Szinkronizálás most gombra</string>
+    <string name="hc_sync_started">Szinkronizálás elindítva</string>
+    <string name="settings_section_language">Nyelv</string>
+    <string name="settings_section_theme">Téma</string>
+    <string name="theme_dark">Sötét</string>
+    <string name="theme_light">Világos</string>
+    <string name="language_english">English</string>
+    <string name="language_slovene">Slovenščina</string>
+    <string name="language_hungarian">Magyar</string>
+    <string name="settings_section_backup">Biztonsági mentés</string>
+    <string name="backup_google_drive">Google Drive</string>
+    <string name="backup_last_never">Még nincs mentés</string>
+    <string name="backup_last_format">Utolsó mentés: %s</string>
+    <string name="backup_now_button">Mentés most</string>
+    <string name="backup_restore_button">Visszaállítás</string>
+    <string name="backup_in_progress">Mentés folyamatban…</string>
+    <string name="restore_in_progress">Visszaállítás folyamatban…</string>
+    <string name="restore_confirm_title">Visszaállítás mentésből?</string>
+    <string name="restore_confirm_message">Ez az összes jelenlegi adatot lecseréli a mentésre. Az alkalmazás újraindul.</string>
+    <string name="restore_confirm_yes">Visszaállítás</string>
+    <string name="restore_confirm_no">Mégse</string>
+    <string name="backup_local">Eszköz tárhely</string>
+    <string name="backup_save_to_device">Zip exportálás</string>
+    <string name="backup_load_from_device">Zip importálás</string>
+    <string name="settings_section_ai">AI</string>
+    <string name="ai_api_key_label">OpenAI API kulcs</string>
+    <string name="ai_api_key_desc">Étkezés elemzéshez, chathez és edzői tanácsokhoz. A kulcsod csak az eszközödön tárolódik.</string>
+    <string name="ai_api_key_placeholder">sk-…</string>
+    <string name="cd_hide">Elrejtés</string>
+    <string name="cd_show">Megjelenítés</string>
+    <string name="ai_key_saved">✓ Kulcs mentve</string>
+    <string name="ai_save_key">Kulcs mentése</string>
+    <string name="ai_model_label">Modell</string>
+    <string name="ai_usage_button">AI használat</string>
+    <string name="ai_usage_title">AI használat</string>
+    <string name="ai_usage_overview">Áttekintés</string>
+    <string name="ai_usage_total_requests">Összes kérés</string>
+    <string name="ai_usage_total_tokens">Összes token</string>
+    <string name="ai_usage_input_tokens">Bemeneti tokenek</string>
+    <string name="ai_usage_output_tokens">Kimeneti tokenek</string>
+    <string name="ai_usage_estimated_cost">Becsült költség</string>
+    <string name="ai_usage_by_feature">Funkció szerint</string>
+    <string name="ai_usage_daily">Napi (utolsó 30 nap)</string>
+    <string name="ai_usage_daily_cost">Napi költség (utolsó 30 nap)</string>
+    <string name="ai_usage_by_model">Modell szerint</string>
+    <string name="ai_usage_clear">Használati adatok törlése</string>
+    <string name="ai_usage_clear_title">Használati adatok törlése</string>
+    <string name="ai_usage_clear_confirm">Törlöd az összes AI használati adatot? Ez nem vonható vissza.</string>
+    <string name="ai_usage_clear_yes">Törlés</string>
+    <string name="ai_usage_clear_no">Mégse</string>
+    <string name="ai_usage_disclaimer">A költségbecslés hozzávetőleges, a közzétett OpenAI árak alapján. A tényleges számlázás eltérhet.</string>
+    <string name="settings_section_about">Névjegy</string>
+    <string name="about_version">Verzió</string>
+    <string name="about_version_value">0.1.0-alpha</string>
+    <string name="about_build">Build</string>
+    <string name="about_build_value">UI prototípus</string>
+    <string name="about_licenses">Licencek</string>
+    <string name="settings_section_account">Fiók</string>
+    <string name="account_signed_in_as">Bejelentkezve mint</string>
+    <string name="account_google_user">Google felhasználó</string>
+    <string name="account_name">Név</string>
+    <string name="account_sign_out">Kijelentkezés</string>
+    <string name="account_sign_in">Bejelentkezés Google-lel</string>
+    <string name="account_sign_in_desc">Jelentkezz be a Google Drive mentéshez. Más funkciókhoz nem szükséges.</string>
+    <string name="settings_section_debug">Debug</string>
+    <string name="debug_log_desc">Belső tevékenységnapló megtekintése — HC szinkron, AI hívások, étkezések és más.</string>
+    <string name="debug_view_log">Tevékenységnapló</string>
+
+    <!-- SetGoalScreen -->
+    <string name="set_goal_title">Cél beállítása</string>
+    <string name="goal_section_height">Magasság</string>
+    <string name="field_cm">cm</string>
+    <string name="goal_section_weight">Súly</string>
+    <string name="field_starting_kg">Kezdő (kg)</string>
+    <string name="field_goal_kg">Cél (kg)</string>
+    <string name="goal_kg_to_lose">Ez %.1f kg fogyás</string>
+    <string name="goal_section_start_date">Kezdő dátum</string>
+    <string name="goal_start_date_desc">Mikor kezdődik a fogyókúrád? A napi naplóbejegyzések ettől a dátumtól lesznek nyomon követve.</string>
+    <string name="goal_section_weekly_rate">Heti fogyás ütem</string>
+    <string name="field_kg_per_week">kg hetente</string>
+    <string name="rate_gentle">Enyhe</string>
+    <string name="rate_standard">Normál</string>
+    <string name="rate_aggressive">Agresszív</string>
+    <string name="rate_max">Maximum</string>
+    <string name="rate_warning_aggressive">⚠️ Heti 1+ kg fogyás agresszív. Izomvesztés és fenntarthatósági kockázat.</string>
+    <string name="goal_section_daily_target">Napi cél</string>
+    <string name="goal_kcal_deficit_day">kcal deficit / nap</string>
+    <string name="goal_weeks_to_goal">hét a célig</string>
+    <string name="goal_section_ai_guidance">AI Edző iránymutatás</string>
+    <string name="goal_ai_guidance_desc">Mesélj az AI-nak az étkezési megkötéseidről, preferenciáidról, edzési szokásaidról, vagy bármiről, ami befolyásolhatja a javaslatait.</string>
+    <string name="goal_ai_guidance_placeholder">pl.\n• Laktózérzékeny\n• Hétköznap vegetáriánus\n• Heti 3× edzés (tolás/húzás/láb)\n• Hétfőn nincs időm főzni</string>
+    <string name="goal_quick_add">Gyors hozzáadás:</string>
+    <string name="chip_no_gluten">Gluténmentes</string>
+    <string name="chip_vegetarian">Vegetáriánus</string>
+    <string name="chip_keto_friendly">Keto-barát</string>
+    <string name="chip_low_sodium">Alacsony nátrium</string>
+    <string name="button_save_changes">Változtatások mentése</string>
+
+    <!-- LogViewerScreen -->
+    <string name="log_viewer_title">Tevékenységnapló</string>
+    <string name="cd_refresh">Frissítés</string>
+    <string name="cd_copy">Másolás</string>
+    <string name="cd_clear">Törlés</string>
+    <string name="log_viewer_files_heading">Naplófájlok (utolsó 7 nap)</string>
+    <string name="log_viewer_no_files">(nincsenek naplófájlok)</string>
+    <string name="log_viewer_size">Fájlméret: %s</string>
+    <string name="log_viewer_newest_bottom">legújabb alul</string>
+    <string name="log_viewer_retention">A régebbi naplók 7 nap után automatikusan törlődnek.</string>
+    <string name="dialog_clear_log_title">Naplók törlése?</string>
+    <string name="dialog_clear_log_text">Ez az összes naplófájlt törli.</string>
+    <string name="dialog_clear_confirm">Törlés</string>
+    <string name="log_viewer_empty">(üres napló)</string>
+    <string name="cd_share">Napló megosztása</string>
+    <string name="log_saved">Napló mentve</string>
+
+    <!-- TrendsScreen -->
+    <string name="trends_title">Trendek</string>
+    <string name="range_7d">7n</string>
+    <string name="range_30d">30n</string>
+    <string name="range_90d">90n</string>
+    <string name="trends_weight">Súly</string>
+    <string name="trends_7d_avg">7n átlag</string>
+    <string name="trends_period_avg">Időszak átlag</string>
+    <string name="trends_weekly_delta">Heti Δ</string>
+    <string name="trends_goal">Cél</string>
+    <string name="trends_no_weight_data">Nincs elég súlyadat ehhez az időszakhoz.</string>
+    <string name="trends_calories">Kalóriák</string>
+    <string name="trends_avg">Átlag</string>
+    <string name="format_kcal_day">%d kcal/nap</string>
+    <string name="trends_total">Összesen</string>
+    <string name="trends_days_tracked">Követett napok</string>
+    <string name="trends_sleep">Alvás</string>
+    <string name="trends_range">Tartomány</string>
+    <string name="format_sleep_range">%.1f – %.1f óra</string>
+    <string name="trends_steps">Lépések</string>
+    <string name="trends_macros">Makrók</string>
+    <string name="format_steps_k_day">%dk/nap</string>
+    <string name="trends_habits">Szokások</string>
+    <string name="trends_logging_rate">naplózási arány</string>
+    <string name="trends_days_tracked_label">követett napok</string>
+    <string name="trends_alcohol_days">alkoholos napok</string>
+
+    <!-- LoginScreen -->
+    <string name="login_tagline">A súlytrendek nem hazudnak.\nHagyd, hogy az adatok edzőként dolgozzanak.</string>
+    <string name="login_feature_1">7 napos mozgóátlag, nem napi zaj</string>
+    <string name="login_feature_2">AI edző, aki olvassa a mintáidat</string>
+    <string name="login_feature_3">Fotózd le az étkezéseidet másodpercek alatt</string>
+    <string name="login_signing_in">Bejelentkezés…</string>
+    <string name="login_continue_google">Folytatás Google-lel</string>
+    <string name="login_sign_in_failed">A bejelentkezés sikertelen</string>
+    <string name="login_privacy_note">Az adataid az eszközödön maradnak.\nA Google fiók csak mentéshez és AI funkciókhoz szükséges.</string>
+
+    <!-- AnalysisResultScreen -->
+    <string name="analysis_title_log">Étkezés elemzés</string>
+    <string name="analysis_title_suggest">Étkezés javaslat</string>
+    <string name="analysis_analyzing_photos">%d fotó elemzése…</string>
+    <string name="analysis_sending_to_ai">Küldés az AI-nak azonosításra</string>
+    <string name="analysis_failed">Az elemzés sikertelen</string>
+    <string name="button_go_back">Vissza</string>
+    <string name="analysis_what_i_see">Amit látok</string>
+    <string name="analysis_suggested_meal">Javasolt étkezés</string>
+    <string name="label_coach_says">Az edző mondja</string>
+    <string name="analysis_something_wrong">Valami nem stimmel?</string>
+    <string name="analysis_correction_desc">Mondd el az AI-nak mit javítson, és újraelemzi</string>
+    <string name="analysis_correction_placeholder">pl. \"Az pulyka, nem csirke\"</string>
+    <string name="cd_re_analyze">Újraelemzés</string>
+    <string name="button_log_meal">Étkezés naplózása</string>
+    <string name="button_sounds_good">Jól hangzik!</string>
+    <string name="button_discard">Elvetés</string>
+    <string name="table_nutrient">Tápanyag</string>
+    <string name="table_amount">Mennyiség</string>
+    <string name="error_parse_meal">Nem sikerült feldolgozni az étkezés adatait</string>
+    <string name="error_no_meal_data">Nincs elérhető étkezési adat</string>
+    <string name="error_no_photos">Nincs fotó az elemzéshez.</string>
+    <string name="error_load_photos">Nem sikerült betölteni a fotókat.</string>
+
+    <!-- MealCaptureScreen -->
+    <string name="capture_log_title">Étkezés naplózása</string>
+    <string name="capture_log_subtitle">Fotózd le amit eszel</string>
+    <string name="capture_suggest_title">Étkezés javaslat</string>
+    <string name="capture_suggest_subtitle">Fotózd le a hűtőd vagy az alapanyagokat</string>
+    <string name="camera_permission_required">Kamera engedély szükséges</string>
+    <string name="button_grant_permission">Engedély megadása</string>
+    <string name="capture_photo_count">%d/3 fotó</string>
+    <string name="cd_gallery">Galéria</string>
+    <string name="cd_take_photo">Fotó készítése</string>
+    <string name="cd_analyze">Elemzés</string>
+    <string name="cd_captured_photo">Készített fotó</string>
+    <string name="cd_photo_preview">Fotó előnézet</string>
+    <string name="cd_delete">Törlés</string>
+    <string name="cd_previous">Előző</string>
+    <string name="cd_next">Következő</string>
+
+    <!-- CameraModeSheet -->
+    <string name="camera_mode_title">Mit szeretnél csinálni?</string>
+
+    <!-- AiBar -->
+    <string name="ai_thinking">Gondolkodom…</string>
+    <string name="ai_meal_logged">Étkezés naplózva</string>
+    <string name="ai_coach">Edző</string>
+    <string name="ai_bar_placeholder">Kérdezz bármit…</string>
+    <string name="error_something_went_wrong">Valami hiba történt</string>
+
+    <!-- ChatScreen -->
+    <string name="chat_title">AI Edző</string>
+    <string name="chat_empty_title">Kérdezz bármit</string>
+    <string name="chat_empty_subtitle">Az utolsó 7 nap adataival rendelkezem</string>
+    <string name="chat_input_placeholder">Írj üzenetet…</string>
+    <string name="chat_clear_title">Chat törlése</string>
+    <string name="chat_clear_confirm">Törlöd az összes csevegési előzményt?</string>
+    <string name="chat_clear_yes">Törlés</string>
+    <string name="chat_clear_no">Mégse</string>
+    <string name="chat_pill_log_meal">Étkezés naplózása</string>
+    <string name="chat_pill_suggest_meal">Étkezés javaslat</string>
+    <string name="chat_pill_weekly_review">Heti összefoglaló</string>
+    <string name="chat_pill_am_i_on_track">Jó úton haladok?</string>
+    <string name="chat_action_copy">Másolás</string>
+    <string name="chat_action_retry">Újra</string>
+
+    <!-- WelcomeScreen -->
+    <string name="welcome_tagline">A súlytrendek nem hazudnak.\nHagyd, hogy az adatok edzőként dolgozzanak.</string>
+    <string name="welcome_feature_weight_title">Kövesd a súlyodat</string>
+    <string name="welcome_feature_weight_desc">Rögzítsd a napi mérlegeléseket kézzel vagy szinkronizáld automatikusan a Health Connectből. Az alkalmazás a trendet mutatja, nem a zajt.</string>
+    <string name="welcome_feature_camera_title">Fotózd az étkezéseidet</string>
+    <string name="welcome_feature_camera_desc">Fotózd le az ételed, és az AI azonnal megbecsüli a kalóriát, fehérjét, szénhidrátot és zsírt.</string>
+    <string name="welcome_feature_ai_title">AI edzés</string>
+    <string name="welcome_feature_ai_desc">Napi összefoglalók, mintafelismerés, és csevegés a személyes edződdel a táplálkozásról és haladásról.</string>
+    <string name="welcome_feature_health_title">Health Connect</string>
+    <string name="welcome_feature_health_desc">Lépések, alvás, pulzus és edzésadatok automatikusan beáramlanak a viselhető eszközödről vagy telefonodról.</string>
+    <string name="welcome_feature_trends_title">Trendek és diagramok</string>
+    <string name="welcome_feature_trends_desc">Súly, kalória, alvás és lépés trendek 7, 14, 30 vagy 90 napos áttekintésben, világos diagramokkal.</string>
+    <string name="welcome_privacy">Minden adat az eszközödön marad.\nA Google fiók opcionális, csak felhőmentéshez szükséges.</string>
+    <string name="welcome_get_started">Kezdjük</string>
+    <string name="welcome_got_it">Értem</string>
+    <string name="about_how_it_works">Hogyan működik</string>
+
+    <!-- Onboarding: API key setup -->
+    <string name="setup_apikey_title">AI funkciók feloldása</string>
+    <string name="setup_apikey_desc">Ez az alkalmazás az OpenAI-t használja étkezések elemzéséhez, edzői tanácsokhoz és kérdéseid megválaszolásához. Saját API kulcs szükséges — napi költsége csak néhány fillér.</string>
+    <string name="setup_apikey_guide_link">Szerezd be az API kulcsod a platform.openai.com oldalon</string>
+    <string name="setup_apikey_features_title">Amihez kell a kulcs:</string>
+    <string name="setup_apikey_feature_photo">Fotós étkezés szkennelés</string>
+    <string name="setup_apikey_feature_text">Szöveges étkezés naplózás (AI becsüli a tápértéket)</string>
+    <string name="setup_apikey_feature_coach">AI edző chat</string>
+    <string name="setup_apikey_feature_summary">Napi edzői összefoglalók</string>
+    <string name="setup_continue">Tovább</string>
+    <string name="setup_skip_for_now">Kihagyás most</string>
+
+    <!-- Onboarding: Usage tips -->
+    <string name="setup_tips_title">Minden készen áll!</string>
+    <string name="setup_tip_text_title">Írd be az étkezéseidet</string>
+    <string name="setup_tip_text_desc">Egyszerűen írd be szövegesen, amit ettél az alul lévő AI sávba. Az AI kiszámolja a kalóriákat és makrókat.</string>
+    <string name="setup_tip_text_example">\"Ma reggel ettem két tojást és ittam egy teát\"</string>
+    <string name="setup_tip_photo_title">Készíts fotót</string>
+    <string name="setup_tip_photo_desc">Koppints a kamera ikonra az AI sávban, fotózd le az étkezésedet, és az AI elemzi a tápértéket.</string>
+    <string name="setup_tip_chat_title">Kérdezd az edződet bármiről</string>
+    <string name="setup_tip_chat_desc">Nyisd meg a Chat fület, és kérdezz a diétádról, haladásodról, vagy kérj ételötleteket a hűtőd tartalma alapján.</string>
+    <string name="setup_tip_chat_example">\"Jó úton haladok ezen a héten?\"</string>
+    <string name="setup_done">Rajta!</string>
+</resources>
