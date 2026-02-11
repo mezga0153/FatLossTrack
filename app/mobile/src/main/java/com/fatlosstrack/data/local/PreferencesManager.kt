@@ -34,6 +34,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_SEX = stringPreferencesKey("sex") // "male", "female", or "yes"
         private val KEY_AGE = intPreferencesKey("age")
         private val KEY_ACTIVITY_LEVEL = stringPreferencesKey("activity_level") // "sedentary", "light", "moderate", "active"
+        private val KEY_THEME_PRESET = stringPreferencesKey("theme_preset") // ThemePreset name
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -86,6 +87,10 @@ class PreferencesManager @Inject constructor(
 
     val activityLevel: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_ACTIVITY_LEVEL] ?: "light"
+    }
+
+    val themePreset: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_THEME_PRESET] ?: "PURPLE_DARK"
     }
 
     suspend fun setOpenAiApiKey(key: String) {
@@ -151,6 +156,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setActivityLevel(level: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ACTIVITY_LEVEL] = level
+        }
+    }
+
+    suspend fun setThemePreset(preset: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_THEME_PRESET] = preset
         }
     }
 }

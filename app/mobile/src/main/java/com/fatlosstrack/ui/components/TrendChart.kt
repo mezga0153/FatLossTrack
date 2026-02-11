@@ -53,6 +53,9 @@ fun TrendChart(
     val bubbleText = OnSurface
     val gridColor = OnSurfaceVariant.copy(alpha = 0.12f)
     val labelColor = OnSurfaceVariant
+    val confidenceBandColor = ConfidenceBand
+    val refLineDefaultColor = OnSurfaceVariant
+    val refLineTargetColor = Secondary
 
     val values = dataPoints.map { it.second }
     val allValues = buildList {
@@ -180,7 +183,7 @@ fun TrendChart(
                 lineTo(xFor(dataPoints.first().first), padTop + chartHeight)
                 close()
             }
-            drawPath(fillPath, color = ConfidenceBand)
+            drawPath(fillPath, color = confidenceBandColor)
 
             // Trend line
             val linePath = Path().apply {
@@ -207,10 +210,10 @@ fun TrendChart(
 
             // Reference lines (start & target weight)
             startLineKg?.let { kg ->
-                drawRefLine(yFor(kg), "%.1f".format(kg), OnSurfaceVariant, padLeft, chartWidth, d)
+                drawRefLine(yFor(kg), "%.1f".format(kg), refLineDefaultColor, padLeft, chartWidth, d)
             }
             targetLineKg?.let { kg ->
-                drawRefLine(yFor(kg), "%.1f".format(kg), Secondary, padLeft, chartWidth, d)
+                drawRefLine(yFor(kg), "%.1f".format(kg), refLineTargetColor, padLeft, chartWidth, d)
             }
 
             // Touch indicator

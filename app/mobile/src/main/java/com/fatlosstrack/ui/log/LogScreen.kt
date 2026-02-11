@@ -62,6 +62,7 @@ internal fun categoryIcon(c: MealCategory) = when (c) {
     MealCategory.FAST_FOOD -> Icons.Default.Fastfood
 }
 
+@Composable
 internal fun categoryColor(c: MealCategory) = when (c) {
     MealCategory.HOME -> Secondary
     MealCategory.RESTAURANT -> Accent

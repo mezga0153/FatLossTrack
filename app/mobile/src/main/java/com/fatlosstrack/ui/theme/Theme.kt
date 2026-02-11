@@ -2,49 +2,142 @@ package com.fatlosstrack.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// ── Palette ───────────────────────────────────────────────
-// Deep dark base with warm accent pops — feels alive, not flat.
-val Surface = Color(0xFF0D0D12)           // near-black with blue undertone
-val SurfaceVariant = Color(0xFF161622)    // slightly lifted, cool indigo cast
-val CardSurface = Color(0xFF1E1E2E)       // cards — distinct from background
-val OnSurface = Color(0xFFECECF4)         // high-contrast text
-val OnSurfaceVariant = Color(0xFF8B8BA3)  // secondary text — lavender grey
+// ── Theme mode ────────────────────────────────────────────
+enum class ThemeMode { DARK, LIGHT }
 
-val Primary = Color(0xFF6C9CFF)           // vivid periwinkle blue — primary CTA, trend lines
-val PrimaryContainer = Color(0xFF1D2D50)  // deep blue for containers
-val Secondary = Color(0xFF59D8A0)         // mint green — positive trends
-val Tertiary = Color(0xFFFF8F6B)          // warm coral — attention / warnings
-val Accent = Color(0xFFCDA0FF)            // soft violet — highlights, AI bar glow
+// ── Color presets ─────────────────────────────────────────
+enum class ThemePreset(val label: String, val accentHue: Float, val mode: ThemeMode) {
+    PURPLE_DARK("Purple Dark", 250f, ThemeMode.DARK),
+    PURPLE_LIGHT("Purple Light", 250f, ThemeMode.LIGHT),
+    BLUE_DARK("Blue Dark", 220f, ThemeMode.DARK),
+    BLUE_LIGHT("Blue Light", 220f, ThemeMode.LIGHT),
+    TEAL_DARK("Teal Dark", 170f, ThemeMode.DARK),
+    TEAL_LIGHT("Teal Light", 170f, ThemeMode.LIGHT),
+    GREEN_DARK("Green Dark", 145f, ThemeMode.DARK),
+    GREEN_LIGHT("Green Light", 145f, ThemeMode.LIGHT),
+    ORANGE_DARK("Orange Dark", 25f, ThemeMode.DARK),
+    ORANGE_LIGHT("Orange Light", 25f, ThemeMode.LIGHT),
+    PINK_DARK("Pink Dark", 330f, ThemeMode.DARK),
+    PINK_LIGHT("Pink Light", 330f, ThemeMode.LIGHT),
+}
 
-val TrendDown = Color(0xFF4ADE80)         // green — weight going down (good)
-val TrendUp = Color(0xFFFF7A5C)           // coral red — weight going up
-val TrendFlat = Color(0xFF6B6B80)         // muted slate
-val ConfidenceBand = Color(0x336C9CFF)    // translucent primary
-val AiBarBg = Color(0xFF252540)           // AI pill background — distinct from cards
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = Color.Black,
-    primaryContainer = PrimaryContainer,
-    secondary = Secondary,
-    tertiary = Tertiary,
-    background = Surface,
-    surface = SurfaceVariant,
-    surfaceVariant = CardSurface,
-    onBackground = OnSurface,
-    onSurface = OnSurface,
-    onSurfaceVariant = OnSurfaceVariant,
-    error = Color(0xFFFF6B6B),
-    outline = Color(0xFF2A2A40),
+/**
+ * All semantic app colors, resolved per theme.
+ * Every composable that needs colors reads from [LocalAppColors].
+ */
+@Stable
+data class AppColors(
+    val surface: Color,
+    val surfaceVariant: Color,
+    val cardSurface: Color,
+    val onSurface: Color,
+    val onSurfaceVariant: Color,
+    val primary: Color,
+    val primaryContainer: Color,
+    val secondary: Color,
+    val tertiary: Color,
+    val accent: Color,
+    val trendDown: Color,
+    val trendUp: Color,
+    val trendFlat: Color,
+    val confidenceBand: Color,
+    val aiBarBg: Color,
+    val error: Color,
+    val outline: Color,
+    val isDark: Boolean,
 )
 
+val LocalAppColors = staticCompositionLocalOf { purpleDarkColors }
+
+// ── Generator ─────────────────────────────────────────────
+fun buildAppColors(accentHue: Float, mode: ThemeMode): AppColors {
+    return if (mode == ThemeMode.DARK) buildDarkColors(accentHue)
+    else buildLightColors(accentHue)
+}
+
+private fun buildDarkColors(hue: Float): AppColors {
+    val primary = Color.hsl(hue, 0.70f, 0.71f)
+    val accent = Color.hsl((hue + 60f) % 360f, 0.55f, 0.81f)
+    val tertiary = Color.hsl((hue + 140f) % 360f, 0.85f, 0.71f)
+    return AppColors(
+        surface = Color.hsl(hue, 0.15f, 0.05f),
+        surfaceVariant = Color.hsl(hue, 0.20f, 0.08f),
+        cardSurface = Color.hsl(hue, 0.22f, 0.14f),
+        onSurface = Color(0xFFECECF4),
+        onSurfaceVariant = Color(0xFF8B8BA3),
+        primary = primary,
+        primaryContainer = Color.hsl(hue, 0.40f, 0.20f),
+        secondary = Color(0xFF59D8A0),
+        tertiary = tertiary,
+        accent = accent,
+        trendDown = Color(0xFF4ADE80),
+        trendUp = Color(0xFFFF7A5C),
+        trendFlat = Color(0xFF6B6B80),
+        confidenceBand = primary.copy(alpha = 0.20f),
+        aiBarBg = Color.hsl(hue, 0.22f, 0.18f),
+        error = Color(0xFFFF6B6B),
+        outline = Color.hsl(hue, 0.15f, 0.16f),
+        isDark = true,
+    )
+}
+
+private fun buildLightColors(hue: Float): AppColors {
+    val primary = Color.hsl(hue, 0.65f, 0.45f)
+    val accent = Color.hsl((hue + 60f) % 360f, 0.50f, 0.55f)
+    val tertiary = Color.hsl((hue + 140f) % 360f, 0.70f, 0.45f)
+    return AppColors(
+        surface = Color(0xFFF5F5FA),
+        surfaceVariant = Color(0xFFEEEEF5),
+        cardSurface = Color.White,
+        onSurface = Color(0xFF1A1A2E),
+        onSurfaceVariant = Color(0xFF6B6B80),
+        primary = primary,
+        primaryContainer = Color.hsl(hue, 0.30f, 0.88f),
+        secondary = Color(0xFF2E9E6E),
+        tertiary = tertiary,
+        accent = accent,
+        trendDown = Color(0xFF22994D),
+        trendUp = Color(0xFFD94D2A),
+        trendFlat = Color(0xFF9999AA),
+        confidenceBand = primary.copy(alpha = 0.15f),
+        aiBarBg = Color(0xFFE8E8F0),
+        error = Color(0xFFD32F2F),
+        outline = Color(0xFFD5D5E0),
+        isDark = false,
+    )
+}
+
+// ── Pre-built palettes (Purple = current default) ──
+val purpleDarkColors = buildDarkColors(250f)
+val purpleLightColors = buildLightColors(250f)
+
+// ── Backward-compatible top-level accessors ───────────────
+// These read from LocalAppColors so existing code keeps working.
+val Surface: Color @Composable get() = LocalAppColors.current.surface
+val SurfaceVariant: Color @Composable get() = LocalAppColors.current.surfaceVariant
+val CardSurface: Color @Composable get() = LocalAppColors.current.cardSurface
+val OnSurface: Color @Composable get() = LocalAppColors.current.onSurface
+val OnSurfaceVariant: Color @Composable get() = LocalAppColors.current.onSurfaceVariant
+val Primary: Color @Composable get() = LocalAppColors.current.primary
+val PrimaryContainer: Color @Composable get() = LocalAppColors.current.primaryContainer
+val Secondary: Color @Composable get() = LocalAppColors.current.secondary
+val Tertiary: Color @Composable get() = LocalAppColors.current.tertiary
+val Accent: Color @Composable get() = LocalAppColors.current.accent
+val TrendDown: Color @Composable get() = LocalAppColors.current.trendDown
+val TrendUp: Color @Composable get() = LocalAppColors.current.trendUp
+val TrendFlat: Color @Composable get() = LocalAppColors.current.trendFlat
+val ConfidenceBand: Color @Composable get() = LocalAppColors.current.confidenceBand
+val AiBarBg: Color @Composable get() = LocalAppColors.current.aiBarBg
+
+// ── Typography ────────────────────────────────────────────
 private val AppTypography = Typography(
     headlineLarge = TextStyle(
         fontWeight = FontWeight.Bold,
@@ -84,13 +177,51 @@ private val AppTypography = Typography(
     ),
 )
 
+// ── Theme composable ─────────────────────────────────────
 @Composable
 fun FatLossTrackTheme(
-    content: @Composable () -> Unit
+    appColors: AppColors = purpleDarkColors,
+    content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = DarkColorScheme,
-        typography = AppTypography,
-        content = content
-    )
+    val colorScheme = if (appColors.isDark) {
+        darkColorScheme(
+            primary = appColors.primary,
+            onPrimary = Color.Black,
+            primaryContainer = appColors.primaryContainer,
+            secondary = appColors.secondary,
+            tertiary = appColors.tertiary,
+            background = appColors.surface,
+            surface = appColors.surfaceVariant,
+            surfaceVariant = appColors.cardSurface,
+            onBackground = appColors.onSurface,
+            onSurface = appColors.onSurface,
+            onSurfaceVariant = appColors.onSurfaceVariant,
+            error = appColors.error,
+            outline = appColors.outline,
+        )
+    } else {
+        lightColorScheme(
+            primary = appColors.primary,
+            onPrimary = Color.White,
+            primaryContainer = appColors.primaryContainer,
+            secondary = appColors.secondary,
+            tertiary = appColors.tertiary,
+            background = appColors.surface,
+            surface = appColors.surfaceVariant,
+            surfaceVariant = appColors.cardSurface,
+            onBackground = appColors.onSurface,
+            onSurface = appColors.onSurface,
+            onSurfaceVariant = appColors.onSurfaceVariant,
+            error = appColors.error,
+            outline = appColors.outline,
+        )
+    }
+
+    CompositionLocalProvider(LocalAppColors provides appColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            content = content,
+        )
+    }
 }

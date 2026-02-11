@@ -183,6 +183,9 @@
     <string name="hc_permissions_granted">Dovoljenja dodeljena — pritisni Sinhroniziraj</string>
     <string name="hc_sync_started">Sinhronizacija se je začela</string>
     <string name="settings_section_language">Jezik</string>
+    <string name="settings_section_theme">Tema</string>
+    <string name="theme_dark">Temna</string>
+    <string name="theme_light">Svetla</string>
     <string name="language_english">English</string>
     <string name="language_slovene">Slovenščina</string>
     <string name="settings_section_backup">Varnostna kopija</string>

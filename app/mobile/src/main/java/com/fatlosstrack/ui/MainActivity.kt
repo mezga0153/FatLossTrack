@@ -18,6 +18,9 @@ import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.login.LoginScreen
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
+import com.fatlosstrack.ui.theme.ThemePreset
+import com.fatlosstrack.ui.theme.buildAppColors
+import com.fatlosstrack.ui.theme.purpleDarkColors
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -62,7 +65,11 @@ class MainActivity : AppCompatActivity() {
         appLogger.user("App opened")
         enableEdgeToEdge()
         setContent {
-            FatLossTrackTheme {
+            val themePresetName by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")
+            val preset = try { ThemePreset.valueOf(themePresetName) } catch (_: Exception) { ThemePreset.PURPLE_DARK }
+            val appColors = remember(preset) { buildAppColors(preset.accentHue, preset.mode) }
+
+            FatLossTrackTheme(appColors = appColors) {
                 val authState by authManager.authState.collectAsState()
 
                 when (authState) {

@@ -32,7 +32,11 @@ import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.Primary
 import com.fatlosstrack.ui.theme.Secondary
 import com.fatlosstrack.ui.theme.Tertiary
+import com.fatlosstrack.ui.theme.ThemeMode
+import com.fatlosstrack.ui.theme.ThemePreset
+import com.fatlosstrack.ui.theme.buildAppColors
 import com.fatlosstrack.domain.TdeeCalculator
+import androidx.compose.foundation.border
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
@@ -236,6 +240,56 @@ fun SettingsScreen(
                             LocaleListCompat.forLanguageTags("sl")
                         )
                     }
+                }
+            }
+        }
+
+        // -- Theme --
+        val savedTheme by preferencesManager?.themePreset?.collectAsState(initial = "PURPLE_DARK")
+            ?: remember { mutableStateOf("PURPLE_DARK") }
+        val currentPreset = try { ThemePreset.valueOf(savedTheme) } catch (_: Exception) { ThemePreset.PURPLE_DARK }
+        val currentMode = currentPreset.mode
+
+        SettingsSection(stringResource(R.string.settings_section_theme)) {
+            // Dark / Light toggle
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ToneChip(stringResource(R.string.theme_dark), currentMode == ThemeMode.DARK) {
+                    val newPreset = ThemePreset.entries.first {
+                        it.accentHue == currentPreset.accentHue && it.mode == ThemeMode.DARK
+                    }
+                    scope.launch { preferencesManager?.setThemePreset(newPreset.name) }
+                }
+                ToneChip(stringResource(R.string.theme_light), currentMode == ThemeMode.LIGHT) {
+                    val newPreset = ThemePreset.entries.first {
+                        it.accentHue == currentPreset.accentHue && it.mode == ThemeMode.LIGHT
+                    }
+                    scope.launch { preferencesManager?.setThemePreset(newPreset.name) }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            // Color swatches
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                val colorGroups = ThemePreset.entries.groupBy { it.accentHue }
+                colorGroups.forEach { (hue, presets) ->
+                    val selected = currentPreset.accentHue == hue
+                    val previewColor = buildAppColors(hue, currentMode).primary
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(previewColor)
+                            .then(
+                                if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                else Modifier
+                            )
+                            .clickable {
+                                val target = presets.first { it.mode == currentMode }
+                                scope.launch { preferencesManager?.setThemePreset(target.name) }
+                            },
+                    )
                 }
             }
         }
