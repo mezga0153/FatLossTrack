@@ -124,12 +124,14 @@ fun TrendsScreen(
     }
     val avgSteps = if (stepsData.isNotEmpty()) stepsData.map { it.second }.average().toInt() else null
 
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp)
+            .padding(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         // ── Header ──

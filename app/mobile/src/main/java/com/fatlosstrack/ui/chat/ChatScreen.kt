@@ -86,11 +86,12 @@ fun ChatScreen(state: ChatStateHolder) {
         )
     }
 
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Surface)
-            .statusBarsPadding(),
+            .background(Surface),
     ) {
         // Message list
         LazyColumn(
@@ -98,7 +99,7 @@ fun ChatScreen(state: ChatStateHolder) {
                 .weight(1f)
                 .fillMaxWidth(),
             state = listState,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = statusBarTop + 8.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (messages.isEmpty() && !isLoading) {

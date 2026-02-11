@@ -85,11 +85,13 @@ fun LogScreen(
     val mealsByDate = remember(meals) { meals.groupBy { it.date } }
     val logsByDate = remember(dailyLogs) { dailyLogs.associateBy { it.date } }
 
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp),
+        contentPadding = PaddingValues(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "header") {
