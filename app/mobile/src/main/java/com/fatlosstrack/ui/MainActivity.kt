@@ -11,6 +11,7 @@ import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.home.HomeStateHolder
@@ -40,6 +41,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var appLogger: AppLogger
+
+    @Inject
+    lateinit var aiUsageDao: AiUsageDao
 
     @Inject
     lateinit var chatStateHolder: ChatStateHolder
@@ -106,6 +110,7 @@ class MainActivity : AppCompatActivity() {
                             preferencesManager = preferencesManager,
                             healthConnectSyncService = healthConnectSyncService,
                             appLogger = appLogger,
+                            aiUsageDao = aiUsageDao,
                             chatStateHolder = chatStateHolder,
                             aiBarStateHolder = aiBarStateHolder,
                             analysisResultStateHolder = analysisResultStateHolder,

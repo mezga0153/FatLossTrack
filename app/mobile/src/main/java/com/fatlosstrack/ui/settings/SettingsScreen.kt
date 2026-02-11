@@ -58,6 +58,7 @@ fun SettingsScreen(
     onEditProfile: () -> Unit = {},
     onSyncHealthConnect: (() -> Unit)? = null,
     onViewLog: (() -> Unit)? = null,
+    onViewAiUsage: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val authManager = state.authManager
@@ -466,6 +467,12 @@ fun SettingsScreen(
                         selectedModel = model
                         scope.launch { preferencesManager.setOpenAiModel(model) }
                     }
+                }
+            }
+            if (onViewAiUsage != null) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = onViewAiUsage) {
+                    Text(stringResource(R.string.ai_usage_button), color = Primary)
                 }
             }
         }

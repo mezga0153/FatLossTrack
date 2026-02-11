@@ -121,7 +121,7 @@ class HomeStateHolder @Inject constructor(
                     }
                     val prompt = buildPeriodPrompt(stats)
                     val systemPrompt = PERIOD_SUMMARY_SYSTEM_PROMPT
-                    val result = _openAiService.chat(prompt, systemPrompt)
+                    val result = _openAiService.chat(prompt, systemPrompt, feature = "period_summary")
                     result.onSuccess { summary ->
                         val trimmed = summary.trim().removeSurrounding("\"")
                         periodSummary = trimmed

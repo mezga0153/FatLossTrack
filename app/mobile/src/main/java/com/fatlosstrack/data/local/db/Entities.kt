@@ -81,3 +81,13 @@ data class ChatMessage(
     val content: String,
     val createdAt: Instant = Instant.now(),
 )
+
+@Entity(tableName = "ai_usage")
+data class AiUsageEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val feature: String,        // "chat", "meal_text", "meal_photo", "meal_suggest", "meal_edit", "day_summary", "period_summary"
+    val model: String,
+    val promptTokens: Int,
+    val completionTokens: Int,
+    val createdAt: Instant = Instant.now(),
+)

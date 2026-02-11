@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.util.Base64
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.AiUsageDao
+import com.fatlosstrack.data.local.db.AiUsageEntry
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -24,6 +26,7 @@ class OpenAiService @Inject constructor(
     private val client: HttpClient,
     private val prefs: PreferencesManager,
     private val appLogger: AppLogger,
+    private val aiUsageDao: AiUsageDao,
 ) {
     companion object {
         private const val API_URL = "https://api.openai.com/v1/chat/completions"
@@ -38,10 +41,29 @@ class OpenAiService @Inject constructor(
         return if (lang == "sl") "\n\nIMPORTANT: Respond in Slovenian (slovenščina)." else ""
     }
 
+    /** Record token usage from an API response */
+    private suspend fun recordUsage(json: JsonObject, feature: String) {
+        try {
+            val usage = json["usage"]?.jsonObject ?: return
+            val model = json["model"]?.jsonPrimitive?.content ?: "unknown"
+            val promptTokens = usage["prompt_tokens"]?.jsonPrimitive?.int ?: 0
+            val completionTokens = usage["completion_tokens"]?.jsonPrimitive?.int ?: 0
+            aiUsageDao.insert(AiUsageEntry(
+                feature = feature,
+                model = model,
+                promptTokens = promptTokens,
+                completionTokens = completionTokens,
+            ))
+        } catch (e: Exception) {
+            appLogger.error("AI", "Failed to record usage: ${e.message}")
+        }
+    }
+
     /** Simple text chat completion */
     suspend fun chat(
         userMessage: String,
         systemPrompt: String = SYSTEM_PROMPT,
+        feature: String = "chat",
     ): Result<String> = runCatching {
         appLogger.ai("Chat request: ${userMessage.take(80)}${if (userMessage.length > 80) "…" else ""}")
         val apiKey = prefs.openAiApiKey.first()
@@ -78,6 +100,7 @@ class OpenAiService @Inject constructor(
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        recordUsage(json, feature)
         val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
             .jsonObject["content"]!!.jsonPrimitive.content
         appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
@@ -134,6 +157,7 @@ class OpenAiService @Inject constructor(
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        recordUsage(json, "chat")
         val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
             .jsonObject["content"]!!.jsonPrimitive.content
         appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
@@ -159,6 +183,9 @@ class OpenAiService @Inject constructor(
         val body = buildJsonObject {
             put("model", model)
             put("stream", true)
+            putJsonObject("stream_options") {
+                put("include_usage", true)
+            }
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "system")
@@ -203,6 +230,11 @@ class OpenAiService @Inject constructor(
                     sb.append(delta)
                     emit(delta)
                 }
+                // Record usage from final chunk (has usage field when stream_options.include_usage=true)
+                val usage = chunk["usage"]?.jsonObject
+                if (usage != null) {
+                    recordUsage(chunk, "chat")
+                }
             } catch (_: Exception) { /* skip malformed chunks */ }
         }
         appLogger.ai("Stream complete (${sb.length} chars): ${sb.take(120)}${if (sb.length > 120) "…" else ""}")
@@ -217,7 +249,7 @@ class OpenAiService @Inject constructor(
         val today = java.time.LocalDate.now()
         val dayOfWeek = today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
         val dateContext = "Today is $dayOfWeek, ${today}.\n\n"
-        return chat(userMessage, dateContext + TEXT_MEAL_LOG_PROMPT)
+        return chat(userMessage, dateContext + TEXT_MEAL_LOG_PROMPT, feature = "meal_text")
     }
 
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
@@ -286,6 +318,8 @@ class OpenAiService @Inject constructor(
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        val visionFeature = if (mode == "log") "meal_photo" else "meal_suggest"
+        recordUsage(json, visionFeature)
         val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
             .jsonObject["content"]!!.jsonPrimitive.content
         appLogger.ai("Vision response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "\u2026" else ""}")
@@ -304,6 +338,7 @@ class OpenAiService @Inject constructor(
         return chat(
             userMessage = "Here is my current meal entry:\n$mealJson\n\nCorrection: $userCorrection",
             systemPrompt = AI_MEAL_EDIT_PROMPT,
+            feature = "meal_edit",
         )
     }
 

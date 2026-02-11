@@ -93,3 +93,64 @@ interface ChatMessageDao {
     @Query("DELETE FROM chat_messages")
     suspend fun clearAll()
 }
+
+@Dao
+interface AiUsageDao {
+    @Insert
+    suspend fun insert(entry: AiUsageEntry)
+
+    @Query("SELECT * FROM ai_usage ORDER BY createdAt DESC")
+    fun getAllUsage(): Flow<List<AiUsageEntry>>
+
+    @Query("SELECT SUM(promptTokens) FROM ai_usage")
+    fun totalPromptTokens(): Flow<Int?>
+
+    @Query("SELECT SUM(completionTokens) FROM ai_usage")
+    fun totalCompletionTokens(): Flow<Int?>
+
+    @Query("SELECT COUNT(*) FROM ai_usage")
+    fun totalRequests(): Flow<Int>
+
+    @Query("SELECT feature, SUM(promptTokens) as promptTokens, SUM(completionTokens) as completionTokens, COUNT(*) as requests FROM ai_usage GROUP BY feature ORDER BY (SUM(promptTokens) + SUM(completionTokens)) DESC")
+    fun usageByFeature(): Flow<List<FeatureUsageSummary>>
+
+    @Query("SELECT model, SUM(promptTokens) as promptTokens, SUM(completionTokens) as completionTokens, COUNT(*) as requests FROM ai_usage GROUP BY model ORDER BY (SUM(promptTokens) + SUM(completionTokens)) DESC")
+    fun usageByModel(): Flow<List<ModelUsageSummary>>
+
+    @Query("SELECT date(createdAt/1000, 'unixepoch', 'localtime') as day, SUM(promptTokens) as promptTokens, SUM(completionTokens) as completionTokens, COUNT(*) as requests FROM ai_usage WHERE createdAt >= :sinceMillis GROUP BY day ORDER BY day ASC")
+    fun usageByDay(sinceMillis: Long): Flow<List<DailyUsageSummary>>
+
+    @Query("SELECT date(createdAt/1000, 'unixepoch', 'localtime') as day, model, SUM(promptTokens) as promptTokens, SUM(completionTokens) as completionTokens FROM ai_usage WHERE createdAt >= :sinceMillis GROUP BY day, model ORDER BY day ASC")
+    fun usageByDayAndModel(sinceMillis: Long): Flow<List<DailyModelUsage>>
+
+    @Query("DELETE FROM ai_usage")
+    suspend fun clearAll()
+}
+
+data class FeatureUsageSummary(
+    val feature: String,
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val requests: Int,
+)
+
+data class ModelUsageSummary(
+    val model: String,
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val requests: Int,
+)
+
+data class DailyUsageSummary(
+    val day: String,            // "YYYY-MM-DD"
+    val promptTokens: Long,
+    val completionTokens: Long,
+    val requests: Int,
+)
+
+data class DailyModelUsage(
+    val day: String,
+    val model: String,
+    val promptTokens: Long,
+    val completionTokens: Long,
+)

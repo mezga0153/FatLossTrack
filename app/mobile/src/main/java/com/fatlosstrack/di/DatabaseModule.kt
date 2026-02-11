@@ -43,6 +43,12 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS ai_usage (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, feature TEXT NOT NULL, model TEXT NOT NULL, promptTokens INTEGER NOT NULL, completionTokens INTEGER NOT NULL, createdAt INTEGER NOT NULL)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FatLossDatabase {
@@ -50,7 +56,7 @@ object DatabaseModule {
             context,
             FatLossDatabase::class.java,
             "fatloss_track.db"
-        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build()
+        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build()
     }
 
     @Provides fun provideWeightDao(db: FatLossDatabase): WeightDao = db.weightDao()
@@ -59,6 +65,7 @@ object DatabaseModule {
     @Provides fun provideDailyLogDao(db: FatLossDatabase): DailyLogDao = db.dailyLogDao()
     @Provides fun provideInsightDao(db: FatLossDatabase): InsightDao = db.insightDao()
     @Provides fun provideChatMessageDao(db: FatLossDatabase): ChatMessageDao = db.chatMessageDao()
+    @Provides fun provideAiUsageDao(db: FatLossDatabase): AiUsageDao = db.aiUsageDao()
 
     @Provides
     @Singleton

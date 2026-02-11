@@ -12,8 +12,9 @@ import androidx.room.TypeConverters
         DailyLog::class,
         Insight::class,
         ChatMessage::class,
+        AiUsageEntry::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -24,4 +25,5 @@ abstract class FatLossDatabase : RoomDatabase() {
     abstract fun dailyLogDao(): DailyLogDao
     abstract fun insightDao(): InsightDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun aiUsageDao(): AiUsageDao
 }

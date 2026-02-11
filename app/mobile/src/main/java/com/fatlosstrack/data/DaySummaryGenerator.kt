@@ -105,7 +105,7 @@ class DaySummaryGenerator @Inject constructor(
 
             appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, hash=$dataHash, prevHash=$cachedHash)")
             val prompt = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
-            val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT)
+            val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT, feature = "day_summary")
 
             result.onSuccess { summary ->
                 val trimmed = summary.trim().removeSurrounding("\"")

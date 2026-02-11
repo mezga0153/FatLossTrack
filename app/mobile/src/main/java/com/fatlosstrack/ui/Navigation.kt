@@ -28,6 +28,7 @@ import androidx.navigation.navArgument
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
@@ -48,6 +49,7 @@ import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.settings.SettingsStateHolder
+import com.fatlosstrack.ui.settings.AiUsageScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 import com.fatlosstrack.ui.trends.TrendsStateHolder
 
@@ -68,6 +70,7 @@ fun FatLossTrackNavGraph(
     preferencesManager: PreferencesManager,
     healthConnectSyncService: HealthConnectSyncService? = null,
     appLogger: AppLogger? = null,
+    aiUsageDao: AiUsageDao,
     chatStateHolder: ChatStateHolder,
     aiBarStateHolder: AiBarStateHolder,
     analysisResultStateHolder: AnalysisResultStateHolder,
@@ -94,7 +97,8 @@ fun FatLossTrackNavGraph(
             currentRoute?.startsWith("analysis") == true ||
             currentRoute == "set_goal" ||
             currentRoute == "set_profile" ||
-            currentRoute == "log_viewer"
+            currentRoute == "log_viewer" ||
+            currentRoute == "ai_usage"
 
     // Hide AiBar on chat tab too (it has its own input)
     val hideAiBar = hideChrome || currentRoute == Tab.Chat.route
@@ -184,6 +188,7 @@ fun FatLossTrackNavGraph(
                         onViewLog = if (appLogger != null) {
                             { navController.navigate("log_viewer") }
                         } else null,
+                        onViewAiUsage = { navController.navigate("ai_usage") },
                     )
                 }
 
@@ -211,6 +216,14 @@ fun FatLossTrackNavGraph(
                             onBack = { navController.popBackStack() },
                         )
                     }
+                }
+
+                // AI Usage
+                composable("ai_usage") {
+                    AiUsageScreen(
+                        aiUsageDao = aiUsageDao,
+                        onBack = { navController.popBackStack() },
+                    )
                 }
 
                 // Camera capture
