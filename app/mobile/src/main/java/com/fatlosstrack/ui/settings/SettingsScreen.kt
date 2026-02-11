@@ -53,50 +53,41 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun SettingsScreen(
+    state: SettingsStateHolder,
     onEditGoal: () -> Unit = {},
     onEditProfile: () -> Unit = {},
-    authManager: AuthManager? = null,
-    preferencesManager: PreferencesManager? = null,
-    healthConnectManager: HealthConnectManager? = null,
     onSyncHealthConnect: (() -> Unit)? = null,
     onViewLog: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
-    val authState by authManager?.authState?.collectAsState()
-        ?: remember { mutableStateOf(null) }
+    val authManager = state.authManager
+    val preferencesManager = state.preferencesManager
+    val healthConnectManager = state.healthConnectManager
+    val authState by authManager.authState.collectAsState()
 
     // Goal data
-    val savedStartWeight by preferencesManager?.startWeight?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedGoalWeight by preferencesManager?.goalWeight?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedRate by preferencesManager?.weeklyRate?.collectAsState(initial = 0.5f)
-        ?: remember { mutableStateOf(0.5f) }
-    val savedTone by preferencesManager?.coachTone?.collectAsState(initial = "honest")
-        ?: remember { mutableStateOf("honest") }
-    val savedHeight by preferencesManager?.heightCm?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedStartDate by preferencesManager?.startDate?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedSex by preferencesManager?.sex?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedAge by preferencesManager?.age?.collectAsState(initial = null)
-        ?: remember { mutableStateOf(null) }
-    val savedActivityLevel by preferencesManager?.activityLevel?.collectAsState(initial = "light")
-        ?: remember { mutableStateOf("light") }
+    val savedStartWeight by preferencesManager.startWeight.collectAsState(initial = null)
+    val savedGoalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
+    val savedRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
+    val savedTone by preferencesManager.coachTone.collectAsState(initial = "honest")
+    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
+    val savedStartDate by preferencesManager.startDate.collectAsState(initial = null)
+    val savedSex by preferencesManager.sex.collectAsState(initial = null)
+    val savedAge by preferencesManager.age.collectAsState(initial = null)
+    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
 
     var toneHonest by remember { mutableStateOf(true) }
     LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
 
     // Health Connect state
-    val hcAvailable = healthConnectManager?.isAvailable() ?: false
+    val hcAvailable = healthConnectManager.isAvailable()
     var hcPermGranted by remember { mutableStateOf(false) }
     var hcSyncing by remember { mutableStateOf(false) }
     var hcLastSyncMsg by remember { mutableStateOf<String?>(null) }
 
     // Check permissions on launch
     LaunchedEffect(hcAvailable) {
-        if (hcAvailable && healthConnectManager != null) {
+        if (hcAvailable) {
             hcPermGranted = healthConnectManager.hasAllPermissions()
         }
     }
@@ -114,10 +105,8 @@ fun SettingsScreen(
     var backupEnabled by remember { mutableStateOf(false) }
 
     // AI settings
-    val storedApiKey by preferencesManager?.openAiApiKey?.collectAsState(initial = "")
-        ?: remember { mutableStateOf("") }
-    val storedModel by preferencesManager?.openAiModel?.collectAsState(initial = "gpt-5.2")
-        ?: remember { mutableStateOf("gpt-5.2") }
+    val storedApiKey by preferencesManager.openAiApiKey.collectAsState(initial = "")
+    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5.2")
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
@@ -210,18 +199,17 @@ fun SettingsScreen(
             ) {
                 ToneChip(stringResource(R.string.tone_honest), toneHonest) {
                     toneHonest = true
-                    scope.launch { preferencesManager?.setCoachTone("honest") }
+                    scope.launch { preferencesManager.setCoachTone("honest") }
                 }
                 ToneChip(stringResource(R.string.tone_supportive), !toneHonest) {
                     toneHonest = false
-                    scope.launch { preferencesManager?.setCoachTone("supportive") }
+                    scope.launch { preferencesManager.setCoachTone("supportive") }
                 }
             }
         }
 
         // -- Language --
-        val savedLanguage by preferencesManager?.language?.collectAsState(initial = "en")
-            ?: remember { mutableStateOf("en") }
+        val savedLanguage by preferencesManager.language.collectAsState(initial = "en")
 
         SettingsSection(stringResource(R.string.settings_section_language)) {
             Row(
@@ -229,7 +217,7 @@ fun SettingsScreen(
             ) {
                 ToneChip(stringResource(R.string.language_english), savedLanguage == "en") {
                     scope.launch {
-                        preferencesManager?.setLanguage("en")
+                        preferencesManager.setLanguage("en")
                         AppCompatDelegate.setApplicationLocales(
                             LocaleListCompat.forLanguageTags("en")
                         )
@@ -237,7 +225,7 @@ fun SettingsScreen(
                 }
                 ToneChip(stringResource(R.string.language_slovene), savedLanguage == "sl") {
                     scope.launch {
-                        preferencesManager?.setLanguage("sl")
+                        preferencesManager.setLanguage("sl")
                         AppCompatDelegate.setApplicationLocales(
                             LocaleListCompat.forLanguageTags("sl")
                         )
@@ -247,8 +235,7 @@ fun SettingsScreen(
         }
 
         // -- Theme --
-        val savedTheme by preferencesManager?.themePreset?.collectAsState(initial = "PURPLE_DARK")
-            ?: remember { mutableStateOf("PURPLE_DARK") }
+        val savedTheme by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")
         val currentPreset = try { ThemePreset.valueOf(savedTheme) } catch (_: Exception) { ThemePreset.PURPLE_DARK }
         val currentMode = currentPreset.mode
 
@@ -259,13 +246,13 @@ fun SettingsScreen(
                     val newPreset = ThemePreset.entries.first {
                         it.accentHue == currentPreset.accentHue && it.mode == ThemeMode.DARK
                     }
-                    scope.launch { preferencesManager?.setThemePreset(newPreset.name) }
+                    scope.launch { preferencesManager.setThemePreset(newPreset.name) }
                 }
                 ToneChip(stringResource(R.string.theme_light), currentMode == ThemeMode.LIGHT) {
                     val newPreset = ThemePreset.entries.first {
                         it.accentHue == currentPreset.accentHue && it.mode == ThemeMode.LIGHT
                     }
-                    scope.launch { preferencesManager?.setThemePreset(newPreset.name) }
+                    scope.launch { preferencesManager.setThemePreset(newPreset.name) }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -289,7 +276,7 @@ fun SettingsScreen(
                             )
                             .clickable {
                                 val target = presets.first { it.mode == currentMode }
-                                scope.launch { preferencesManager?.setThemePreset(target.name) }
+                                scope.launch { preferencesManager.setThemePreset(target.name) }
                             },
                     )
                 }
@@ -453,7 +440,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            preferencesManager?.setOpenAiApiKey(apiKeyInput.trim())
+                            preferencesManager.setOpenAiApiKey(apiKeyInput.trim())
                         }
                     },
                     enabled = apiKeyInput.isNotBlank() && apiKeyInput != storedApiKey,
@@ -477,7 +464,7 @@ fun SettingsScreen(
                         selected = selectedModel == model,
                     ) {
                         selectedModel = model
-                        scope.launch { preferencesManager?.setOpenAiModel(model) }
+                        scope.launch { preferencesManager.setOpenAiModel(model) }
                     }
                 }
             }
@@ -508,30 +495,28 @@ fun SettingsScreen(
         }
 
         // -- Account --
-        if (authManager != null) {
-            val signedInState = authState as? AuthManager.AuthState.SignedIn
-            SettingsSection(stringResource(R.string.settings_section_account)) {
-                if (signedInState != null) {
-                    SettingsRow(stringResource(R.string.account_signed_in_as), signedInState.user.email ?: stringResource(R.string.account_google_user))
-                    SettingsRow(stringResource(R.string.account_name), signedInState.user.displayName ?: "—")
-                }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = {
-                        authManager.signOut()
-                    },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Tertiary,
-                    ),
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Logout,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.account_sign_out), color = Tertiary)
-                }
+        val signedInState = authState as? AuthManager.AuthState.SignedIn
+        SettingsSection(stringResource(R.string.settings_section_account)) {
+            if (signedInState != null) {
+                SettingsRow(stringResource(R.string.account_signed_in_as), signedInState.user.email ?: stringResource(R.string.account_google_user))
+                SettingsRow(stringResource(R.string.account_name), signedInState.user.displayName ?: "—")
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    authManager.signOut()
+                },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Tertiary,
+                ),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.account_sign_out), color = Tertiary)
             }
         }
 

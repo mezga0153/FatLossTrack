@@ -15,11 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
-import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.DailyLogDao
-import com.fatlosstrack.data.local.db.MealDao
-import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
@@ -29,14 +24,10 @@ import java.time.LocalDate
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogScreen(
-    mealDao: MealDao,
-    dailyLogDao: DailyLogDao,
-    preferencesManager: PreferencesManager,
-    daySummaryGenerator: DaySummaryGenerator? = null,
-    openAiService: OpenAiService? = null,
+    state: LogStateHolder,
     onCameraForDate: (LocalDate) -> Unit = {},
 ) {
-    val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
+    val startDateStr by state.startDate.collectAsState(initial = null)
     val startDate = startDateStr?.let {
         try { LocalDate.parse(it) } catch (_: Exception) { null }
     }
@@ -62,11 +53,11 @@ fun LogScreen(
         return
     }
 
-    val meals by mealDao.getAllMeals().collectAsState(initial = emptyList())
-    val dailyLogs by dailyLogDao.getAllLogs().collectAsState(initial = emptyList())
+    val meals by state.allMeals().collectAsState(initial = emptyList())
+    val dailyLogs by state.allLogs().collectAsState(initial = emptyList())
 
     // TDEE / daily target
-    val dailyTargetKcal = rememberDailyTargetKcal(preferencesManager)
+    val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
 
     // Sheet state
     val sheetState = rememberLogSheetState()
@@ -142,10 +133,10 @@ fun LogScreen(
     LogSheetHost(
         state = sheetState,
         logsByDate = logsByDate,
-        mealDao = mealDao,
-        dailyLogDao = dailyLogDao,
-        daySummaryGenerator = daySummaryGenerator,
-        openAiService = openAiService,
+        mealDao = state.mealDao,
+        dailyLogDao = state.dailyLogDao,
+        daySummaryGenerator = state.daySummaryGenerator,
+        openAiService = state.openAiService,
         onCameraForDate = onCameraForDate,
         logTag = "LogScreen",
     )

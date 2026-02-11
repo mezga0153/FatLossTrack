@@ -25,15 +25,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.fatlosstrack.auth.AuthManager
-import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.DailyLogDao
-import com.fatlosstrack.data.local.db.MealDao
-import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
@@ -47,11 +41,13 @@ import com.fatlosstrack.ui.components.AiBarStateHolder
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.log.LogScreen
+import com.fatlosstrack.ui.log.LogStateHolder
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.settings.LogViewerScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
 import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
+import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.trends.TrendsScreen
 import com.fatlosstrack.ui.trends.TrendsStateHolder
 
@@ -69,21 +65,16 @@ enum class Tab(val route: String, @StringRes val labelRes: Int, val icon: ImageV
 
 @Composable
 fun FatLossTrackNavGraph(
-    authManager: AuthManager,
-    openAiService: OpenAiService,
     preferencesManager: PreferencesManager,
-    mealDao: MealDao,
-    dailyLogDao: DailyLogDao,
-    weightDao: WeightDao,
-    healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
-    daySummaryGenerator: DaySummaryGenerator? = null,
     appLogger: AppLogger? = null,
     chatStateHolder: ChatStateHolder,
     aiBarStateHolder: AiBarStateHolder,
     analysisResultStateHolder: AnalysisResultStateHolder,
     homeStateHolder: HomeStateHolder,
     trendsStateHolder: TrendsStateHolder,
+    logStateHolder: LogStateHolder,
+    settingsStateHolder: SettingsStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -176,11 +167,7 @@ fun FatLossTrackNavGraph(
                 }
                 composable(Tab.Log.route) {
                     LogScreen(
-                        mealDao = mealDao,
-                        dailyLogDao = dailyLogDao,
-                        preferencesManager = preferencesManager,
-                        daySummaryGenerator = daySummaryGenerator,
-                        openAiService = openAiService,
+                        state = logStateHolder,
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
                         },
@@ -188,11 +175,9 @@ fun FatLossTrackNavGraph(
                 }
                 composable(Tab.Settings.route) {
                     SettingsScreen(
+                        state = settingsStateHolder,
                         onEditGoal = { navController.navigate("set_goal") },
                         onEditProfile = { navController.navigate("set_profile") },
-                        authManager = authManager,
-                        preferencesManager = preferencesManager,
-                        healthConnectManager = healthConnectManager,
                         onSyncHealthConnect = {
                             healthConnectSyncService?.launchSync(7, "Settings:manualHcSync")
                         },

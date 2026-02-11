@@ -8,20 +8,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.*
 import com.fatlosstrack.auth.AuthManager
-import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.DailyLogDao
-import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.trends.TrendsStateHolder
+import com.fatlosstrack.ui.log.LogStateHolder
+import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
-import com.fatlosstrack.data.local.db.WeightDao
-import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.login.LoginScreen
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
 import com.fatlosstrack.ui.theme.ThemePreset
@@ -37,28 +33,10 @@ class MainActivity : AppCompatActivity() {
     lateinit var authManager: AuthManager
 
     @Inject
-    lateinit var openAiService: OpenAiService
-
-    @Inject
     lateinit var preferencesManager: PreferencesManager
 
     @Inject
-    lateinit var mealDao: MealDao
-
-    @Inject
-    lateinit var dailyLogDao: DailyLogDao
-
-    @Inject
-    lateinit var weightDao: WeightDao
-
-    @Inject
-    lateinit var healthConnectManager: HealthConnectManager
-
-    @Inject
     lateinit var healthConnectSyncService: HealthConnectSyncService
-
-    @Inject
-    lateinit var daySummaryGenerator: DaySummaryGenerator
 
     @Inject
     lateinit var appLogger: AppLogger
@@ -77,6 +55,12 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var trendsStateHolder: TrendsStateHolder
+
+    @Inject
+    lateinit var logStateHolder: LogStateHolder
+
+    @Inject
+    lateinit var settingsStateHolder: SettingsStateHolder
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,21 +103,16 @@ class MainActivity : AppCompatActivity() {
                     }
                     is AuthManager.AuthState.SignedIn -> {
                         FatLossTrackNavGraph(
-                            authManager = authManager,
-                            openAiService = openAiService,
                             preferencesManager = preferencesManager,
-                            mealDao = mealDao,
-                            dailyLogDao = dailyLogDao,
-                            weightDao = weightDao,
-                            healthConnectManager = healthConnectManager,
                             healthConnectSyncService = healthConnectSyncService,
-                            daySummaryGenerator = daySummaryGenerator,
                             appLogger = appLogger,
                             chatStateHolder = chatStateHolder,
                             aiBarStateHolder = aiBarStateHolder,
                             analysisResultStateHolder = analysisResultStateHolder,
                             homeStateHolder = homeStateHolder,
                             trendsStateHolder = trendsStateHolder,
+                            logStateHolder = logStateHolder,
+                            settingsStateHolder = settingsStateHolder,
                         )
                     }
                 }
