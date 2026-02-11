@@ -55,11 +55,10 @@ fun ChatScreen(state: ChatStateHolder) {
         }
     }
 
-    // Auto-scroll to bottom when messages change or streaming
+    // Auto-scroll to bottom when new messages arrive or streaming starts
     LaunchedEffect(messages.size, streamingContent) {
-        val totalItems = messages.size + (if (streamingContent != null) 1 else 0)
-        if (totalItems > 0) {
-            listState.animateScrollToItem(totalItems - 1)
+        if (messages.isNotEmpty() || streamingContent != null) {
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -93,65 +92,17 @@ fun ChatScreen(state: ChatStateHolder) {
             .fillMaxSize()
             .background(Surface),
     ) {
-        // Message list
+        // Message list (reversed so bottom is anchored — new content stays visible)
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             state = listState,
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = statusBarTop + 8.dp, bottom = 8.dp),
+            reverseLayout = true,
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = statusBarTop + 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (messages.isEmpty() && !isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = Accent.copy(alpha = 0.4f),
-                                modifier = Modifier.size(48.dp),
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                stringResource(R.string.chat_empty_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = OnSurface.copy(alpha = 0.7f),
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                stringResource(R.string.chat_empty_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = OnSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-
-            items(messages, key = { it.id }) { msg ->
-                ChatBubble(
-                    message = msg,
-                    onCopy = { content ->
-                        val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
-                    },
-                    onRetry = {
-                        val idx = messages.indexOf(msg)
-                        val userMsg = messages.take(idx).lastOrNull { it.role == "user" }
-                        if (userMsg != null) {
-                            state.retryMessage(msg)
-                        }
-                    },
-                )
-            }
-
-            // Streaming response bubble
+            // Streaming response bubble (index 0 in reversed layout = visually at bottom)
             if (streamingContent != null) {
                 item(key = "streaming") {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -204,6 +155,53 @@ fun ChatScreen(state: ChatStateHolder) {
                     }
                 }
             }
+
+            // Messages in reverse order (newest first in data = bottom in UI)
+            items(messages.reversed(), key = { it.id }) { msg ->
+                ChatBubble(
+                    message = msg,
+                    onCopy = { content ->
+                        val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
+                    },
+                    onRetry = {
+                        state.retryMessage(msg)
+                    },
+                )
+            }
+
+            // Empty state placeholder (last in reversed layout = visually at top)
+            if (messages.isEmpty() && !isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 80.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = Accent.copy(alpha = 0.4f),
+                                modifier = Modifier.size(48.dp),
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                stringResource(R.string.chat_empty_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = OnSurface.copy(alpha = 0.7f),
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.chat_empty_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Suggestion pills (when chat is empty or after responses)
@@ -227,7 +225,7 @@ fun ChatScreen(state: ChatStateHolder) {
             },
             onFocused = {
                 if (messages.isNotEmpty()) {
-                    scope.launch { listState.animateScrollToItem(messages.size - 1) }
+                    scope.launch { listState.animateScrollToItem(0) }
                 }
             },
         )
