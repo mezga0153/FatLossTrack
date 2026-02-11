@@ -1,9 +1,9 @@
 package com.fatlosstrack.ui.log
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -75,51 +75,56 @@ fun LogScreen(
     var selectedMeal by sheetState::selectedMeal
     var addMealForDate by sheetState::addMealForDate
 
-    val today = LocalDate.now()
-    val allDates = generateSequence(startDate) { it.plusDays(1) }
-        .takeWhile { !it.isAfter(today) }
-        .toList()
-        .reversed()
-    val mealsByDate = meals.groupBy { it.date }
-    val logsByDate = dailyLogs.associateBy { it.date }
+    val today = remember { LocalDate.now() }
+    val allDates = remember(startDate, today) {
+        generateSequence(startDate) { it.plusDays(1) }
+            .takeWhile { !it.isAfter(today) }
+            .toList()
+            .reversed()
+    }
+    val mealsByDate = remember(meals) { meals.groupBy { it.date } }
+    val logsByDate = remember(dailyLogs) { dailyLogs.associateBy { it.date } }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.log_screen_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface)
+        item(key = "header") {
+            Text(stringResource(R.string.log_screen_title), style = MaterialTheme.typography.headlineMedium, color = OnSurface)
+        }
 
         // Today summary
-        val todayLog = logsByDate[today]
-        val todayMeals = mealsByDate[today] ?: emptyList()
-        val todayKcal = todayMeals.sumOf { it.totalKcal }
-        val todayProtein = todayMeals.sumOf { it.totalProteinG }
-        val todayCarbs = todayMeals.sumOf { it.totalCarbsG }
-        val todayFat = todayMeals.sumOf { it.totalFatG }
+        item(key = "today-summary") {
+            val todayLog = logsByDate[today]
+            val todayMeals = mealsByDate[today] ?: emptyList()
+            val todayKcal = todayMeals.sumOf { it.totalKcal }
+            val todayProtein = todayMeals.sumOf { it.totalProteinG }
+            val todayCarbs = todayMeals.sumOf { it.totalCarbsG }
+            val todayFat = todayMeals.sumOf { it.totalFatG }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+            Card(
+                colors = CardDefaults.cardColors(containerColor = PrimaryContainer),
+                shape = RoundedCornerShape(12.dp),
             ) {
-                MiniStat(stringResource(R.string.stat_weight), todayLog?.weightKg?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_kg))
-                MiniStat(stringResource(R.string.stat_meals), "${todayMeals.size}", stringResource(R.string.format_kcal, todayKcal))
-                MiniStat(stringResource(R.string.stat_protein), if (todayProtein > 0) stringResource(R.string.format_protein_g, todayProtein) else "\u2014", "")
-                MiniStat(stringResource(R.string.stat_carbs), if (todayCarbs > 0) "${todayCarbs}g" else "\u2014", "")
-                MiniStat(stringResource(R.string.stat_fat), if (todayFat > 0) "${todayFat}g" else "\u2014", "")
-                MiniStat(stringResource(R.string.stat_steps), todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
-                MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_hrs))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    MiniStat(stringResource(R.string.stat_weight), todayLog?.weightKg?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_kg))
+                    MiniStat(stringResource(R.string.stat_meals), "${todayMeals.size}", stringResource(R.string.format_kcal, todayKcal))
+                    MiniStat(stringResource(R.string.stat_protein), if (todayProtein > 0) stringResource(R.string.format_protein_g, todayProtein) else "\u2014", "")
+                    MiniStat(stringResource(R.string.stat_carbs), if (todayCarbs > 0) "${todayCarbs}g" else "\u2014", "")
+                    MiniStat(stringResource(R.string.stat_fat), if (todayFat > 0) "${todayFat}g" else "\u2014", "")
+                    MiniStat(stringResource(R.string.stat_steps), todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
+                    MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_hrs))
+                }
             }
         }
 
-        allDates.forEach { date ->
+        items(allDates, key = { it.toString() }) { date ->
             DayCard(
                 date = date,
                 log = logsByDate[date],
@@ -131,7 +136,9 @@ fun LogScreen(
             )
         }
 
-        Spacer(Modifier.height(80.dp))
+        item(key = "spacer") {
+            Spacer(Modifier.height(80.dp))
+        }
     }
 
     LogSheetHost(
