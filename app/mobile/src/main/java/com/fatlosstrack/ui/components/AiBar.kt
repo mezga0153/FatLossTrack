@@ -27,9 +27,6 @@ import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.remote.OpenAiService
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
 import androidx.compose.ui.res.stringResource
@@ -240,9 +237,7 @@ fun AiBar(
                                                     category = parsed.source,
                                                 )
                                             )
-                                            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                                                daySummaryGenerator?.generateForDate(targetDate, "AiBar:textMealLogged")
-                                            }
+                                            daySummaryGenerator?.launchForDate(targetDate, "AiBar:textMealLogged")
                                             isLoading = false
                                             mealLogged = true
                                             aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +

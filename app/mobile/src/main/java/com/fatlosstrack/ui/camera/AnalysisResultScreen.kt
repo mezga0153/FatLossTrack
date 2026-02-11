@@ -33,9 +33,7 @@ import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.DaySummaryGenerator
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
@@ -269,9 +267,7 @@ fun AnalysisResultScreen(
                         )
                         AppLogger.instance?.meal("Logged via AI: ${analysisResult.description.take(50)} — ${analysisResult.totalCalories} kcal, cat=$overrideCategory, type=$overrideMealType, date=$effectiveDate")
                         // Fire-and-forget summary generation
-                        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                            daySummaryGenerator?.generateForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
-                        }
+                        daySummaryGenerator?.launchForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
                         CapturedPhotoStore.clear()
                         PendingTextMealStore.clear()
                         onLogged()

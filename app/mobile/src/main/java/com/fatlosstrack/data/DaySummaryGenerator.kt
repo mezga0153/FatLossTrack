@@ -10,7 +10,10 @@ import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.Goal
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.domain.TdeeCalculator
+import com.fatlosstrack.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +31,7 @@ class DaySummaryGenerator @Inject constructor(
     private val goalDao: GoalDao,
     private val preferencesManager: PreferencesManager,
     private val appLogger: AppLogger,
+    @ApplicationScope private val appScope: CoroutineScope,
 ) {
     /** Maps date → hash of the data that was used to generate its current summary. */
     private val dataHashCache = mutableMapOf<LocalDate, String>()
@@ -127,6 +131,28 @@ class DaySummaryGenerator @Inject constructor(
         dates.forEach { generateForDate(it, reason) }
     }
 
+    /**
+     * Fire-and-forget: writes a placeholder to [DailyLog.daySummary] immediately,
+     * then generates the real summary in the background on the application scope.
+     * The coroutine is automatically cancelled when the app process dies.
+     */
+    fun launchForDate(date: LocalDate, reason: String = "unknown") {
+        appScope.launch {
+            val existing = dailyLogDao.getForDate(date) ?: DailyLog(date = date)
+            dailyLogDao.upsert(existing.copy(daySummary = SUMMARY_PLACEHOLDER))
+            generateForDate(date, reason)
+        }
+    }
+
+    /**
+     * Fire-and-forget: generates summaries for multiple dates on the application scope.
+     */
+    fun launchForDates(dates: List<LocalDate>, reason: String = "unknown") {
+        appScope.launch {
+            generateForDates(dates, reason)
+        }
+    }
+
     private fun buildPrompt(
         date: LocalDate,
         log: DailyLog?,
@@ -208,6 +234,8 @@ class DaySummaryGenerator @Inject constructor(
     }
 
     companion object {
+        internal const val SUMMARY_PLACEHOLDER = "\u23F3"
+
         private const val SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
 
 Rules:

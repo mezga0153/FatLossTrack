@@ -17,15 +17,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.ui.theme.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 import java.time.LocalDate
 
@@ -114,18 +109,13 @@ internal fun parseItems(json: String?): List<ParsedMealItem> {
 
 // ── Summary helpers ──
 
-internal const val SUMMARY_PLACEHOLDER = "⏳"
-internal val summaryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+internal const val SUMMARY_PLACEHOLDER = DaySummaryGenerator.SUMMARY_PLACEHOLDER
 
 /**
- * Writes a placeholder to the daySummary field immediately so the UI shows
- * a loading indicator, then generates the real summary in the background.
+ * Fire-and-forget summary generation using the generator's application-scoped coroutine.
+ * Writes a placeholder immediately, then generates the real summary in the background.
  */
 internal fun launchSummary(date: LocalDate, dailyLogDao: DailyLogDao, generator: DaySummaryGenerator?, reason: String = "unknown") {
     if (generator == null) return
-    summaryScope.launch {
-        val existing = dailyLogDao.getForDate(date) ?: DailyLog(date = date)
-        dailyLogDao.upsert(existing.copy(daySummary = SUMMARY_PLACEHOLDER))
-        generator.generateForDate(date, reason)
-    }
+    generator.launchForDate(date, reason)
 }

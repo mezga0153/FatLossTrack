@@ -92,9 +92,7 @@ fun FatLossTrackNavGraph(
         AppLogger.instance?.user("HC sync: auto (7 days)")
         val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
         if (changedDates.isNotEmpty()) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                daySummaryGenerator?.generateForDates(changedDates, "Navigation:autoHcSync")
-            }
+            daySummaryGenerator?.launchForDates(changedDates, "Navigation:autoHcSync")
         }
     }
 
@@ -206,9 +204,7 @@ fun FatLossTrackNavGraph(
                                 AppLogger.instance?.user("HC sync: manual")
                                 val changedDates = healthConnectSyncService?.syncRecentDays(7) ?: emptyList()
                                 if (changedDates.isNotEmpty()) {
-                                    launch {
-                                        daySummaryGenerator?.generateForDates(changedDates, "Settings:manualHcSync")
-                                    }
+                                    daySummaryGenerator?.launchForDates(changedDates, "Settings:manualHcSync")
                                 }
                             }
                         },
