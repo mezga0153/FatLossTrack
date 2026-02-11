@@ -23,6 +23,7 @@ import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
+import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -63,18 +64,7 @@ fun TrendsScreen(
     val startWeight by preferencesManager.startWeight.collectAsState(initial = null)
 
     // TDEE / daily target
-    val savedSex by preferencesManager.sex.collectAsState(initial = null)
-    val savedAge by preferencesManager.age.collectAsState(initial = null)
-    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
-    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
-    val dailyTargetKcal = remember(savedSex, savedAge, savedHeight, startWeight, weeklyRate, savedActivityLevel) {
-        val sex = savedSex ?: return@remember null
-        val age = savedAge ?: return@remember null
-        val height = savedHeight ?: return@remember null
-        val weight = startWeight ?: return@remember null
-        val rate = weeklyRate ?: return@remember null
-        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(weight, height, age, sex, savedActivityLevel, rate)
-    }
+    val dailyTargetKcal = rememberDailyTargetKcal(preferencesManager)
 
     // Weight data — merge DailyLog weights + WeightEntry
     val weightData = remember(logs, weightEntries) {

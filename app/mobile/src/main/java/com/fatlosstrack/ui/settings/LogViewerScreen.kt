@@ -1,7 +1,6 @@
 package com.fatlosstrack.ui.settings
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -23,7 +22,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +30,7 @@ import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.ui.theme.*
 import java.io.File
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,12 +38,23 @@ fun LogViewerScreen(
     appLogger: AppLogger,
     onBack: () -> Unit,
 ) {
-    var logText by remember { mutableStateOf(appLogger.readAll()) }
-    var sizeText by remember { mutableStateOf(formatSize(appLogger.sizeBytes())) }
+    var logFiles by remember { mutableStateOf(appLogger.listLogFiles()) }
+    var selectedFile by remember { mutableStateOf(logFiles.firstOrNull()?.file) }
+    var logText by remember { mutableStateOf(selectedFile?.let { appLogger.read(it) } ?: appLogger.read()) }
+    var sizeText by remember { mutableStateOf(formatSize(appLogger.sizeBytes(selectedFile))) }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     var showClearDialog by remember { mutableStateOf(false) }
     val emptyLogText = stringResource(R.string.log_viewer_empty)
+    val retentionText = stringResource(R.string.log_viewer_retention)
+
+    fun refresh(selectionName: String? = selectedFile?.name) {
+        val latest = appLogger.listLogFiles()
+        logFiles = latest
+        selectedFile = latest.firstOrNull { it.file.name == selectionName }?.file ?: latest.firstOrNull()?.file
+        logText = selectedFile?.let { appLogger.read(it) } ?: emptyLogText
+        sizeText = formatSize(appLogger.sizeBytes(selectedFile))
+    }
 
     Scaffold(
         topBar = {
@@ -57,8 +67,7 @@ fun LogViewerScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        logText = appLogger.readAll()
-                        sizeText = formatSize(appLogger.sizeBytes())
+                        refresh()
                     }) {
                         Icon(Icons.Default.Refresh, stringResource(R.string.cd_refresh), tint = OnSurfaceVariant)
                     }
@@ -69,11 +78,11 @@ fun LogViewerScreen(
                     }
                     IconButton(onClick = {
                         try {
-                            val logFile = appLogger.getLogFile()
-                            if (logFile.exists()) {
+                            val logFile = selectedFile
+                            if (logFile != null && logFile.exists()) {
                                 val shareDir = File(context.cacheDir, "shared_logs")
                                 shareDir.mkdirs()
-                                val shareFile = File(shareDir, "fatlosstrack_log.txt")
+                                val shareFile = File(shareDir, logFile.name)
                                 logFile.copyTo(shareFile, overwrite = true)
                                 val uri = FileProvider.getUriForFile(
                                     context,
@@ -107,20 +116,59 @@ fun LogViewerScreen(
                 .padding(padding)
                 .fillMaxSize(),
         ) {
-            // Size indicator
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    stringResource(R.string.log_viewer_size, sizeText),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = OnSurfaceVariant,
+                    stringResource(R.string.log_viewer_files_heading),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = OnSurface,
                 )
+                if (logFiles.isEmpty()) {
+                    Text(
+                        stringResource(R.string.log_viewer_no_files),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceVariant,
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        logFiles.forEach { info ->
+                            val label = formatLogLabel(info)
+                            FilterChip(
+                                selected = info.file == selectedFile,
+                                onClick = {
+                                    selectedFile = info.file
+                                    logText = appLogger.read(info.file)
+                                    sizeText = formatSize(appLogger.sizeBytes(info.file))
+                                },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        stringResource(R.string.log_viewer_size, sizeText),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.log_viewer_newest_bottom),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceVariant,
+                    )
+                }
                 Text(
-                    stringResource(R.string.log_viewer_newest_bottom),
+                    retentionText,
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceVariant,
                 )
@@ -169,8 +217,7 @@ fun LogViewerScreen(
             confirmButton = {
                 TextButton(onClick = {
                     appLogger.clear()
-                    logText = emptyLogText
-                    sizeText = formatSize(0)
+                            refresh(null)
                     showClearDialog = false
                 }) {
                     Text(stringResource(R.string.dialog_clear_confirm), color = Tertiary)
@@ -190,4 +237,15 @@ private fun formatSize(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
     else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
+}
+
+private fun formatLogLabel(info: AppLogger.LogFileInfo): String {
+    val today = LocalDate.now()
+    val date = info.date
+    return when {
+        date == null -> info.file.nameWithoutExtension
+        date == today -> "Today"
+        date == today.minusDays(1) -> "Yesterday"
+        else -> date.toString()
+    }
 }

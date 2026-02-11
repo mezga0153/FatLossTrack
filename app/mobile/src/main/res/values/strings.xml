@@ -251,10 +251,13 @@
     <string name="cd_refresh">Refresh</string>
     <string name="cd_copy">Copy</string>
     <string name="cd_clear">Clear</string>
-    <string name="log_viewer_size">Log size: %s</string>
+    <string name="log_viewer_files_heading">Log files (last 7 days)</string>
+    <string name="log_viewer_no_files">(no log files)</string>
+    <string name="log_viewer_size">File size: %s</string>
     <string name="log_viewer_newest_bottom">newest at bottom</string>
-    <string name="dialog_clear_log_title">Clear log?</string>
-    <string name="dialog_clear_log_text">This will delete all logged activity entries.</string>
+    <string name="log_viewer_retention">Older logs are auto-deleted after 7 days.</string>
+    <string name="dialog_clear_log_title">Clear logs?</string>
+    <string name="dialog_clear_log_text">This will delete all log files.</string>
     <string name="dialog_clear_confirm">Clear</string>
     <string name="log_viewer_empty">(empty log)</string>
     <string name="cd_share">Share log</string>

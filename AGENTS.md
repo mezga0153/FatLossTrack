@@ -73,7 +73,7 @@ fatloss_track/
         │   │   └── HealthConnectSyncService.kt  # HC → Room sync, returns changed dates
         │   ├── local/
         │   │   ├── PreferencesManager.kt    # DataStore (goal, API key, model, tone)
-        │   │   ├── AppLogger.kt             # File logger (500KB rolling)
+        │   │   ├── AppLogger.kt             # File logger (daily rotation, 7-day retention)
         │   │   ├── CapturedPhotoStore.kt    # In-memory photo URIs between screens
         │   │   ├── PendingTextMealStore.kt  # In-memory text meal data
         │   │   └── db/
@@ -87,28 +87,40 @@ fatloss_track/
         ├── di/
         │   ├── DatabaseModule.kt            # Room, DAOs, HC, logger
         │   └── NetworkModule.kt             # Ktor HttpClient, BackendApi
-        ├── domain/trend/TrendEngine.kt      # EMA + linear projection
+        ├── domain/
+        │   ├── TdeeCalculator.kt            # TDEE / BMR / macro targets
+        │   └── trend/TrendEngine.kt         # EMA + linear projection
         └── ui/
             ├── MainActivity.kt              # Entry point, Hilt injections
             ├── Navigation.kt                # NavHost + bottom bar + floating AiBar
             ├── theme/Theme.kt               # Dark Material 3 palette
             ├── home/HomeScreen.kt           # Goal progress, trend chart, N-day stats, AI summary
-            ├── log/LogScreen.kt             # Day cards with edit/add sheets (~1300 lines)
+            ├── log/
+            │   ├── LogScreen.kt             # Day timeline + today summary (~160 lines)
+            │   ├── DayCard.kt               # DayCard + StatChip composables
+            │   ├── DailyLogSheet.kt         # Daily log edit bottom sheet
+            │   ├── MealSheets.kt            # AddMealSheet + MealEditSheet
+            │   ├── SheetHost.kt             # LogSheetState + LogSheetHost (shared by Log & Home)
+            │   └── LogHelpers.kt            # Category/meal-type helpers, EditField, JSON parsers, summary scope
             ├── trends/TrendsScreen.kt       # Weight/cal/sleep/steps charts with time toggle
             ├── login/LoginScreen.kt         # Google sign-in gate
             ├── settings/
             │   ├── SettingsScreen.kt        # Config, HC sync, sign out
             │   ├── SetGoalScreen.kt         # Goal editor
+            │   ├── SetProfileScreen.kt      # Profile editor (sex, age, height, activity)
             │   └── LogViewerScreen.kt       # Debug log viewer
             ├── camera/
             │   ├── MealCaptureScreen.kt     # CameraX multi-photo capture
             │   ├── AnalysisResultScreen.kt  # AI meal analysis display + edit
             │   └── CameraModeSheet.kt       # Log vs Suggest mode picker
+            ├── chat/ChatScreen.kt           # AI freeform chat
             └── components/
                 ├── AiBar.kt                 # Floating AI input pill
                 ├── TrendChart.kt            # Canvas-based weight chart
+                ├── SimpleLineChart.kt       # Generic line chart
+                ├── StackedBarChart.kt       # MacroBarChart composable
                 ├── InfoCard.kt              # Reusable stat card
-                └── DayCard.kt               # Day summary card (legacy, see LogScreen)
+                └── TdeeState.kt             # rememberDailyTargetKcal() composable helper
 ```
 
 ---
@@ -236,7 +248,14 @@ Dependencies flow: `MainActivity` (Hilt `@Inject`) → `Navigation.kt` → indiv
 
 ### Shared components between screens
 
-`LogScreen.kt` contains many `internal` composables reused by `HomeScreen`: `DayCard`, `StatChip`, `AddMealSheet`, `MealEditSheet`, `DailyLogEditSheet`, `EditField`, helper functions (`categoryIcon`, `categoryColor`, `mealTypeLabel`, etc.), and `launchSummary()`.
+The `ui/log/` package contains `internal` composables shared between `LogScreen` and `HomeScreen`:
+- `DayCard.kt` — `DayCard`, `StatChip`
+- `MealSheets.kt` — `AddMealSheet`, `MealEditSheet`
+- `DailyLogSheet.kt` — `DailyLogEditSheet`
+- `SheetHost.kt` — `LogSheetState`, `rememberLogSheetState()`, `LogSheetHost()` (deduplicates 3 ModalBottomSheets)
+- `LogHelpers.kt` — `EditField`, `categoryIcon`, `categoryColor`, `mealTypeLabel`, `launchSummary()`, JSON parsers
+
+`TdeeState.kt` in `ui/components/` provides `rememberDailyTargetKcal()` — used by `LogScreen`, `HomeScreen`, and `TrendsScreen`.
 
 ### Fire-and-forget summary generation
 
@@ -248,7 +267,7 @@ CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
 
 Or use the shared helper:
 ```kotlin
-launchSummary(date, dailyLogDao, daySummaryGenerator)  // from LogScreen
+launchSummary(date, dailyLogDao, daySummaryGenerator)  // from LogHelpers.kt
 ```
 
 ### Locale
@@ -268,7 +287,7 @@ launchSummary(date, dailyLogDao, daySummaryGenerator)  // from LogScreen
 7. **Goal form race condition**: `collectAsState` initial values can race `LaunchedEffect` — gate on non-null
 8. **Text meal weekday resolution**: AI prompt needs current date context to resolve "last Friday" etc.
 9. **Summary generation blocks UI**: Always do async with placeholder, never on main thread
-10. **`DayCard` and helpers in `LogScreen.kt`** are `internal`, not `private` — shared with `HomeScreen`
+10. **`DayCard` and helpers in `ui/log/`** are `internal`, not `private` — shared with `HomeScreen`
 
 ---
 

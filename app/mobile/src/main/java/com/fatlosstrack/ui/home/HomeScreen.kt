@@ -31,6 +31,7 @@ import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
+import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -87,18 +88,7 @@ fun HomeScreen(
     val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
 
     // TDEE / daily target
-    val savedSex by preferencesManager.sex.collectAsState(initial = null)
-    val savedAge by preferencesManager.age.collectAsState(initial = null)
-    val savedHeight by preferencesManager.heightCm.collectAsState(initial = null)
-    val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
-    val dailyTargetKcal = remember(savedSex, savedAge, savedHeight, startWeight, weeklyRate, savedActivityLevel) {
-        val sex = savedSex ?: return@remember null
-        val age = savedAge ?: return@remember null
-        val height = savedHeight ?: return@remember null
-        val weight = startWeight ?: return@remember null
-        val rate = weeklyRate ?: return@remember null
-        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(weight, height, age, sex, savedActivityLevel, rate)
-    }
+    val dailyTargetKcal = rememberDailyTargetKcal(preferencesManager)
 
     val startDate = startDateStr?.let {
         try { LocalDate.parse(it) } catch (_: Exception) { null }
@@ -114,16 +104,12 @@ fun HomeScreen(
     val meals by mealDao.getMealsSince(since).collectAsState(initial = emptyList())
     val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
 
-    val scope = rememberCoroutineScope()
+    // Sheet state
+    val sheetState = rememberLogSheetState()
 
-    // Sheet states
-    val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val mealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val addMealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    var editingDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
-    var addMealForDate by remember { mutableStateOf<LocalDate?>(null) }
+    var editingDate by sheetState::editingDate
+    var selectedMeal by sheetState::selectedMeal
+    var addMealForDate by sheetState::addMealForDate
 
     // Weight data for chart — include today's weight
     val weightData = remember(logs, weightEntries) {
@@ -636,107 +622,16 @@ Rules:
         Spacer(Modifier.height(80.dp))
     }
 
-    // ── Edit sheets (same as Log tab) ──
-    if (editingDate != null) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch { editSheetState.hide() }.invokeOnCompletion {
-                    editingDate = null
-                }
-            },
-            sheetState = editSheetState,
-            containerColor = CardSurface,
-        ) {
-            DailyLogEditSheet(
-                date = editingDate!!,
-                existingLog = logsByDate[editingDate!!],
-                onSave = { scope.launch {
-                    dailyLogDao.upsert(it)
-                    AppLogger.instance?.user("DailyLog edited: ${it.date}")
-                    launchSummary(it.date, dailyLogDao, daySummaryGenerator, "HomeScreen:dailyLogEdit")
-                    editSheetState.hide()
-                    editingDate = null
-                } },
-                onDismiss = {
-                    scope.launch { editSheetState.hide() }.invokeOnCompletion {
-                        editingDate = null
-                    }
-                },
-            )
-        }
-    }
-
-    if (selectedMeal != null) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch { mealSheetState.hide() }.invokeOnCompletion {
-                    selectedMeal = null
-                }
-            },
-            sheetState = mealSheetState,
-            containerColor = CardSurface,
-        ) {
-            MealEditSheet(
-                meal = selectedMeal!!,
-                onSave = { updated -> scope.launch {
-                    mealDao.update(updated)
-                    AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, ${updated.totalProteinG}g P, ${updated.totalCarbsG}g C, ${updated.totalFatG}g F, date=${updated.date}")
-                    launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealEdit")
-                    mealSheetState.hide()
-                    selectedMeal = null
-                } },
-                onDelete = { scope.launch {
-                    val meal = selectedMeal!!
-                    AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
-                    mealDao.delete(meal)
-                    launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealDelete")
-                    mealSheetState.hide()
-                    selectedMeal = null
-                } },
-                onDismiss = {
-                    scope.launch { mealSheetState.hide() }.invokeOnCompletion {
-                        selectedMeal = null
-                    }
-                },
-                openAiService = openAiService,
-            )
-        }
-    }
-
-    if (addMealForDate != null) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
-                    addMealForDate = null
-                }
-            },
-            sheetState = addMealSheetState,
-            containerColor = CardSurface,
-        ) {
-            AddMealSheet(
-                date = addMealForDate!!,
-                onSave = { newMeal -> scope.launch {
-                    mealDao.insert(newMeal)
-                    AppLogger.instance?.meal("Added: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, ${newMeal.totalProteinG}g P, ${newMeal.totalCarbsG}g C, ${newMeal.totalFatG}g F, date=${newMeal.date}")
-                    launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "HomeScreen:mealAdd")
-                    addMealSheetState.hide()
-                    addMealForDate = null
-                } },
-                onDismiss = {
-                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
-                        addMealForDate = null
-                    }
-                },
-                onCamera = {
-                    val date = addMealForDate!!
-                    scope.launch { addMealSheetState.hide() }.invokeOnCompletion {
-                        addMealForDate = null
-                        onCameraForDate(date)
-                    }
-                },
-            )
-        }
-    }
+    LogSheetHost(
+        state = sheetState,
+        logsByDate = logsByDate,
+        mealDao = mealDao,
+        dailyLogDao = dailyLogDao,
+        daySummaryGenerator = daySummaryGenerator,
+        openAiService = openAiService,
+        onCameraForDate = onCameraForDate,
+        logTag = "HomeScreen",
+    )
 }
 
 @Composable
