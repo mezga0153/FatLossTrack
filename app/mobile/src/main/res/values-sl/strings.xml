@@ -66,7 +66,7 @@
     <string name="home_goal_progress">Napredek cilja</string>
     <string name="home_goal_arrow">→ %.1f kg</string>
     <string name="home_weeks_left">~%d tednov do cilja</string>
-    <string name="home_weight_trend">Trend teže</string>
+    <string name="home_weight_trend">Teža</string>
     <string name="home_last_n_days">Zadnjih %d dni</string>
     <string name="home_logged_days">Podatki za %1$d od %2$d dni</string>
     <string name="stat_label_meals">obrokov</string>
