@@ -1,9 +1,11 @@
 package com.fatlosstrack.ui
 
+import android.graphics.Color
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.*
 import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.DaySummaryGenerator
@@ -68,6 +70,22 @@ class MainActivity : AppCompatActivity() {
             val themePresetName by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")
             val preset = try { ThemePreset.valueOf(themePresetName) } catch (_: Exception) { ThemePreset.PURPLE_DARK }
             val appColors = remember(preset) { buildAppColors(preset.accentHue, preset.mode) }
+
+            // Update status bar icon colors when the theme changes
+            LaunchedEffect(appColors.isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (appColors.isDark) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (appColors.isDark) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    },
+                )
+            }
 
             FatLossTrackTheme(appColors = appColors) {
                 val authState by authManager.authState.collectAsState()
