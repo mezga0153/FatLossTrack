@@ -17,6 +17,7 @@ import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
+import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
@@ -69,6 +70,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var analysisResultStateHolder: AnalysisResultStateHolder
+
+    @Inject
+    lateinit var homeStateHolder: HomeStateHolder
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                             chatStateHolder = chatStateHolder,
                             aiBarStateHolder = aiBarStateHolder,
                             analysisResultStateHolder = analysisResultStateHolder,
+                            homeStateHolder = homeStateHolder,
                         )
                     }
                 }

@@ -45,6 +45,7 @@ import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.components.AiBarStateHolder
 import com.fatlosstrack.ui.home.HomeScreen
+import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.log.LogScreen
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.settings.LogViewerScreen
@@ -80,6 +81,7 @@ fun FatLossTrackNavGraph(
     chatStateHolder: ChatStateHolder,
     aiBarStateHolder: AiBarStateHolder,
     analysisResultStateHolder: AnalysisResultStateHolder,
+    homeStateHolder: HomeStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -159,12 +161,7 @@ fun FatLossTrackNavGraph(
             ) {
                 composable(Tab.Home.route) {
                     HomeScreen(
-                        dailyLogDao = dailyLogDao,
-                        mealDao = mealDao,
-                        weightDao = weightDao,
-                        preferencesManager = preferencesManager,
-                        daySummaryGenerator = daySummaryGenerator,
-                        openAiService = openAiService,
+                        state = homeStateHolder,
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
                         },

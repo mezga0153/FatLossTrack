@@ -22,11 +22,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
-import com.fatlosstrack.data.DaySummaryGenerator
-import com.fatlosstrack.data.local.AppLogger
-import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.*
-import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
@@ -34,9 +29,7 @@ import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
@@ -50,9 +43,6 @@ import java.util.Locale
  * 3. Last-N-days stats + AI period summary
  * 4. Today & Yesterday cards (same as Log tab, with edit/add)
  */
-
-/** Module-level cache: (dataFingerprint, summary). Survives recomposition & navigation. */
-private var periodSummaryCache: Pair<String?, String?> = null to null
 
 private fun dateLabelFor(date: LocalDate): String {
     val month = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
@@ -74,21 +64,16 @@ private fun xAxisLabelFor(date: LocalDate, use7dDayNames: Boolean): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    dailyLogDao: DailyLogDao,
-    mealDao: MealDao,
-    weightDao: WeightDao,
-    preferencesManager: PreferencesManager,
-    daySummaryGenerator: DaySummaryGenerator? = null,
-    openAiService: OpenAiService? = null,
+    state: HomeStateHolder,
     onCameraForDate: (LocalDate) -> Unit = {},
 ) {
-    val goalWeight by preferencesManager.goalWeight.collectAsState(initial = null)
-    val startWeight by preferencesManager.startWeight.collectAsState(initial = null)
-    val weeklyRate by preferencesManager.weeklyRate.collectAsState(initial = null)
-    val startDateStr by preferencesManager.startDate.collectAsState(initial = null)
+    val goalWeight by state.goalWeight.collectAsState(initial = null)
+    val startWeight by state.startWeight.collectAsState(initial = null)
+    val weeklyRate by state.weeklyRate.collectAsState(initial = null)
+    val startDateStr by state.startDate.collectAsState(initial = null)
 
     // TDEE / daily target
-    val dailyTargetKcal = rememberDailyTargetKcal(preferencesManager)
+    val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
 
     val startDate = startDateStr?.let {
         try { LocalDate.parse(it) } catch (_: Exception) { null }
@@ -100,9 +85,9 @@ fun HomeScreen(
 
     // Fetch lookbackDays of past data + today (for today's weight & DayCard)
     val since = today.minusDays(lookbackDays.toLong())
-    val logs by dailyLogDao.getLogsSince(since).collectAsState(initial = emptyList())
-    val meals by mealDao.getMealsSince(since).collectAsState(initial = emptyList())
-    val weightEntries by weightDao.getEntriesSince(since).collectAsState(initial = emptyList())
+    val logs by state.logsSince(since).collectAsState(initial = emptyList())
+    val meals by state.mealsSince(since).collectAsState(initial = emptyList())
+    val weightEntries by state.weightsSince(since).collectAsState(initial = emptyList())
 
     // Sheet state
     val sheetState = rememberLogSheetState()
@@ -184,108 +169,36 @@ fun HomeScreen(
     } else null
 
     // AI period summary — cached by data fingerprint
-    // Build a fingerprint from the actual data so we only regenerate when content changes
-    // NOTE: deliberately excludes daySummary to avoid feedback loop (summary changes → fingerprint changes → new summary)
     val dataFingerprint = remember(pastLogs, pastMeals) {
         val logSig = pastLogs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) }
         val mealSig = pastMeals.sumOf { it.totalKcal + it.description.hashCode() }
         "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig"
     }
 
-    var periodSummary by remember { mutableStateOf(periodSummaryCache.second) }
-    var periodSummaryLoading by remember { mutableStateOf(false) }
-    var lastFingerprint by remember { mutableStateOf(periodSummaryCache.first) }
-
     LaunchedEffect(dataFingerprint) {
-        // If fingerprint hasn't changed and we have a cached summary, skip
-        if (dataFingerprint == lastFingerprint && periodSummary != null) {
-            AppLogger.instance?.hc("PeriodSummary: fingerprint unchanged ($dataFingerprint), skipping")
-            return@LaunchedEffect
-        }
-        // If the module-level cache matches, use it without calling AI
-        if (dataFingerprint == periodSummaryCache.first && periodSummaryCache.second != null) {
-            AppLogger.instance?.hc("PeriodSummary: using module-level cache (fingerprint=$dataFingerprint)")
-            periodSummary = periodSummaryCache.second
-            lastFingerprint = dataFingerprint
-            return@LaunchedEffect
-        }
-        if (openAiService == null || logs.isEmpty()) {
-            AppLogger.instance?.hc("PeriodSummary: skipped (openAiService=${openAiService != null}, logs=${logs.size})")
-            return@LaunchedEffect
-        }
-        AppLogger.instance?.hc("PeriodSummary: fingerprint changed (${lastFingerprint} → $dataFingerprint), calling AI")
-        periodSummaryLoading = true
-        withContext(Dispatchers.IO) {
-            try {
-                if (!openAiService.hasApiKey()) {
-                    AppLogger.instance?.hc("PeriodSummary: skipped — no API key")
-                    periodSummaryLoading = false
-                    return@withContext
-                }
-                val prompt = buildString {
-                    appendLine("Summarize the user's last $lookbackDays days of progress toward their fat loss goal.")
-                    if (startDate != null) appendLine("Goal start date: $startDate (${daysSinceStart ?: 0} days ago)")
-                    appendLine("Today: $today")
-                    if (goalW != null) appendLine("Goal weight: %.1f kg".format(goalW))
-                    if (startW != null) appendLine("Start weight: %.1f kg".format(startW))
-                    if (latestWeight != null) appendLine("Current weight: %.1f kg".format(latestWeight))
-                    if (weeklyRate != null) appendLine("Target rate: %.1f kg/week".format(weeklyRate))
-
-                    // Daily targets (TDEE-based)
-                    if (dailyTargetKcal != null) {
-                        val mt = com.fatlosstrack.domain.TdeeCalculator.macroTargets(dailyTargetKcal)
-                        appendLine("Daily target: $dailyTargetKcal kcal (protein ${mt.first}g / carbs ${mt.second}g / fat ${mt.third}g)")
-                    }
-
-                    appendLine()
-                    appendLine("Period stats (last $lookbackDays days, excluding today):")
-                    appendLine("- Meals logged: $totalMeals")
-                    if (avgKcalPerDay != null) {
-                        val kcalPct = if (dailyTargetKcal != null) " (${avgKcalPerDay * 100 / dailyTargetKcal}% of target)" else ""
-                        appendLine("- Avg kcal/day: $avgKcalPerDay$kcalPct")
-                    }
-                    val mt = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
-                    if (avgProteinPerDay != null && avgProteinPerDay > 0) {
-                        val pct = mt?.let { " (${avgProteinPerDay * 100 / it.first}% of target)" } ?: ""
-                        appendLine("- Avg protein/day: ${avgProteinPerDay}g$pct")
-                    }
-                    if (avgCarbsPerDay != null && avgCarbsPerDay > 0) {
-                        val pct = mt?.let { " (${avgCarbsPerDay * 100 / it.second}% of target)" } ?: ""
-                        appendLine("- Avg carbs/day: ${avgCarbsPerDay}g$pct")
-                    }
-                    if (avgFatPerDay != null && avgFatPerDay > 0) {
-                        val pct = mt?.let { " (${avgFatPerDay * 100 / it.third}% of target)" } ?: ""
-                        appendLine("- Avg fat/day: ${avgFatPerDay}g$pct")
-                    }
-                    if (avgSteps != null) appendLine("- Avg steps/day: $avgSteps")
-                    if (avgSleep != null) appendLine("- Avg sleep: %.1fh".format(avgSleep))
-                    appendLine("- Days with data: $daysLogged / $lookbackDays")
-                    if (weights.size >= 2) {
-                        appendLine("- Weight change: %.1f → %.1f kg".format(weights.first(), weights.last()))
-                    }
-                }
-                val systemPrompt = """You are FatLoss Track's weekly coach. Given a user's multi-day stats and their goal, write a SHORT motivational coaching summary (2-3 sentences, under 200 characters).
-
-Rules:
-- Be specific about how these days helped or hurt their goal
-- Reference actual numbers when relevant
-- Supportive but honest tone
-- Plain text only, no markdown, no quotes
-- Focus on the trend and what to do next"""
-
-                val result = openAiService.chat(prompt, systemPrompt)
-                result.onSuccess { summary ->
-                    val trimmed = summary.trim().removeSurrounding("\"")
-                    periodSummary = trimmed
-                    lastFingerprint = dataFingerprint
-                    periodSummaryCache = dataFingerprint to trimmed
-                    AppLogger.instance?.hc("PeriodSummary: AI returned ${trimmed.take(60)}…")
-                }.onFailure { e ->
-                    AppLogger.instance?.error("PeriodSummary", "AI call failed", e)
-                }
-            } catch (_: Exception) { }
-            periodSummaryLoading = false
-        }
+        state.generatePeriodSummary(
+            PeriodStats(
+                lookbackDays = lookbackDays,
+                startDate = startDate,
+                daysSinceStart = daysSinceStart,
+                goalWeight = goalW,
+                startWeight = startW,
+                latestWeight = latestWeight,
+                weeklyRate = weeklyRate,
+                dailyTargetKcal = dailyTargetKcal,
+                totalMeals = totalMeals,
+                avgKcalPerDay = avgKcalPerDay,
+                avgProteinPerDay = avgProteinPerDay,
+                avgCarbsPerDay = avgCarbsPerDay,
+                avgFatPerDay = avgFatPerDay,
+                avgSteps = avgSteps,
+                avgSleep = avgSleep,
+                daysLogged = daysLogged,
+                weights = weights,
+                logCount = logs.size,
+                fingerprint = dataFingerprint,
+            ),
+        )
     }
 
     // Today & yesterday data
@@ -358,7 +271,7 @@ Rules:
 
         // ── Chart Carousel (Weight / Calories / Sleep / Steps) ──
         run {
-            val allWeightEntries by weightDao.getAllEntries().collectAsState(initial = emptyList())
+            val allWeightEntries by state.allWeightEntries().collectAsState(initial = emptyList())
             var chartRange by remember { mutableStateOf("7d") }
             val trendCutoff = when (chartRange) {
                 "7d" -> today.minusDays(7)
@@ -573,14 +486,14 @@ Rules:
             )
 
             // AI period summary
-            if (periodSummaryLoading) {
+            if (state.periodSummaryLoading) {
                 Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                     color = Primary.copy(alpha = 0.5f),
                     trackColor = Primary.copy(alpha = 0.1f),
                 )
-            } else if (!periodSummary.isNullOrBlank()) {
+            } else if (!state.periodSummary.isNullOrBlank()) {
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
@@ -592,7 +505,7 @@ Rules:
                 ) {
                     Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Primary, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(periodSummary!!, style = MaterialTheme.typography.bodySmall, color = OnSurface)
+                    Text(state.periodSummary!!, style = MaterialTheme.typography.bodySmall, color = OnSurface)
                 }
             }
         }
@@ -627,10 +540,10 @@ Rules:
     LogSheetHost(
         state = sheetState,
         logsByDate = logsByDate,
-        mealDao = mealDao,
-        dailyLogDao = dailyLogDao,
-        daySummaryGenerator = daySummaryGenerator,
-        openAiService = openAiService,
+        mealDao = state.mealDao,
+        dailyLogDao = state.dailyLogDao,
+        daySummaryGenerator = state.daySummaryGenerator,
+        openAiService = state.openAiService,
         onCameraForDate = onCameraForDate,
         logTag = "HomeScreen",
     )
