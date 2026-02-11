@@ -1,6 +1,5 @@
 package com.fatlosstrack.ui.chat
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,66 +30,28 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.fatlosstrack.R
-import com.fatlosstrack.data.local.AppLogger
-import com.fatlosstrack.data.local.PendingChatStore
-import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.data.local.db.*
-import com.fatlosstrack.data.remote.OpenAiService
+import com.fatlosstrack.data.local.db.ChatMessage
 import com.fatlosstrack.ui.theme.*
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Composable
-fun ChatScreen(
-    openAiService: OpenAiService,
-    chatMessageDao: ChatMessageDao,
-    dailyLogDao: DailyLogDao,
-    mealDao: MealDao,
-    weightDao: WeightDao,
-    preferencesManager: PreferencesManager,
-) {
-    val messages by chatMessageDao.getAllMessages().collectAsState(initial = emptyList())
+fun ChatScreen(state: ChatStateHolder) {
+    val messages by state.messages.collectAsState(initial = emptyList())
+    val streamingContent = state.streamingContent
+    val isLoading = state.isLoading
+
     var inputText by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    var streamingContent by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     var showClearDialog by remember { mutableStateOf(false) }
     val androidContext = LocalContext.current
 
-    // Helper: stream a chat response, update streamingContent live, save to DB when done
-    suspend fun streamResponse() {
-        val context = buildContextBlock(dailyLogDao, mealDao, weightDao, preferencesManager)
-        val recent = chatMessageDao.getRecentMessages(20).reversed()
-        val history = recent.map { it.role to it.content }
-        streamingContent = ""
-        try {
-            val sb = StringBuilder()
-            openAiService.streamChatWithHistory(history, context).collect { delta ->
-                sb.append(delta)
-                streamingContent = sb.toString()
-            }
-            chatMessageDao.insert(ChatMessage(role = "assistant", content = sb.toString()))
-        } catch (e: Exception) {
-            chatMessageDao.insert(
-                ChatMessage(role = "assistant", content = "\u26a0\ufe0f ${e.message ?: "Something went wrong"}")
-            )
-        }
-        streamingContent = null
-    }
-
-    // Pick up pending message from AiBar
+    // Pick up pending message from AiBar (once)
     val initialHandled = remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        val pending = PendingChatStore.consume()
-        if (!pending.isNullOrBlank() && !initialHandled.value) {
+        if (!initialHandled.value) {
             initialHandled.value = true
-            isLoading = true
-            chatMessageDao.insert(ChatMessage(role = "user", content = pending))
-            streamResponse()
-            isLoading = false
+            state.consumePending()
         }
     }
 
@@ -111,7 +71,7 @@ fun ChatScreen(
             text = { Text(stringResource(R.string.chat_clear_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch { chatMessageDao.clearAll() }
+                    state.clearHistory()
                     showClearDialog = false
                 }) {
                     Text(stringResource(R.string.chat_clear_yes), color = Tertiary)
@@ -124,18 +84,6 @@ fun ChatScreen(
             },
             containerColor = CardSurface,
         )
-    }
-
-    // Helper to send a message
-    fun sendMessage(text: String) {
-        if (text.isBlank() || isLoading) return
-        AppLogger.instance?.ai("Chat: ${text.take(80)}")
-        isLoading = true
-        scope.launch {
-            chatMessageDao.insert(ChatMessage(role = "user", content = text))
-            streamResponse()
-            isLoading = false
-        }
     }
 
     Column(
@@ -193,16 +141,10 @@ fun ChatScreen(
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
                     },
                     onRetry = {
-                        // Find the user message before this AI message and resend
                         val idx = messages.indexOf(msg)
                         val userMsg = messages.take(idx).lastOrNull { it.role == "user" }
                         if (userMsg != null) {
-                            scope.launch {
-                                chatMessageDao.delete(msg)
-                                isLoading = true
-                                streamResponse()
-                                isLoading = false
-                            }
+                            state.retryMessage(msg)
                         }
                     },
                 )
@@ -218,9 +160,9 @@ fun ChatScreen(
                             color = Accent,
                         )
                         Spacer(Modifier.height(2.dp))
-                        if (streamingContent!!.isNotEmpty()) {
+                        if (streamingContent.isNotEmpty()) {
                             Markdown(
-                                content = streamingContent!!,
+                                content = streamingContent,
                                 colors = markdownColor(
                                     text = OnSurface,
                                     codeBackground = CardSurface,
@@ -266,7 +208,7 @@ fun ChatScreen(
         // Suggestion pills (when chat is empty or after responses)
         if (!isLoading) {
             SuggestionPills(
-                onSuggestionClick = { sendMessage(it) },
+                onSuggestionClick = { state.sendMessage(it) },
                 showClearChat = messages.isNotEmpty(),
                 onClearChat = { showClearDialog = true },
             )
@@ -280,7 +222,7 @@ fun ChatScreen(
             onSend = {
                 val query = inputText.trim()
                 inputText = ""
-                sendMessage(query)
+                state.sendMessage(query)
             },
             onFocused = {
                 if (messages.isNotEmpty()) {
@@ -515,113 +457,4 @@ private fun ChatInputBar(
     }
 }
 
-// ── Context builder ──
 
-private suspend fun buildContextBlock(
-    dailyLogDao: DailyLogDao,
-    mealDao: MealDao,
-    weightDao: WeightDao,
-    preferencesManager: PreferencesManager,
-): String {
-    val today = LocalDate.now()
-    val sevenDaysAgo = today.minusDays(7)
-    val fmt = DateTimeFormatter.ISO_LOCAL_DATE
-
-    // Goal & profile
-    val startWeight = preferencesManager.startWeight.first()
-    val goalKg = preferencesManager.goalWeight.first()
-    val goalRate = preferencesManager.weeklyRate.first()
-    val guidance = preferencesManager.aiGuidance.first()
-    val coachTone = preferencesManager.coachTone.first()
-    val heightCm = preferencesManager.heightCm.first()
-    val startDate = preferencesManager.startDate.first()
-    val sex = preferencesManager.sex.first()
-    val age = preferencesManager.age.first()
-    val activityLevel = preferencesManager.activityLevel.first()
-
-    // Weight entries (last 7 days)
-    val weights = weightDao.getEntriesSince(sevenDaysAgo).first()
-
-    // Daily logs (last 7 days)
-    val logs = dailyLogDao.getLogsSince(sevenDaysAgo).first()
-
-    // Meals (last 7 days)
-    val meals = mealDao.getMealsSince(sevenDaysAgo).first()
-
-    val sb = StringBuilder()
-    sb.appendLine("=== USER CONTEXT (last 7 days) ===")
-    sb.appendLine("Today: ${fmt.format(today)}")
-
-    // Goal & profile info
-    val goalParts = mutableListOf<String>()
-    if (startWeight != null && startWeight > 0f) goalParts += "start=${startWeight}kg"
-    if (goalKg != null && goalKg > 0f) goalParts += "target=${goalKg}kg"
-    goalParts += "rate=${goalRate}kg/week"
-    if (heightCm != null) goalParts += "height=${heightCm}cm"
-    if (!startDate.isNullOrBlank()) goalParts += "since=$startDate"
-    sb.appendLine("Goal: ${goalParts.joinToString(", ")}")
-    sb.appendLine("Coach tone: $coachTone")
-    if (guidance.isNotBlank()) {
-        sb.appendLine("User guidance/preferences: $guidance")
-    }
-
-    // Daily targets (TDEE-based)
-    val dailyTargetKcal = if (sex != null && age != null && heightCm != null && startWeight != null) {
-        com.fatlosstrack.domain.TdeeCalculator.dailyTarget(startWeight, heightCm, age, sex, activityLevel, goalRate)
-    } else null
-    val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
-    if (dailyTargetKcal != null && macroTargets != null) {
-        sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
-    }
-
-    if (weights.isNotEmpty()) {
-        sb.appendLine("\nWeights:")
-        weights.sortedByDescending { it.date }.forEach { w ->
-            sb.appendLine("  ${fmt.format(w.date)}: ${w.valueKg} kg")
-        }
-    }
-
-    if (logs.isNotEmpty()) {
-        sb.appendLine("\nDaily logs:")
-        logs.sortedByDescending { it.date }.forEach { log ->
-            val parts = mutableListOf<String>()
-            log.weightKg?.let { parts += "weight=${it}kg" }
-            log.steps?.let { parts += "steps=$it" }
-            log.sleepHours?.let { parts += "sleep=${it}h" }
-            log.restingHr?.let { parts += "restHR=$it" }
-            if (log.offPlan) parts += "OFF-PLAN"
-            sb.appendLine("  ${fmt.format(log.date)}: ${parts.joinToString(", ")}")
-        }
-    }
-
-    if (meals.isNotEmpty()) {
-        sb.appendLine("\nMeals:")
-        // Group meals by date for daily totals
-        val mealsByDate = meals.groupBy { it.date }.toSortedMap(compareByDescending { it })
-        mealsByDate.forEach { (date, dayMeals) ->
-            val totalKcal = dayMeals.sumOf { it.totalKcal }
-            val totalP = dayMeals.sumOf { it.totalProteinG }
-            val totalC = dayMeals.sumOf { it.totalCarbsG }
-            val totalF = dayMeals.sumOf { it.totalFatG }
-            val pctStr = buildString {
-                if (dailyTargetKcal != null) append(" [${totalKcal * 100 / dailyTargetKcal}% kcal")
-                if (macroTargets != null) {
-                    if (totalP > 0) append(", ${totalP * 100 / macroTargets.first}% P")
-                    if (totalC > 0) append(", ${totalC * 100 / macroTargets.second}% C")
-                    if (totalF > 0) append(", ${totalF * 100 / macroTargets.third}% F")
-                }
-                if (dailyTargetKcal != null) append("]")
-            }
-            sb.appendLine("  ${fmt.format(date)}: ${totalKcal} kcal, ${totalP}g P, ${totalC}g C, ${totalF}g F$pctStr")
-            dayMeals.forEach { m ->
-                val prot = if (m.totalProteinG > 0) ", ${m.totalProteinG}g P" else ""
-                val carb = if (m.totalCarbsG > 0) ", ${m.totalCarbsG}g C" else ""
-                val fat = if (m.totalFatG > 0) ", ${m.totalFatG}g F" else ""
-                sb.appendLine("    - ${m.description} (${m.totalKcal} kcal$prot$carb$fat)")
-            }
-        }
-    }
-
-    sb.appendLine("=== END CONTEXT ===")
-    return sb.toString()
-}

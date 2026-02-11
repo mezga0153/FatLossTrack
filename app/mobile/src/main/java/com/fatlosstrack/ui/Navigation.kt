@@ -32,7 +32,6 @@ import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
-import com.fatlosstrack.data.local.db.ChatMessageDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
@@ -41,6 +40,7 @@ import com.fatlosstrack.ui.camera.CameraModeSheet
 import com.fatlosstrack.ui.camera.CaptureMode
 import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.chat.ChatScreen
+import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.log.LogScreen
@@ -71,11 +71,11 @@ fun FatLossTrackNavGraph(
     mealDao: MealDao,
     dailyLogDao: DailyLogDao,
     weightDao: WeightDao,
-    chatMessageDao: ChatMessageDao,
     healthConnectManager: HealthConnectManager? = null,
     healthConnectSyncService: HealthConnectSyncService? = null,
     daySummaryGenerator: DaySummaryGenerator? = null,
     appLogger: AppLogger? = null,
+    chatStateHolder: ChatStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -320,14 +320,7 @@ fun FatLossTrackNavGraph(
 
                 // Chat tab
                 composable(Tab.Chat.route) {
-                    ChatScreen(
-                        openAiService = openAiService,
-                        chatMessageDao = chatMessageDao,
-                        dailyLogDao = dailyLogDao,
-                        mealDao = mealDao,
-                        weightDao = weightDao,
-                        preferencesManager = preferencesManager,
-                    )
+                    ChatScreen(state = chatStateHolder)
                 }
             }
 
