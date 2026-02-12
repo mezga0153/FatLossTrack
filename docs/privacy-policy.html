@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FatLoss Track — Privacy Policy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.7; color: #e8e8f0; background: #0d0d1a; padding: 2rem; }
+        .container { max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #6c9cff; }
+        h2 { font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #59d8a0; }
+        p, li { margin-bottom: 0.8rem; color: #c8c8d8; }
+        ul { padding-left: 1.5rem; }
+        .date { color: #8b8ba3; font-size: 0.9rem; margin-bottom: 2rem; }
+        a { color: #6c9cff; }
+        .section { margin-bottom: 1.5rem; }
+        hr { border: none; border-top: 1px solid #2a2a40; margin: 2rem 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<h1>Privacy Policy</h1>
+<p class="date">Effective date: February 12, 2026</p>
+
+<p>FatLoss Track ("the App") is a personal weight-loss tracking application developed by Tine Mezgec. This policy explains what data the App collects, how it is used, and your choices.</p>
+
+<div class="section">
+<h2>1. Local-First Architecture</h2>
+<p>The App stores all your data <strong>locally on your device</strong> using an on-device database (Room). Your weight entries, meal logs, daily logs, goals, and chat history are never uploaded to any server controlled by us. There is no backend server, no cloud database, and no analytics service collecting your usage data.</p>
+</div>
+
+<div class="section">
+<h2>2. Data We Collect</h2>
+<p>The App processes the following categories of data, all stored on your device:</p>
+<ul>
+    <li><strong>Health &amp; fitness data</strong> — Weight, steps, sleep duration, resting heart rate, exercises, and active calories. This data is entered manually or synced from Health Connect (see Section 4).</li>
+    <li><strong>Nutrition data</strong> — Meal descriptions, calorie and macronutrient estimates, meal photos (temporarily, for AI analysis only).</li>
+    <li><strong>Goals &amp; profile</strong> — Target weight, weekly rate, sex, age, height, and activity level. Used solely for TDEE/BMR calculations on-device.</li>
+    <li><strong>Google account info</strong> — Display name, email, and profile photo from Google Sign-In. Used only for in-app display and authentication.</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>3. OpenAI API</h2>
+<p>The App sends data to <strong>OpenAI's API</strong> (api.openai.com) for AI features including meal analysis, coaching summaries, and chat. When you use these features:</p>
+<ul>
+    <li>Text descriptions of your meals, daily stats, and chat messages are sent to OpenAI.</li>
+    <li>When you use the camera to log meals, photos are sent to OpenAI's Vision API for analysis. Photos are not stored on OpenAI's servers after processing.</li>
+    <li>You provide your <strong>own OpenAI API key</strong>, which is stored locally on your device. The developer of this App never has access to your API key, your API usage, or any data sent to OpenAI. All communication happens directly between your device and OpenAI's servers.</li>
+</ul>
+<p>OpenAI's data usage policy applies to data sent to their API. See <a href="https://openai.com/policies/api-data-usage-policies" target="_blank">OpenAI's API Data Usage Policies</a> for details. As of 2026, OpenAI does not use API data to train models.</p>
+</div>
+
+<div class="section">
+<h2>4. Health Connect</h2>
+<p>The App integrates with <strong>Android Health Connect</strong> to read health and fitness data from your wearables and other apps. The App requests <strong>read-only</strong> access to:</p>
+<ul>
+    <li>Weight records</li>
+    <li>Step count</li>
+    <li>Sleep sessions</li>
+    <li>Heart rate &amp; resting heart rate</li>
+    <li>Exercise sessions</li>
+    <li>Active calories burned</li>
+</ul>
+<p>This data is synced to the local on-device database and is never transmitted to external servers (except when included in AI coaching summaries sent to OpenAI, as described in Section 3).</p>
+</div>
+
+<div class="section">
+<h2>5. Google Sign-In &amp; Firebase</h2>
+<p>The App uses <strong>Google Sign-In</strong> via Firebase Authentication to identify you. This is used for:</p>
+<ul>
+    <li>Displaying your name and profile photo in the app.</li>
+    <li>Google Drive backup — your database is backed up to your own Google Drive. Only the App can access this backup file; we have no access to your Google Drive.</li>
+</ul>
+<p>We do not access your Gmail, Google Drive contents, contacts, or any other Google services beyond basic authentication. Firebase Analytics is included but collects only anonymous, aggregate usage data as per <a href="https://firebase.google.com/support/privacy" target="_blank">Firebase's privacy documentation</a>.</p>
+</div>
+
+<div class="section">
+<h2>6. Data Sharing</h2>
+<p>The App does <strong>not</strong> sell, rent, or share your personal data with any third parties. Data leaves your device only in these cases:</p>
+<ul>
+    <li>When you use AI features (sent to OpenAI via your own API key).</li>
+    <li>When you sign in (authentication via Google/Firebase).</li>
+    <li>Anonymous crash/usage analytics via Firebase (can be limited through device settings).</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>7. Data Retention &amp; Deletion</h2>
+<p>All data is stored locally on your device. You can delete your data at any time by:</p>
+<ul>
+    <li>Clearing app data in Android Settings → Apps → FatLoss Track → Storage → Clear Data.</li>
+    <li>Uninstalling the App, which removes all local data.</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>8. Children's Privacy</h2>
+<p>The App is not intended for children under 13. We do not knowingly collect data from children.</p>
+</div>
+
+<div class="section">
+<h2>9. Changes to This Policy</h2>
+<p>We may update this policy from time to time. Changes will be posted on this page with an updated effective date.</p>
+</div>
+
+<div class="section">
+<h2>10. Contact</h2>
+<p>If you have questions about this privacy policy, contact: <a href="https://github.com/mezga0153/FatLossTrack/issues">GitHub Issues</a></p>
+</div>
+
+<hr>
+<p style="font-size: 0.85rem; color: #8b8ba3;">FatLoss Track is an open-source project licensed under the MIT License.<br>Source code: <a href="https://github.com/mezga0153/FatLossTrack">github.com/mezga0153/FatLossTrack</a></p>
+
+</div>
+</body>
+</html>
