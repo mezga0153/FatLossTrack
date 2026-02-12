@@ -98,6 +98,13 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     // Auto-scroll behavior
     val isStreaming = streamingContent != null
 
+    // Scroll to bottom when loading starts (spinner appears)
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
     // Meal review sheet state — when non-null, the review bottom sheet is shown
     var reviewMeal by remember { mutableStateOf<ChatSegment.Meal?>(null) }
     // Track which meal block indices have been logged (per message id + segment index)
@@ -143,6 +150,28 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = statusBarTop + 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // Thinking indicator (index 0 = bottom in reverseLayout)
+            if (isLoading) {
+                item(key = "__loading__") {
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Accent,
+                            strokeWidth = 2.dp,
+                        )
+                        Text(
+                            stringResource(R.string.chat_thinking),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             // Messages in reverse chronological order (newest first = index 0)
             items(messages.reversed(), key = { it.id }) { msg ->
                 ChatBubble(
@@ -221,9 +250,7 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
                 state.sendMessage(query, images)
             },
             onFocused = {
-                if (messages.isNotEmpty()) {
-                    scope.launch { listState.animateScrollToItem(messages.lastIndex) }
-                }
+                scope.launch { listState.animateScrollToItem(0) }
             },
         )
     }

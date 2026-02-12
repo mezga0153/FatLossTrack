@@ -401,6 +401,7 @@
     <string name="chat_pill_am_i_on_track">Sem na pravi poti?</string>
     <string name="chat_action_copy">Kopiraj</string>
     <string name="chat_action_retry">Ponovi</string>
+    <string name="chat_thinking">Razmišljam…</string>
     <string name="chat_log_meal">Zabeleži obrok</string>
     <string name="chat_meal_logged">Zabeleženo!</string>
     <string name="section_log_date">Datum</string>
