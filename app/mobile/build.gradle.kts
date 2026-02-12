@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.oss.licenses)
 }
 
 android {
@@ -127,4 +128,7 @@ dependencies {
     implementation(libs.credentials.play)
     implementation(libs.google.id)
     implementation(libs.play.services.auth)
+
+    // OSS Licenses
+    implementation(libs.play.services.oss.licenses)
 }

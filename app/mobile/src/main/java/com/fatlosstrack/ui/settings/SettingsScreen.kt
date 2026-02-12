@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui.settings
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -41,6 +43,7 @@ import com.fatlosstrack.ui.theme.ThemeMode
 import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
 import com.fatlosstrack.domain.TdeeCalculator
+import com.google.android.gms.oss.licenses.v2.OssLicensesMenuActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
@@ -70,6 +73,7 @@ fun SettingsScreen(
     onViewWelcome: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val authManager = state.authManager
     val preferencesManager = state.preferencesManager
     val healthConnectManager = state.healthConnectManager
@@ -839,7 +843,11 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { }
+                    .clickable {
+                        context.startActivity(
+                            Intent(context, OssLicensesMenuActivity::class.java)
+                        )
+                    }
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
