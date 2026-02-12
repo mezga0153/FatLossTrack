@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -26,15 +28,21 @@ android {
     }
 
     signingConfigs {
-        getByName("debug") {
-            // Default debug keystore — used for local release testing
+        create("release") {
+            val props = Properties()
+            val localPropsFile = rootProject.file("local.properties")
+            if (localPropsFile.exists()) { localPropsFile.inputStream().use { props.load(it) } }
+            storeFile = file("../../fatlosstrack-release.keystore")
+            storePassword = props.getProperty("KEYSTORE_PASSWORD", "")
+            keyAlias = "fatlosstrack"
+            keyPassword = props.getProperty("KEY_PASSWORD", "")
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

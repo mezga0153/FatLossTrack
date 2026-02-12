@@ -29,3 +29,7 @@ Desktop.ini
 
 # Firebase config (contains API keys)
 google-services.json
+
+# Release keystore
+*.keystore
+*.jks
