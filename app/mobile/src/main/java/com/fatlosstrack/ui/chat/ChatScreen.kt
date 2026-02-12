@@ -25,7 +25,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.ContentScale
@@ -88,67 +87,6 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     // Auto-scroll behavior
     val isStreaming = streamingContent != null
 
-    // ── Initial load: overlay until layout stabilises and scroll completes ──
-    var initialScrollDone by remember { mutableStateOf(false) }
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty() && !initialScrollDone) {
-            // Scroll-settle loop: scroll to bottom, wait for layout stability,
-            // then scroll again. Repeat until scrolling doesn't change visible height
-            // (each scroll may render new items whose Markdown causes layout shifts).
-            var rounds = 0
-            while (rounds < 10) { // safety cap
-                listState.scrollToItem(messages.lastIndex)
-
-                // Wait for layout to be stable for 300ms (6 × 50ms)
-                var lastHeight = -1
-                var stableFrames = 0
-                while (stableFrames < 6) {
-                    kotlinx.coroutines.delay(50)
-                    val info = listState.layoutInfo
-                    val currentHeight = info.viewportEndOffset - info.viewportStartOffset +
-                        info.visibleItemsInfo.sumOf { it.size }
-                    if (currentHeight == lastHeight) stableFrames++
-                    else { stableFrames = 0; lastHeight = currentHeight }
-                }
-
-                // Scroll again and check if the height changed
-                val heightBefore = lastHeight
-                listState.scrollToItem(messages.lastIndex)
-                kotlinx.coroutines.delay(100)
-                val infoAfter = listState.layoutInfo
-                val heightAfter = infoAfter.viewportEndOffset - infoAfter.viewportStartOffset +
-                    infoAfter.visibleItemsInfo.sumOf { it.size }
-
-                if (heightAfter == heightBefore) break // stable — done
-                rounds++
-            }
-            initialScrollDone = true
-        }
-    }
-    // If chat has no messages, skip the overlay
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(200)
-        if (messages.isEmpty()) initialScrollDone = true
-    }
-
-    // When streaming starts: scroll user's last message to top of viewport (once)
-    LaunchedEffect(isStreaming) {
-        if (isStreaming && messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
-    // When a new message is persisted after initial load, scroll to bottom
-    val prevMessageCount = remember { mutableIntStateOf(0) }
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty() && initialScrollDone) {
-            if (prevMessageCount.intValue > 0) {
-                listState.animateScrollToItem(messages.lastIndex)
-            }
-            prevMessageCount.intValue = messages.size
-        }
-    }
-
     // Clear history confirmation dialog
     if (showClearDialog) {
         AlertDialog(
@@ -173,29 +111,37 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val bottomPad = if (isStreaming) 400.dp else 8.dp
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Surface),
     ) {
-      Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (!initialScrollDone) Modifier.alpha(0f) else Modifier),
-      ) {
-        // Message list (normal layout — streaming content grows downward)
+        // Message list (reverseLayout = true — index 0 at the bottom, auto-scrolled)
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             state = listState,
-            reverseLayout = false,
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = statusBarTop + 8.dp, bottom = bottomPad),
+            reverseLayout = true,
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = statusBarTop + 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // Empty state placeholder (at top when no messages)
+            // Messages in reverse chronological order (newest first = index 0)
+            items(messages.reversed(), key = { it.id }) { msg ->
+                ChatBubble(
+                    message = msg,
+                    onCopy = { content ->
+                        val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
+                    },
+                    onRetry = {
+                        state.retryMessage(msg)
+                    },
+                )
+            }
+
+            // Empty state placeholder (at top = last in reversed layout)
             if (messages.isEmpty() && !isLoading) {
                 item {
                     Box(
@@ -223,74 +169,6 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OnSurfaceVariant,
                             )
-                        }
-                    }
-                }
-            }
-
-            // Messages in chronological order
-            items(messages, key = { it.id }) { msg ->
-                ChatBubble(
-                    message = msg,
-                    onCopy = { content ->
-                        val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
-                    },
-                    onRetry = {
-                        state.retryMessage(msg)
-                    },
-                )
-            }
-
-            // Streaming response (last item — grows downward naturally)
-            if (streamingContent != null) {
-                item(key = "streaming") {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            stringResource(R.string.ai_coach),
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = Accent,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        if (streamingContent.isNotEmpty()) {
-                            Markdown(
-                                content = streamingContent,
-                                colors = markdownColor(
-                                    text = OnSurface,
-                                    codeBackground = CardSurface,
-                                    inlineCodeBackground = CardSurface,
-                                    dividerColor = OnSurfaceVariant.copy(alpha = 0.3f),
-                                    tableBackground = CardSurface,
-                                ),
-                                typography = markdownTypography(
-                                    h1 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                                    h2 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                                    h3 = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = OnSurface),
-                                    text = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    paragraph = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    bullet = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    list = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                    ordered = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        } else {
-                            Row(
-                                modifier = Modifier.padding(top = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = Accent,
-                                    strokeWidth = 2.dp,
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    stringResource(R.string.ai_thinking),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = OnSurfaceVariant,
-                                )
-                            }
                         }
                     }
                 }
@@ -328,17 +206,6 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
                 }
             },
         )
-      }
-
-      // Loading overlay while initial scroll is pending
-      if (!initialScrollDone) {
-          Box(
-              modifier = Modifier.fillMaxSize(),
-              contentAlignment = Alignment.Center,
-          ) {
-              CircularProgressIndicator(color = Accent, modifier = Modifier.size(32.dp))
-          }
-      }
     }
 }
 
