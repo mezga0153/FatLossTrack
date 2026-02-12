@@ -8,7 +8,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  Wireless ADB – Pair & Connect"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "On your Pixel: Settings → Developer options → Wireless debugging"
+echo "On your Phone: Settings → Developer options → Wireless debugging"
 echo ""
 
 # Step 1: Pair (one-time)
