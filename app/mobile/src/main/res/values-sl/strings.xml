@@ -213,6 +213,9 @@
     <string name="ai_key_saved">✓ Ključ shranjen</string>
     <string name="ai_save_key">Shrani ključ</string>
     <string name="ai_model_label">Model</string>
+    <string name="model_selector_title">AI model</string>
+    <string name="model_selector_pricing_hint">Cene na 1M žetonov: ↑ vhod  ↓ izhod</string>
+    <string name="model_recommended">Priporočeno</string>
     <string name="ai_usage_button">AI poraba</string>
     <string name="ai_usage_title">AI poraba</string>
     <string name="ai_usage_overview">Pregled</string>

@@ -31,7 +31,6 @@ import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.backup.DriveBackupManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
-import com.fatlosstrack.ui.theme.Accent
 import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.OnSurfaceVariant
 import com.fatlosstrack.ui.theme.Primary
@@ -42,7 +41,6 @@ import com.fatlosstrack.ui.theme.ThemeMode
 import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
 import com.fatlosstrack.domain.TdeeCalculator
-import androidx.compose.foundation.border
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
@@ -68,6 +66,7 @@ fun SettingsScreen(
     onSyncHealthConnect: (() -> Unit)? = null,
     onViewLog: (() -> Unit)? = null,
     onViewAiUsage: (() -> Unit)? = null,
+    onViewModelSelector: (() -> Unit)? = null,
     onViewWelcome: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -179,7 +178,7 @@ fun SettingsScreen(
 
     // AI settings
     val storedApiKey by preferencesManager.openAiApiKey.collectAsState(initial = "")
-    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5.2")
+    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5-mini")
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
@@ -695,7 +694,6 @@ fun SettingsScreen(
         SettingsSection(stringResource(R.string.settings_section_ai)) {
             var apiKeyInput by remember(storedApiKey) { mutableStateOf(storedApiKey) }
             var showKey by remember { mutableStateOf(false) }
-            var selectedModel by remember(storedModel) { mutableStateOf(storedModel) }
             val isKeySaved = storedApiKey.isNotBlank() && apiKeyInput == storedApiKey
 
             Text(
@@ -759,20 +757,56 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.ai_model_label),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(8.dp))
-            ModelSelector(selectedModel) { model ->
-                selectedModel = model
-                scope.launch { preferencesManager.setOpenAiModel(model) }
+            if (onViewModelSelector != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onViewModelSelector)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text(
+                            stringResource(R.string.ai_model_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            modelDisplayName(storedModel),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
             }
             if (onViewAiUsage != null) {
-                Spacer(Modifier.height(12.dp))
-                OutlinedButton(onClick = onViewAiUsage) {
-                    Text(stringResource(R.string.ai_usage_button), color = Primary)
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onViewAiUsage)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.ai_usage_button),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
                 }
             }
         }
@@ -836,102 +870,6 @@ fun SettingsScreen(
         }
 
         Spacer(Modifier.height(80.dp)) // clearance for floating AI bar
-    }
-}
-
-// ---- Model selector data ----
-
-private enum class BadgeStyle { PRIMARY, SECONDARY, ACCENT }
-
-private data class ModelOption(
-    val id: String,
-    val name: String,
-    val badge: String?,
-    val badgeStyle: BadgeStyle = BadgeStyle.PRIMARY,
-    val inputPrice: String,
-    val outputPrice: String,
-)
-
-private val MODEL_OPTIONS = listOf(
-    ModelOption("gpt-5.2", "GPT-5.2", "Best", BadgeStyle.PRIMARY, "$1.75", "$14"),
-    ModelOption("gpt-5-mini", "GPT-5 mini", "Fast", BadgeStyle.SECONDARY, "$0.25", "$2"),
-    ModelOption("gpt-5-nano", "GPT-5 nano", "Cheapest", BadgeStyle.SECONDARY, "$0.05", "$0.40"),
-    ModelOption("gpt-4.1", "GPT-4.1", null, inputPrice = "$2", outputPrice = "$8"),
-    ModelOption("gpt-4.1-mini", "GPT-4.1 mini", null, inputPrice = "$0.40", outputPrice = "$1.60"),
-    ModelOption("gpt-4o-mini", "GPT-4o mini", null, inputPrice = "$0.15", outputPrice = "$0.60"),
-    ModelOption("o4-mini", "o4-mini", "Reasoning", BadgeStyle.ACCENT, "$1.10", "$4.40"),
-    ModelOption("gpt-5.2-pro", "GPT-5.2 Pro", "Smartest", BadgeStyle.ACCENT, "$21", "$168"),
-)
-
-@Composable
-private fun ModelSelector(selected: String, onSelect: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        MODEL_OPTIONS.forEach { model ->
-            ModelCard(model = model, isSelected = model.id == selected) {
-                onSelect(model.id)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelCard(model: ModelOption, isSelected: Boolean, onClick: () -> Unit) {
-    val borderMod = if (isSelected) {
-        Modifier.border(1.5.dp, Primary, RoundedCornerShape(12.dp))
-    } else Modifier
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(borderMod)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) Primary.copy(alpha = 0.08f) else SurfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Left: radio dot
-        RadioButton(
-            selected = isSelected,
-            onClick = null,
-            modifier = Modifier.size(20.dp),
-            colors = RadioButtonDefaults.colors(selectedColor = Primary, unselectedColor = OnSurfaceVariant),
-        )
-        Spacer(Modifier.width(10.dp))
-
-        // Middle: name + badge
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = model.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = if (isSelected) Primary else MaterialTheme.colorScheme.onSurface,
-                )
-                if (model.badge != null) {
-                    Spacer(Modifier.width(6.dp))
-                    val badgeColor = when (model.badgeStyle) {
-                        BadgeStyle.PRIMARY -> Primary
-                        BadgeStyle.SECONDARY -> Secondary
-                        BadgeStyle.ACCENT -> Accent
-                    }
-                    Text(
-                        text = model.badge,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = badgeColor,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(badgeColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
-            }
-        }
-
-        // Right: pricing
-        Column(horizontalAlignment = Alignment.End) {
-            Text("↑ ${model.inputPrice}", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-            Text("↓ ${model.outputPrice}", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
-        }
     }
 }
 

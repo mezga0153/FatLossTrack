@@ -50,6 +50,7 @@ import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.settings.AiUsageScreen
+import com.fatlosstrack.ui.settings.ModelSelectorScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 import com.fatlosstrack.ui.trends.TrendsStateHolder
 import com.fatlosstrack.ui.welcome.OnboardingStep
@@ -123,7 +124,8 @@ fun FatLossTrackNavGraph(
             currentRoute == "set_profile_onboarding" ||
             currentRoute == "set_goal_onboarding" ||
             currentRoute == "log_viewer" ||
-            currentRoute == "ai_usage"
+            currentRoute == "ai_usage" ||
+            currentRoute == "model_selector"
 
     // Hide AiBar on chat tab too (it has its own input)
     val hideAiBar = hideChrome || currentRoute == Tab.Chat.route
@@ -214,6 +216,7 @@ fun FatLossTrackNavGraph(
                             { navController.navigate("log_viewer") }
                         } else null,
                         onViewAiUsage = { navController.navigate("ai_usage") },
+                        onViewModelSelector = { navController.navigate("model_selector") },
                         onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
                     )
                 }
@@ -248,6 +251,14 @@ fun FatLossTrackNavGraph(
                 composable("ai_usage") {
                     AiUsageScreen(
                         aiUsageDao = aiUsageDao,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Model Selector
+                composable("model_selector") {
+                    ModelSelectorScreen(
+                        preferencesManager = preferencesManager,
                         onBack = { navController.popBackStack() },
                     )
                 }

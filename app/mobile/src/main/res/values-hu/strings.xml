@@ -213,6 +213,9 @@
     <string name="ai_key_saved">✓ Kulcs mentve</string>
     <string name="ai_save_key">Kulcs mentése</string>
     <string name="ai_model_label">Modell</string>
+    <string name="model_selector_title">AI modell</string>
+    <string name="model_selector_pricing_hint">Árak 1M tokenenként: ↑ bemenet  ↓ kimenet</string>
+    <string name="model_recommended">Ajánlott</string>
     <string name="ai_usage_button">AI használat</string>
     <string name="ai_usage_title">AI használat</string>
     <string name="ai_usage_overview">Áttekintés</string>

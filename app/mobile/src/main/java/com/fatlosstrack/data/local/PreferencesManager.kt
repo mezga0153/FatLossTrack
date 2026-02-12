@@ -43,7 +43,7 @@ class PreferencesManager @Inject constructor(
     }
 
     val openAiModel: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_OPENAI_MODEL] ?: "gpt-5.2"
+        prefs[KEY_OPENAI_MODEL] ?: "gpt-5-mini"
     }
 
     val startWeight: Flow<Float?> = context.dataStore.data.map { prefs ->

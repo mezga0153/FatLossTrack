@@ -213,6 +213,9 @@
     <string name="ai_key_saved">✓ Key saved</string>
     <string name="ai_save_key">Save key</string>
     <string name="ai_model_label">Model</string>
+    <string name="model_selector_title">AI Model</string>
+    <string name="model_selector_pricing_hint">Prices per 1M tokens: ↑ input  ↓ output</string>
+    <string name="model_recommended">Recommended</string>
     <string name="ai_usage_button">AI Usage</string>
     <string name="ai_usage_title">AI Usage</string>
     <string name="ai_usage_overview">Overview</string>
