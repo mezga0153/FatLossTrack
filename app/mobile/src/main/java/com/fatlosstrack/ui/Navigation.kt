@@ -365,9 +365,9 @@ fun FatLossTrackNavGraph(
                                     )
                                     navController.popBackStack()
                                     navController.navigate(Tab.Chat.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = false }
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
-                                        restoreState = false
+                                        restoreState = true
                                     }
                                 }
                                 else -> {
@@ -392,12 +392,13 @@ fun FatLossTrackNavGraph(
                             navController.popBackStack()
                         },
                         onLogged = {
+                            navController.popBackStack()
                             navController.navigate(Tab.Log.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = false
+                                    saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = false
+                                restoreState = true
                             }
                         },
                         onBack = { navController.popBackStack() },
@@ -429,12 +430,13 @@ fun FatLossTrackNavGraph(
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },
                         onLogged = {
+                            navController.popBackStack()
                             navController.navigate(Tab.Log.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = false
+                                    saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = false
+                                restoreState = true
                             }
                         },
                         onBack = { navController.popBackStack() },
@@ -463,10 +465,10 @@ fun FatLossTrackNavGraph(
                         com.fatlosstrack.data.local.PendingChatStore.store(message)
                         navController.navigate(Tab.Chat.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = false
+                                saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = false
+                            restoreState = true
                         }
                     },
                 )
