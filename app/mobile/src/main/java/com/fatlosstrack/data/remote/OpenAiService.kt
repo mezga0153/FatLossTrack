@@ -318,7 +318,7 @@ class OpenAiService @Inject constructor(
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "system")
-                    put("content", SYSTEM_PROMPT + langSuffix)
+                    put("content", VISION_SYSTEM_PROMPT + langSuffix)
                 }
                 addJsonObject {
                     put("role", "user")
@@ -401,7 +401,12 @@ When you suggest or describe a specific meal, OR when the user reports something
 Fields: meal_type is one of breakfast|brunch|lunch|dinner|snack (pick the most appropriate). day_offset is 0 for today, -1 for yesterday, -2 for two days ago, etc. — use 0 unless the user explicitly mentions a past day.
 Place each [MEAL]...[/MEAL] block on its own line right after describing that meal. You can include multiple blocks if suggesting multiple meals. The block must be valid JSON. Do NOT put the block inside a markdown code fence."""
 
-private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond in this exact JSON format:
+private const val VISION_SYSTEM_PROMPT = """You are a nutrition analysis assistant for FatLoss Track.
+Your ONLY job is to analyze meal photos and return structured JSON.
+Do NOT use markdown. Do NOT add explanatory text outside the JSON.
+Respond with ONLY valid JSON — no code fences, no commentary."""
+
+private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond with ONLY this JSON (no markdown, no code fences, no extra text):
 {
   "description": "Brief description of what you see",
   "source": "home|restaurant|fast_food",
@@ -427,7 +432,7 @@ For "meal_type", infer from the food and current time of day: "breakfast", "brun
 Be specific with portions. Err on the side of slightly overestimating calories."""
 
 private const val MEAL_SUGGEST_PROMPT = """Look at the available ingredients in this photo(s) and suggest a meal.
-Respond in this exact JSON format:
+Respond with ONLY this JSON (no markdown, no code fences, no extra text):
 {
   "description": "What ingredients you see and what meal you suggest",
   "source": "home",
