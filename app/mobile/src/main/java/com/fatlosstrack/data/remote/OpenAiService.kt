@@ -88,8 +88,7 @@ class OpenAiService @Inject constructor(
                     put("content", userMessage)
                 }
             }
-            put("max_completion_tokens", 1024)
-            put("temperature", 0.7)
+            put("max_completion_tokens", 4096)
         }
 
         val response = client.post(API_URL) {
@@ -145,8 +144,7 @@ class OpenAiService @Inject constructor(
                     }
                 }
             }
-            put("max_completion_tokens", 1024)
-            put("temperature", 0.7)
+            put("max_completion_tokens", 4096)
         }
 
         val response = client.post(API_URL) {
@@ -224,8 +222,7 @@ class OpenAiService @Inject constructor(
                     }
                 }
             }
-            put("max_completion_tokens", 1024)
-            put("temperature", 0.7)
+            put("max_completion_tokens", 4096)
         }
 
         val statement = client.preparePost(API_URL) {
@@ -328,8 +325,7 @@ class OpenAiService @Inject constructor(
                     put("content", contentArray)
                 }
             }
-            put("max_completion_tokens", 1500)
-            put("temperature", 0.5)
+            put("max_completion_tokens", 4096)
         }
 
         val response = client.post(API_URL) {

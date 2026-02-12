@@ -46,13 +46,20 @@ import java.time.temporal.ChronoUnit
 private data class ModelPricing(val inputPer1M: Double, val outputPer1M: Double)
 
 private val MODEL_PRICING = mapOf(
-    "gpt-5.2" to ModelPricing(2.0, 8.0),
-    "gpt-5.2-codex" to ModelPricing(2.0, 8.0),
-    "gpt-5.2-pro" to ModelPricing(10.0, 40.0),
+    "gpt-5.2" to ModelPricing(1.75, 14.0),
+    "gpt-5.2-codex" to ModelPricing(1.75, 14.0),
+    "gpt-5.2-pro" to ModelPricing(21.0, 168.0),
+    "gpt-5.1" to ModelPricing(1.25, 10.0),
+    "gpt-5" to ModelPricing(1.25, 10.0),
+    "gpt-5-mini" to ModelPricing(0.25, 2.0),
+    "gpt-5-nano" to ModelPricing(0.05, 0.40),
     "gpt-4.1" to ModelPricing(2.0, 8.0),
-    "gpt-4.1-mini" to ModelPricing(0.4, 1.6),
-    "gpt-4o" to ModelPricing(2.5, 10.0),
+    "gpt-4.1-mini" to ModelPricing(0.40, 1.60),
+    "gpt-4.1-nano" to ModelPricing(0.10, 0.40),
+    "gpt-4o" to ModelPricing(2.50, 10.0),
     "gpt-4o-mini" to ModelPricing(0.15, 0.60),
+    "o3" to ModelPricing(2.0, 8.0),
+    "o4-mini" to ModelPricing(1.10, 4.40),
 )
 
 private val FALLBACK_PRICING = ModelPricing(2.0, 8.0)
