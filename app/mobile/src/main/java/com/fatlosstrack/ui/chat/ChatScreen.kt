@@ -39,9 +39,20 @@ import com.mikepenz.markdown.m3.markdownTypography
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.db.ChatMessage
+import com.fatlosstrack.data.local.db.MealCategory
+import com.fatlosstrack.data.local.db.MealType
+import com.fatlosstrack.ui.camera.AnalysisResult
+import com.fatlosstrack.ui.camera.CaptureMode
+import com.fatlosstrack.ui.camera.MealItem
+import com.fatlosstrack.ui.camera.NutritionRow
+import com.fatlosstrack.ui.camera.ResultContent
+import com.fatlosstrack.ui.camera.parseAnalysisJson
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     val messages by state.messages.collectAsState(initial = emptyList())
@@ -87,6 +98,11 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     // Auto-scroll behavior
     val isStreaming = streamingContent != null
 
+    // Meal review sheet state — when non-null, the review bottom sheet is shown
+    var reviewMeal by remember { mutableStateOf<ChatSegment.Meal?>(null) }
+    // Track which meal block indices have been logged (per message id + segment index)
+    val loggedMealKeys = remember { mutableStateMapOf<String, Boolean>() }
+
     // Clear history confirmation dialog
     if (showClearDialog) {
         AlertDialog(
@@ -131,12 +147,16 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
             items(messages.reversed(), key = { it.id }) { msg ->
                 ChatBubble(
                     message = msg,
+                    loggedMealKeys = loggedMealKeys,
                     onCopy = { content ->
                         val clipboard = androidContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("AI response", content))
                     },
                     onRetry = {
                         state.retryMessage(msg)
+                    },
+                    onLogMeal = { meal ->
+                        reviewMeal = meal
                     },
                 )
             }
@@ -207,6 +227,56 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
             },
         )
     }
+
+    // ── Meal review bottom sheet ──
+    val mealToReview = reviewMeal
+    if (mealToReview != null) {
+        var reviewDate by remember(mealToReview) {
+            mutableStateOf(java.time.LocalDate.now().plusDays(mealToReview.dayOffset.toLong()))
+        }
+        // Build AnalysisResult from the chat meal JSON / segment
+        var analysisResult by remember(mealToReview) {
+            mutableStateOf(chatMealToAnalysisResult(mealToReview))
+        }
+        var correcting by remember { mutableStateOf(false) }
+
+        ModalBottomSheet(
+            onDismissRequest = { reviewMeal = null },
+            containerColor = Surface,
+        ) {
+            if (correcting) {
+                // Show a simple loading indicator during correction
+                Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
+                }
+            } else {
+                ResultContent(
+                    result = analysisResult,
+                    mode = CaptureMode.LogMeal,
+                    showCorrection = true,
+                    showDateSelector = true,
+                    effectiveDate = reviewDate,
+                    onDateChanged = { reviewDate = it },
+                    onDone = { reviewMeal = null },
+                    onLog = { result, category, mealType ->
+                        state.saveMealFromAnalysis(result, reviewDate, category, mealType)
+                        loggedMealKeys[mealToReview.description] = true
+                        reviewMeal = null
+                    },
+                    onCorrection = { correction ->
+                        correcting = true
+                        scope.launch {
+                            val corrected = state.correctMealJson(mealToReview.json, correction)
+                            if (corrected != null) {
+                                analysisResult = corrected
+                            }
+                            correcting = false
+                        }
+                    },
+                )
+            }
+        }
+    }
 }
 
 // ── Chat message ──
@@ -214,8 +284,10 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
 @Composable
 private fun ChatBubble(
     message: ChatMessage,
+    loggedMealKeys: Map<String, Boolean> = emptyMap(),
     onCopy: (String) -> Unit = {},
     onRetry: () -> Unit = {},
+    onLogMeal: (ChatSegment.Meal) -> Unit = {},
 ) {
     val isUser = message.role == "user"
 
@@ -266,7 +338,7 @@ private fun ChatBubble(
             }
         }
     } else {
-        // AI response — full width, no bubble
+        // AI response — full width, parse [MEAL] blocks for log buttons
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 stringResource(R.string.ai_coach),
@@ -274,27 +346,50 @@ private fun ChatBubble(
                 color = Accent,
             )
             Spacer(Modifier.height(2.dp))
-            Markdown(
-                content = message.content,
-                colors = markdownColor(
-                    text = OnSurface,
-                    codeBackground = CardSurface,
-                    inlineCodeBackground = CardSurface,
-                    dividerColor = OnSurfaceVariant.copy(alpha = 0.3f),
-                    tableBackground = CardSurface,
-                ),
-                typography = markdownTypography(
-                    h1 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                    h2 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = OnSurface),
-                    h3 = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = OnSurface),
-                    text = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                    paragraph = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                    bullet = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                    list = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                    ordered = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+
+            // Split content into text segments and meal blocks
+            val segments = remember(message.content) { parseMealBlocks(message.content) }
+
+            segments.forEachIndexed { index, segment ->
+                when (segment) {
+                    is ChatSegment.Text -> {
+                        if (segment.content.isNotBlank()) {
+                            Markdown(
+                                content = segment.content.trim(),
+                                colors = markdownColor(
+                                    text = OnSurface,
+                                    codeBackground = CardSurface,
+                                    inlineCodeBackground = CardSurface,
+                                    dividerColor = OnSurfaceVariant.copy(alpha = 0.3f),
+                                    tableBackground = CardSurface,
+                                ),
+                                typography = markdownTypography(
+                                    h1 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = OnSurface),
+                                    h2 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, color = OnSurface),
+                                    h3 = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold, color = OnSurface),
+                                    text = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    paragraph = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    bullet = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    list = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                    ordered = MaterialTheme.typography.bodyMedium.copy(color = OnSurface),
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    is ChatSegment.Meal -> {
+                        val isLogged = loggedMealKeys[segment.description] == true
+                        MealLogCard(
+                            meal = segment,
+                            isLogged = isLogged,
+                            onLog = {
+                                onLogMeal(segment)
+                            },
+                        )
+                    }
+                }
+            }
+
             // Action icons
             Row(
                 modifier = Modifier.padding(top = 4.dp),
@@ -499,4 +594,174 @@ private fun ChatInputBar(
     }
 }
 
+// ── Meal conversion helper ──
 
+/** Convert a ChatSegment.Meal (from AI chat [MEAL] block) into an AnalysisResult for the review UI. */
+private fun chatMealToAnalysisResult(meal: ChatSegment.Meal): AnalysisResult {
+    // Try to parse items from the JSON if available
+    val items: List<MealItem> = try {
+        meal.itemsJson?.let { itemsStr ->
+            val arr = Json.parseToJsonElement(itemsStr).jsonArray
+            arr.map { el: JsonElement ->
+                val obj = el.jsonObject
+                val name = obj["name"]?.jsonPrimitive?.content ?: "Item"
+                val portion = obj["portion"]?.jsonPrimitive?.content ?: ""
+                val cal = obj["calories"]?.jsonPrimitive?.intOrNull ?: obj["kcal"]?.jsonPrimitive?.intOrNull ?: 0
+                val prot = obj["protein_g"]?.jsonPrimitive?.intOrNull ?: 0
+                val fat = obj["fat_g"]?.jsonPrimitive?.intOrNull ?: 0
+                val carbs = obj["carbs_g"]?.jsonPrimitive?.intOrNull ?: 0
+                MealItem(
+                    name = name,
+                    portion = portion,
+                    nutrition = listOf(
+                        NutritionRow("Calories", "$cal", "kcal"),
+                        NutritionRow("Protein", "$prot", "g"),
+                        NutritionRow("Fat", "$fat", "g"),
+                        NutritionRow("Carbs", "$carbs", "g"),
+                    ),
+                )
+            }
+        } ?: emptyList()
+    } catch (_: Exception) { emptyList<MealItem>() }
+
+    val mealType: MealType? = try {
+        meal.mealType?.uppercase()?.let { name -> MealType.valueOf(name) }
+    } catch (_: Exception) { null }
+
+    return AnalysisResult(
+        description = meal.description,
+        items = items,
+        totalCalories = meal.kcal,
+        totalProteinG = meal.proteinG,
+        totalCarbsG = meal.carbsG,
+        totalFatG = meal.fatG,
+        aiNote = "",
+        mealType = mealType,
+    )
+}
+
+// ── Meal block parser ──
+
+private sealed class ChatSegment {
+    data class Text(val content: String) : ChatSegment()
+    data class Meal(
+        val json: String,
+        val description: String,
+        val kcal: Int,
+        val proteinG: Int,
+        val carbsG: Int,
+        val fatG: Int,
+        val mealType: String?,
+        val dayOffset: Int,
+        val itemsJson: String?,
+    ) : ChatSegment()
+}
+
+private val mealBlockRegex = Regex("""\[MEAL](.*?)\[/MEAL]""", RegexOption.DOT_MATCHES_ALL)
+
+private fun parseMealBlocks(content: String): List<ChatSegment> {
+    val segments = mutableListOf<ChatSegment>()
+    var lastEnd = 0
+    for (match in mealBlockRegex.findAll(content)) {
+        if (match.range.first > lastEnd) {
+            segments.add(ChatSegment.Text(content.substring(lastEnd, match.range.first)))
+        }
+        val json = match.groupValues[1].trim()
+        try {
+            val obj = Json.parseToJsonElement(json).jsonObject
+            segments.add(
+                ChatSegment.Meal(
+                    json = json,
+                    description = obj["description"]
+                        ?.jsonPrimitive?.content ?: "Meal",
+                    kcal = obj["kcal"]
+                        ?.jsonPrimitive?.intOrNull ?: 0,
+                    proteinG = obj["protein_g"]
+                        ?.jsonPrimitive?.intOrNull ?: 0,
+                    carbsG = obj["carbs_g"]
+                        ?.jsonPrimitive?.intOrNull ?: 0,
+                    fatG = obj["fat_g"]
+                        ?.jsonPrimitive?.intOrNull ?: 0,
+                    mealType = obj["meal_type"]
+                        ?.jsonPrimitive?.contentOrNull,
+                    dayOffset = obj["day_offset"]
+                        ?.jsonPrimitive?.intOrNull ?: 0,
+                    itemsJson = obj["items"]?.toString(),
+                ),
+            )
+        } catch (_: Exception) {
+            // If JSON parse fails, treat as plain text
+            segments.add(ChatSegment.Text(match.value))
+        }
+        lastEnd = match.range.last + 1
+    }
+    if (lastEnd < content.length) {
+        segments.add(ChatSegment.Text(content.substring(lastEnd)))
+    }
+    // If no MEAL blocks found, return the whole content as text
+    if (segments.isEmpty()) segments.add(ChatSegment.Text(content))
+    return segments
+}
+
+// ── Meal log card ──
+
+@Composable
+private fun MealLogCard(
+    meal: ChatSegment.Meal,
+    isLogged: Boolean,
+    onLog: () -> Unit,
+) {
+    val dateLabel = when (meal.dayOffset) {
+        0 -> stringResource(R.string.day_today)
+        -1 -> stringResource(R.string.day_yesterday)
+        else -> {
+            val d = java.time.LocalDate.now().plusDays(meal.dayOffset.toLong())
+            d.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))
+        }
+    }
+    val typeLabel = meal.mealType?.replaceFirstChar { it.uppercase() }
+    val subtitle = buildString {
+        if (typeLabel != null) { append(typeLabel); append(" · ") }
+        append("${meal.kcal} kcal · ${meal.proteinG}g P")
+        if (meal.carbsG > 0 || meal.fatG > 0) append(" · ${meal.carbsG}g C · ${meal.fatG}g F")
+        if (meal.dayOffset != 0) { append(" · "); append(dateLabel) }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardSurface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                meal.description,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurface,
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        if (isLogged) {
+            Text(
+                stringResource(R.string.chat_meal_logged),
+                style = MaterialTheme.typography.labelMedium,
+                color = Secondary,
+            )
+        } else {
+            TextButton(onClick = onLog) {
+                Text(
+                    stringResource(R.string.chat_log_meal),
+                    color = Primary,
+                )
+            }
+        }
+    }
+}

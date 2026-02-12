@@ -32,21 +32,33 @@ import java.time.format.DateTimeFormatter
 // ── Add Meal Sheet (manual entry) ──
 // ══════════════════════════════════════════════════
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AddMealSheet(
+fun AddMealSheet(
     date: LocalDate,
     onSave: (MealEntry) -> Unit,
     onDismiss: () -> Unit,
     onCamera: (() -> Unit)? = null,
+    prefillDescription: String = "",
+    prefillKcal: Int? = null,
+    prefillProteinG: Int? = null,
+    prefillCarbsG: Int? = null,
+    prefillFatG: Int? = null,
+    prefillCategory: MealCategory = MealCategory.HOME,
+    prefillMealType: MealType? = null,
+    prefillItemsJson: String? = null,
+    showDateSelector: Boolean = false,
 ) {
-    var description by remember { mutableStateOf("") }
-    var kcalStr by remember { mutableStateOf("") }
-    var proteinStr by remember { mutableStateOf("") }
-    var carbsStr by remember { mutableStateOf("") }
-    var fatStr by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(MealCategory.HOME) }
-    var selectedMealType by remember { mutableStateOf<MealType?>(null) }
+    var description by remember { mutableStateOf(prefillDescription) }
+    var kcalStr by remember { mutableStateOf(prefillKcal?.toString() ?: "") }
+    var proteinStr by remember { mutableStateOf(prefillProteinG?.toString() ?: "") }
+    var carbsStr by remember { mutableStateOf(prefillCarbsG?.toString() ?: "") }
+    var fatStr by remember { mutableStateOf(prefillFatG?.toString() ?: "") }
+    var selectedCategory by remember { mutableStateOf(prefillCategory) }
+    var selectedMealType by remember { mutableStateOf(prefillMealType) }
     var note by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf(date) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -69,11 +81,84 @@ internal fun AddMealSheet(
             }
         }
 
-        Text(
-            date.format(DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")),
-            style = MaterialTheme.typography.bodyMedium,
-            color = OnSurfaceVariant,
-        )
+        // Date display / selector
+        if (showDateSelector) {
+            val today = LocalDate.now()
+            val yesterday = today.minusDays(1)
+            Text(stringResource(R.string.section_log_date), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = selectedDate == today,
+                    onClick = { selectedDate = today },
+                    label = { Text(stringResource(R.string.day_today)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Primary.copy(alpha = 0.15f),
+                        selectedLabelColor = Primary,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedDate == yesterday,
+                    onClick = { selectedDate = yesterday },
+                    label = { Text(stringResource(R.string.day_yesterday)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Primary.copy(alpha = 0.15f),
+                        selectedLabelColor = Primary,
+                    ),
+                )
+                FilterChip(
+                    selected = selectedDate != today && selectedDate != yesterday,
+                    onClick = { showDatePicker = true },
+                    label = {
+                        Text(
+                            if (selectedDate != today && selectedDate != yesterday)
+                                selectedDate.format(DateTimeFormatter.ofPattern("MMM d"))
+                            else
+                                stringResource(R.string.meal_date_other),
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Primary.copy(alpha = 0.15f),
+                        selectedLabelColor = Primary,
+                    ),
+                )
+            }
+        } else {
+            Text(
+                selectedDate.format(DateTimeFormatter.ofPattern("EEEE, d MMM yyyy")),
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnSurfaceVariant,
+            )
+        }
+
+        // Date picker dialog
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = selectedDate
+                    .atStartOfDay(java.time.ZoneId.of("UTC"))
+                    .toInstant()
+                    .toEpochMilli(),
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            selectedDate = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.of("UTC"))
+                                .toLocalDate()
+                        }
+                        showDatePicker = false
+                    }) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text(stringResource(R.string.chat_clear_no))
+                    }
+                },
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
 
         // Description
         OutlinedTextField(
@@ -178,8 +263,9 @@ internal fun AddMealSheet(
                 if (description.isNotBlank()) {
                     onSave(
                         MealEntry(
-                            date = date,
+                            date = selectedDate,
                             description = description.trim(),
+                            itemsJson = prefillItemsJson,
                             totalKcal = kcalStr.toIntOrNull() ?: 0,
                             totalProteinG = proteinStr.toIntOrNull() ?: 0,
                             totalCarbsG = carbsStr.toIntOrNull() ?: 0,

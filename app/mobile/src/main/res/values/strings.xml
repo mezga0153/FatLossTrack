@@ -404,6 +404,10 @@
     <string name="chat_pill_am_i_on_track">Am I on track?</string>
     <string name="chat_action_copy">Copy</string>
     <string name="chat_action_retry">Retry</string>
+    <string name="chat_log_meal">Log this meal</string>
+    <string name="chat_meal_logged">Logged!</string>
+    <string name="section_log_date">Date</string>
+    <string name="meal_date_other">Other…</string>
 
     <!-- WelcomeScreen -->
     <string name="welcome_tagline">Your weight trend doesn\'t lie.\nLet the data do the coaching.</string>

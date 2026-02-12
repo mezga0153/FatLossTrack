@@ -92,7 +92,7 @@ fun AnalysisResultScreen(
             state.result != null -> ResultContent(
                 result = state.result!!,
                 mode = if (isTextMode) CaptureMode.LogMeal else mode,
-                showCorrection = !isTextMode,
+                showCorrection = true,
                 onDone = {
                     state.cleanup()
                     onDone()
@@ -185,11 +185,15 @@ private fun ErrorState(message: String, onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ResultContent(
+internal fun ResultContent(
     result: AnalysisResult,
     mode: CaptureMode,
     showCorrection: Boolean = true,
+    showDateSelector: Boolean = false,
+    effectiveDate: java.time.LocalDate = java.time.LocalDate.now(),
+    onDateChanged: (java.time.LocalDate) -> Unit = {},
     onDone: () -> Unit,
     onLog: (AnalysisResult, MealCategory, MealType?) -> Unit,
     onCorrection: (String) -> Unit,
@@ -378,6 +382,88 @@ private fun ResultContent(
                 }
             }
 
+            // ── Date selector ──
+            if (showDateSelector) {
+                var showDatePicker by remember { mutableStateOf(false) }
+                val today = java.time.LocalDate.now()
+                val yesterday = today.minusDays(1)
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardSurface),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.section_log_date), style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = effectiveDate == today,
+                                onClick = { onDateChanged(today) },
+                                label = { Text(stringResource(R.string.day_today)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = Primary,
+                                ),
+                            )
+                            FilterChip(
+                                selected = effectiveDate == yesterday,
+                                onClick = { onDateChanged(yesterday) },
+                                label = { Text(stringResource(R.string.day_yesterday)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = Primary,
+                                ),
+                            )
+                            FilterChip(
+                                selected = effectiveDate != today && effectiveDate != yesterday,
+                                onClick = { showDatePicker = true },
+                                label = {
+                                    Text(
+                                        if (effectiveDate != today && effectiveDate != yesterday)
+                                            effectiveDate.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))
+                                        else
+                                            stringResource(R.string.meal_date_other),
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = Primary,
+                                ),
+                            )
+                        }
+                    }
+                }
+                if (showDatePicker) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = effectiveDate
+                            .atStartOfDay(java.time.ZoneId.of("UTC"))
+                            .toInstant()
+                            .toEpochMilli(),
+                    )
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    onDateChanged(
+                                        java.time.Instant.ofEpochMilli(millis)
+                                            .atZone(java.time.ZoneId.of("UTC"))
+                                            .toLocalDate(),
+                                    )
+                                }
+                                showDatePicker = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) {
+                                Text(stringResource(R.string.chat_clear_no))
+                            }
+                        },
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
+            }
+
             // ── Correction input ──
             if (showCorrection) {
             Card(
@@ -484,7 +570,7 @@ private fun ResultContent(
 }
 
 @Composable
-private fun NutritionCard(item: MealItem) {
+internal fun NutritionCard(item: MealItem) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardSurface),
         shape = RoundedCornerShape(12.dp),

@@ -404,6 +404,10 @@
     <string name="chat_pill_am_i_on_track">Jó úton haladok?</string>
     <string name="chat_action_copy">Másolás</string>
     <string name="chat_action_retry">Újra</string>
+    <string name="chat_log_meal">Étkezés naplózása</string>
+    <string name="chat_meal_logged">Naplózva!</string>
+    <string name="section_log_date">Dátum</string>
+    <string name="meal_date_other">Más…</string>
 
     <!-- WelcomeScreen -->
     <string name="welcome_tagline">A súlytrendek nem hazudnak.\nHagyd, hogy az adatok edzőként dolgozzanak.</string>

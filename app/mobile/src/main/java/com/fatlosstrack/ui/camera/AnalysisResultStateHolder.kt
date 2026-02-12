@@ -110,6 +110,12 @@ class AnalysisResultStateHolder @Inject constructor(
 
     /** Run or re-run photo analysis, optionally with a user correction. */
     fun runAnalysis(correction: String? = null) {
+        // If we already have a result and user provides a correction,
+        // use text-based AI edit instead of re-sending photos.
+        if (correction != null && result != null) {
+            runTextCorrection(correction)
+            return
+        }
         analyzing = true
         errorMessage = null
         appScope.launch {
@@ -174,6 +180,63 @@ class AnalysisResultStateHolder @Inject constructor(
             }
         }
     }
+
+    /** Correct the current result via text-only AI edit (no photo re-send). */
+    private fun runTextCorrection(correction: String) {
+        val currentResult = result ?: return
+        analyzing = true
+        errorMessage = null
+        appScope.launch {
+            try {
+                AppLogger.instance?.ai("Text correction: ${correction.take(80)}")
+                val mealJson = resultToJson(currentResult)
+                val apiResult = openAiService.editMealWithAi(mealJson, correction)
+                apiResult.fold(
+                    onSuccess = { raw ->
+                        try {
+                            result = parseAnalysisJson(raw)
+                        } catch (e: Exception) {
+                            Log.e("Analysis", "Correction JSON parse failed: $raw", e)
+                        }
+                        analyzing = false
+                    },
+                    onFailure = { e ->
+                        errorMessage = e.message ?: "Correction failed"
+                        analyzing = false
+                    },
+                )
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Unexpected error"
+                analyzing = false
+            }
+        }
+    }
+
+    /** Serialize an AnalysisResult to JSON for the edit API. */
+    private fun resultToJson(r: AnalysisResult): String = buildJsonObject {
+        put("description", r.description)
+        put("total_calories", r.totalCalories)
+        put("total_protein_g", r.totalProteinG)
+        put("total_carbs_g", r.totalCarbsG)
+        put("total_fat_g", r.totalFatG)
+        put("coach_note", r.aiNote)
+        putJsonArray("items") {
+            r.items.forEach { item ->
+                addJsonObject {
+                    put("name", item.name)
+                    put("portion", item.portion)
+                    item.nutrition.forEach { n ->
+                        when (n.name) {
+                            "Calories" -> put("calories", n.amount.toIntOrNull() ?: 0)
+                            "Protein" -> put("protein_g", n.amount.toIntOrNull() ?: 0)
+                            "Fat" -> put("fat_g", n.amount.toIntOrNull() ?: 0)
+                            "Carbs" -> put("carbs_g", n.amount.toIntOrNull() ?: 0)
+                        }
+                    }
+                }
+            }
+        }
+    }.toString()
 
     /** Log the analyzed meal to Room and trigger day summary generation. */
     fun logMeal(
