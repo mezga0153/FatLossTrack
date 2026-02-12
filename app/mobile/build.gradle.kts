@@ -25,9 +25,16 @@ android {
         buildConfigField("String", "BACKEND_URL", "\"http://10.0.2.2:3000\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Default debug keystore — used for local release testing
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
