@@ -219,7 +219,9 @@ class AnalysisResultStateHolder @Inject constructor(
             )
             daySummaryGenerator.launchForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
             cleanup()
-            onComplete()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onComplete()
+            }
         }
     }
 

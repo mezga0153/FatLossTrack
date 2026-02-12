@@ -58,14 +58,21 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     // Image attachment state
     val attachedImages = remember { mutableStateListOf<Uri>() }
 
-    // Consume photos from CapturedPhotoStore (coming back from camera)
+    // Consume photos from CapturedPhotoStore only when this screen is resumed
+    // (prevents stealing photos destined for AnalysisResultScreen)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val photoStoreVersion = CapturedPhotoStore.version.intValue
     LaunchedEffect(photoStoreVersion) {
-        val photos = CapturedPhotoStore.peek()
-        if (photos.isNotEmpty()) {
-            attachedImages.clear()
-            attachedImages.addAll(photos)
-            CapturedPhotoStore.clear()
+        val isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(
+            androidx.lifecycle.Lifecycle.State.RESUMED,
+        )
+        if (isResumed) {
+            val photos = CapturedPhotoStore.peek()
+            if (photos.isNotEmpty()) {
+                attachedImages.clear()
+                attachedImages.addAll(photos)
+                CapturedPhotoStore.clear()
+            }
         }
     }
 

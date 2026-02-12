@@ -392,14 +392,12 @@ fun FatLossTrackNavGraph(
                             navController.popBackStack()
                         },
                         onLogged = {
-                            if (!navController.popBackStack(Tab.Log.route, inclusive = false)) {
-                                navController.navigate(Tab.Log.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                            navController.navigate(Tab.Log.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = false
                                 }
+                                launchSingleTop = true
+                                restoreState = false
                             }
                         },
                         onBack = { navController.popBackStack() },
@@ -431,14 +429,12 @@ fun FatLossTrackNavGraph(
                             navController.popBackStack(Tab.Home.route, inclusive = false)
                         },
                         onLogged = {
-                            if (!navController.popBackStack(Tab.Log.route, inclusive = false)) {
-                                navController.navigate(Tab.Log.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                            navController.navigate(Tab.Log.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = false
                                 }
+                                launchSingleTop = true
+                                restoreState = false
                             }
                         },
                         onBack = { navController.popBackStack() },

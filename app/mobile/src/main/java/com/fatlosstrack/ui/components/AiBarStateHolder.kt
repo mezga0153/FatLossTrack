@@ -13,7 +13,9 @@ import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import java.time.LocalDate
 import javax.inject.Inject
@@ -76,7 +78,9 @@ class AiBarStateHolder @Inject constructor(
                         AppLogger.instance?.ai("AiBar: text meal parsed — ${parsed.description.take(40)}, ${parsed.totalCalories} kcal")
                         PendingTextMealStore.store(raw, targetDate)
                         isLoading = false
-                        onTextMealAnalyzed(targetDate)
+                        withContext(Dispatchers.Main) {
+                            onTextMealAnalyzed(targetDate)
+                        }
                     } else if (parsed != null) {
                         // Direct insert fallback
                         val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
@@ -104,7 +108,7 @@ class AiBarStateHolder @Inject constructor(
                         AppLogger.instance?.ai("AiBar: not meal, opening chat")
                         isLoading = false
                         if (onChatOpen != null) {
-                            onChatOpen(query)
+                            withContext(Dispatchers.Main) { onChatOpen(query) }
                         } else {
                             val chatResult = openAiService.chat(query)
                             chatResult.fold(
@@ -118,7 +122,7 @@ class AiBarStateHolder @Inject constructor(
                     // parseTextMeal failed — open chat screen
                     isLoading = false
                     if (onChatOpen != null) {
-                        onChatOpen(query)
+                        withContext(Dispatchers.Main) { onChatOpen(query) }
                     } else {
                         val chatResult = openAiService.chat(query)
                         chatResult.fold(
