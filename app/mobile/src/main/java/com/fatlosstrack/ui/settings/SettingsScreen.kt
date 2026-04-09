@@ -91,7 +91,12 @@ fun SettingsScreen(
     val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
 
     var toneHonest by remember { mutableStateOf(true) }
-    LaunchedEffect(savedTone) { toneHonest = savedTone == "honest" }
+    var selectedTone by remember { mutableStateOf("honest") }
+    var showCruelConfirm by remember { mutableStateOf(false) }
+    LaunchedEffect(savedTone) {
+        toneHonest = savedTone == "honest"
+        selectedTone = savedTone
+    }
 
     // Health Connect state
     val hcAvailable = healthConnectManager.isAvailable()
@@ -255,17 +260,26 @@ fun SettingsScreen(
 
         // -- Coach tone --
         SettingsSection(stringResource(R.string.settings_section_coach_tone)) {
+            val toneLabel = when (selectedTone) {
+                "supportive" -> stringResource(R.string.tone_supportive)
+                "insulting" -> "Insulting"
+                "cruel" -> "Cruel"
+                else -> "Brutally honest"
+            }
+            val toneDesc = when (selectedTone) {
+                "supportive" -> stringResource(R.string.tone_supportive_desc)
+                "insulting" -> "Roast-style coaching. Mocks your food choices and laziness mercilessly — but advice stays accurate."
+                "cruel" -> "\u26a0\ufe0f Gets deeply personal. No filters. You asked for it."
+                else -> stringResource(R.string.tone_honest_desc)
+            }
             Text(
-                text = if (toneHonest) "Brutally honest" else stringResource(R.string.tone_supportive),
+                text = toneLabel,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
             Text(
-                text = if (toneHonest)
-                    stringResource(R.string.tone_honest_desc)
-                else
-                    stringResource(R.string.tone_supportive_desc),
+                text = toneDesc,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -273,19 +287,45 @@ fun SettingsScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ToneChip(stringResource(R.string.tone_honest), toneHonest) {
-                    toneHonest = true
+                ToneChip(stringResource(R.string.tone_honest), selectedTone == "honest") {
+                    selectedTone = "honest"
                     scope.launch { preferencesManager.setCoachTone("honest") }
                 }
-                ToneChip(stringResource(R.string.tone_supportive), !toneHonest) {
-                    toneHonest = false
+                ToneChip(stringResource(R.string.tone_supportive), selectedTone == "supportive") {
+                    selectedTone = "supportive"
                     scope.launch { preferencesManager.setCoachTone("supportive") }
+                }
+                ToneChip("Insulting", selectedTone == "insulting") {
+                    selectedTone = "insulting"
+                    scope.launch { preferencesManager.setCoachTone("insulting") }
+                }
+                ToneChip("Cruel", selectedTone == "cruel") {
+                    showCruelConfirm = true
                 }
             }
         }
 
         // -- Language --
         val savedLanguage by preferencesManager.language.collectAsState(initial = "en")
+
+        if (showCruelConfirm) {
+            AlertDialog(
+                onDismissRequest = { showCruelConfirm = false },
+                title = { Text("\u26a0\ufe0f Are you sure?") },
+                text = { Text("The Cruel tone gets deeply personal and uses harsh language. All advice remains accurate, but this mode is not for everyone.\n\nAre you sure you want to enable it?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showCruelConfirm = false
+                        selectedTone = "cruel"
+                        scope.launch { preferencesManager.setCoachTone("cruel") }
+                    }) { Text("Yes, enable it", color = com.fatlosstrack.ui.theme.Tertiary) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCruelConfirm = false }) { Text("Cancel") }
+                },
+                containerColor = com.fatlosstrack.ui.theme.CardSurface,
+            )
+        }
 
         SettingsSection(stringResource(R.string.settings_section_language)) {
             Row(

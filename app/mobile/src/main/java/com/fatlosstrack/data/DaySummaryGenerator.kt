@@ -104,8 +104,9 @@ class DaySummaryGenerator @Inject constructor(
             val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it) }
 
             appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, hash=$dataHash, prevHash=$cachedHash)")
+            val tone = preferencesManager.coachTone.first()
             val prompt = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
-            val result = openAiService.chat(prompt, SUMMARY_SYSTEM_PROMPT, feature = "day_summary")
+            val result = openAiService.chat(prompt, systemPrompt(tone), feature = "day_summary")
 
             result.onSuccess { summary ->
                 val trimmed = summary.trim().removeSurrounding("\"")
@@ -240,12 +241,20 @@ class DaySummaryGenerator @Inject constructor(
     companion object {
         internal const val SUMMARY_PLACEHOLDER = "\u23F3"
 
-        private const val SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
+        internal fun systemPrompt(tone: String): String {
+            val toneInstruction = when (tone) {
+                "supportive" -> "Use a warm, encouraging tone. Celebrate wins, gently flag issues."
+                "insulting" -> "Use a brutally sarcastic, roast-style tone. Mock bad food choices and laziness mercilessly, but keep the advice accurate and actionable. Focus insults on choices, not appearance."
+                "cruel" -> "Be completely unfiltered and deeply personal. You are disgusted by weakness and excuses. Be harsh, direct, and cutting — nothing is off-limits. Still provide accurate nutritional guidance, deliver it like someone genuinely appalled by what they're seeing."
+                else -> "Use a direct, no-BS honest tone. Be specific about numbers."
+            }
+            return """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
+
+Tone instruction: $toneInstruction
 
 Rules:
 - Be direct and specific about how this day helps or hurts their goal
 - Reference actual numbers (kcal, steps, sleep hours) when relevant
-- Use a supportive but honest tone
 - Do NOT use quotes around your response
 - Do NOT use markdown or formatting
 - Just plain text, 1-2 sentences
@@ -256,5 +265,6 @@ Examples:
 "Only 4k steps and 2400 kcal — you're likely over your target today."
 "7.5h sleep + 10k steps is a winning combo. Watch dinner portions though."
 "No meals logged yet — track everything to stay accountable."""
+        }
     }
 }
