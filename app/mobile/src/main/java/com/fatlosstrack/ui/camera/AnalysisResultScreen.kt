@@ -93,6 +93,9 @@ fun AnalysisResultScreen(
                 result = state.result!!,
                 mode = if (isTextMode) CaptureMode.LogMeal else mode,
                 showCorrection = true,
+                showDateSelector = true,
+                effectiveDate = state.effectiveDate,
+                onDateChanged = { state.updateEffectiveDate(it) },
                 onDone = {
                     state.cleanup()
                     onDone()

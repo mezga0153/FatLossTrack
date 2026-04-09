@@ -77,6 +77,11 @@ class AnalysisResultStateHolder @Inject constructor(
     var effectiveDate: LocalDate by mutableStateOf(LocalDate.now())
         private set
 
+    /** Allow the UI to change the target date before logging. */
+    fun updateEffectiveDate(date: LocalDate) {
+        effectiveDate = date
+    }
+
     private val bitmaps = mutableListOf<Bitmap>()
     private var currentMode: CaptureMode = CaptureMode.LogMeal
 
