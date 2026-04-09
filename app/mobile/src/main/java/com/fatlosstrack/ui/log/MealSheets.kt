@@ -563,7 +563,7 @@ internal fun MealEditSheet(
             }
 
             if (!aiEditing) {
-                // Action buttons
+                // Action buttons — row 1: Edit / AI Edit / Delete
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = { editing = true },
@@ -573,20 +573,6 @@ internal fun MealEditSheet(
                         Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.button_edit))
-                    }
-                    if (onBookmark != null) {
-                        OutlinedButton(
-                            onClick = {
-                                bookmarkName = meal.description.take(40)
-                                showBookmarkDialog = true
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Secondary),
-                        ) {
-                            Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.button_bookmark))
-                        }
                     }
                     if (openAiService != null) {
                         OutlinedButton(
@@ -607,6 +593,21 @@ internal fun MealEditSheet(
                         Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.button_delete))
+                    }
+                }
+                // Row 2: Bookmark (full width, only if available)
+                if (onBookmark != null) {
+                    OutlinedButton(
+                        onClick = {
+                            bookmarkName = meal.description.take(40)
+                            showBookmarkDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Secondary),
+                    ) {
+                        Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.button_bookmark))
                     }
                 }
             } else {
