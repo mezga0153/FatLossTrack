@@ -49,8 +49,10 @@ data class PeriodStats(
     val fingerprint: String,
 )
 
-/** Module-level cache: (dataFingerprint, summary). Survives recomposition & navigation. */
-private var periodSummaryCache: Pair<String?, String?> = null to null
+/** Module-level cache: (fingerprint, text, generatedAtMs). Survives recomposition & navigation. */
+private data class PeriodSummaryCache(val fingerprint: String?, val text: String?, val generatedAtMs: Long)
+private var periodSummaryCache = PeriodSummaryCache(null, null, 0L)
+private const val PERIOD_SUMMARY_COOLDOWN_MS = 30 * 60 * 1000L // 30 minutes
 
 /**
  * Owns business logic for [HomeScreen]: period summary AI call + caching,
@@ -88,60 +90,75 @@ class HomeStateHolder @Inject constructor(
     val bookmarkedMealDao get() = _bookmarkedMealDao
 
     // ── Period summary state ──
-    var periodSummary: String? by mutableStateOf(periodSummaryCache.second)
+    var periodSummary: String? by mutableStateOf(periodSummaryCache.text)
         private set
     var periodSummaryLoading: Boolean by mutableStateOf(false)
         private set
-    private var lastFingerprint: String? = periodSummaryCache.first
+    private var lastFingerprint: String? = periodSummaryCache.fingerprint
 
     /**
      * Generate (or serve from cache) the AI period summary.
-     * Call from a LaunchedEffect keyed on [PeriodStats.fingerprint].
+     * - Same fingerprint + generated <30 min ago → serve from cache, no AI call.
+     * - Same fingerprint but stale → show cached text immediately and refresh in background.
+     * - New fingerprint → show cached text (if any) immediately and refresh in background.
+     * The loading spinner is only shown when there is no existing cached text at all.
      */
     fun generatePeriodSummary(stats: PeriodStats) {
         val fp = stats.fingerprint
-        // Local in-memory cache hit
+        val nowMs = System.currentTimeMillis()
+        val cache = periodSummaryCache
+
+        // In-memory: same fingerprint, already displayed — no-op
         if (fp == lastFingerprint && periodSummary != null) {
-            AppLogger.instance?.hc("PeriodSummary: fingerprint unchanged ($fp), skipping")
+            AppLogger.instance?.hc("PeriodSummary: in-memory hit ($fp), skipping")
             return
         }
-        // Module-level cache hit
-        if (fp == periodSummaryCache.first && periodSummaryCache.second != null) {
-            AppLogger.instance?.hc("PeriodSummary: using module-level cache (fingerprint=$fp)")
-            periodSummary = periodSummaryCache.second
+
+        // Module-level cache hit: same fingerprint, still fresh
+        if (fp == cache.fingerprint && cache.text != null && (nowMs - cache.generatedAtMs) < PERIOD_SUMMARY_COOLDOWN_MS) {
+            val ageMin = (nowMs - cache.generatedAtMs) / 60_000
+            AppLogger.instance?.hc("PeriodSummary: fresh cache hit (age=${ageMin}min, fp=$fp), skipping")
+            periodSummary = cache.text
             lastFingerprint = fp
             return
         }
+
         if (stats.logCount == 0) {
             AppLogger.instance?.hc("PeriodSummary: skipped (no logs)")
             return
         }
 
-        AppLogger.instance?.hc("PeriodSummary: fingerprint changed ($lastFingerprint → $fp), calling AI")
-        periodSummaryLoading = true
+        // If we have any cached text (stale or different fingerprint), show it immediately — no spinner
+        if (cache.text != null && periodSummary == null) {
+            periodSummary = cache.text
+        }
+        val showSpinner = periodSummary == null
+        if (showSpinner) periodSummaryLoading = true
+
+        val ageMin = if (cache.generatedAtMs > 0) (nowMs - cache.generatedAtMs) / 60_000 else -1L
+        AppLogger.instance?.hc("PeriodSummary: refreshing (fp=$lastFingerprint→$fp, age=${ageMin}min, hasCache=${cache.text != null})")
 
         appScope.launch {
             withContext(Dispatchers.IO) {
                 try {
                     if (!_openAiService.hasApiKey()) {
                         AppLogger.instance?.hc("PeriodSummary: skipped — no API key")
-                        periodSummaryLoading = false
+                        if (showSpinner) periodSummaryLoading = false
                         return@withContext
                     }
                     val prompt = buildPeriodPrompt(stats)
-                    val systemPrompt = PERIOD_SUMMARY_SYSTEM_PROMPT
-                    val result = _openAiService.chat(prompt, systemPrompt, feature = "period_summary")
+                    val result = _openAiService.chat(prompt, PERIOD_SUMMARY_SYSTEM_PROMPT, feature = "period_summary")
                     result.onSuccess { summary ->
                         val trimmed = summary.trim().removeSurrounding("\"")
                         periodSummary = trimmed
                         lastFingerprint = fp
-                        periodSummaryCache = fp to trimmed
+                        periodSummaryCache = PeriodSummaryCache(fp, trimmed, System.currentTimeMillis())
                         AppLogger.instance?.hc("PeriodSummary: AI returned ${trimmed.take(60)}…")
                     }.onFailure { e ->
                         AppLogger.instance?.error("PeriodSummary", "AI call failed", e)
                     }
                 } catch (_: Exception) { }
-                periodSummaryLoading = false
+                if (showSpinner) periodSummaryLoading = false
             }
         }
     }
