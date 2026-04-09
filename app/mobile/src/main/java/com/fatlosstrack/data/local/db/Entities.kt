@@ -61,6 +61,8 @@ data class DailyLog(
     val offPlan: Boolean = false,
     val daySummary: String? = null,
     val synopsis: String? = null,
+    val weightLocked: Boolean = false,
+    val stepsLocked: Boolean = false,
 )
 
 @Entity(tableName = "insights")

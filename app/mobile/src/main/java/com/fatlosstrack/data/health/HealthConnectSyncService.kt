@@ -100,8 +100,8 @@ class HealthConnectSyncService @Inject constructor(
             val existing = dailyLogDao.getForDate(summary.date)
             val merged = if (existing != null) {
                 existing.copy(
-                    weightKg = summary.weightKg ?: existing.weightKg,
-                    steps = summary.steps ?: existing.steps,
+                    weightKg = if (existing.weightLocked) existing.weightKg else summary.weightKg ?: existing.weightKg,
+                    steps = if (existing.stepsLocked) existing.steps else summary.steps ?: existing.steps,
                     sleepHours = summary.sleepHours ?: existing.sleepHours,
                     restingHr = summary.restingHr ?: existing.restingHr,
                     exercisesJson = summary.exercisesJson ?: existing.exercisesJson,
@@ -133,8 +133,8 @@ class HealthConnectSyncService @Inject constructor(
             dailyLogDao.upsert(merged)
 
             val parts = mutableListOf<String>()
-            summary.weightKg?.let { parts += "weight=%.1f kg".format(it) }
-            summary.steps?.let { parts += "steps=$it" }
+            summary.weightKg?.let { if (existing?.weightLocked == true) parts += "weight=LOCKED" else parts += "weight=%.1f kg".format(it) }
+            summary.steps?.let { if (existing?.stepsLocked == true) parts += "steps=LOCKED" else parts += "steps=$it" }
             summary.sleepHours?.let { parts += "sleep=${it}h" }
             summary.restingHr?.let { parts += "hr=${it} bpm" }
             summary.exercisesJson?.let { parts += "exercises" }

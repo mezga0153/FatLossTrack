@@ -15,7 +15,7 @@ import androidx.room.TypeConverters
         AiUsageEntry::class,
         BookmarkedMeal::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

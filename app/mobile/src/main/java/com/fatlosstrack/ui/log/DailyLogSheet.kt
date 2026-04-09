@@ -42,6 +42,8 @@ internal fun DailyLogEditSheet(
     var sleepStr by remember { mutableStateOf(existingLog?.sleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "") }
     var hrStr by remember { mutableStateOf(existingLog?.restingHr?.toString() ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
+    var weightLocked by remember { mutableStateOf(existingLog?.weightLocked ?: false) }
+    var stepsLocked by remember { mutableStateOf(existingLog?.stepsLocked ?: false) }
 
     val exercises = remember { mutableStateListOf<ExerciseItem>() }
     LaunchedEffect(existingLog) { exercises.clear(); exercises.addAll(parseExercises(existingLog?.exercisesJson)) }
@@ -60,8 +62,47 @@ internal fun DailyLogEditSheet(
             IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = OnSurfaceVariant) }
         }
 
-        EditField(icon = Icons.Default.Scale, label = stringResource(R.string.field_weight_kg), value = weightStr, onValueChange = { weightStr = it }, keyboardType = KeyboardType.Decimal)
-        EditField(icon = Icons.AutoMirrored.Filled.DirectionsWalk, label = stringResource(R.string.field_steps), value = stepsStr, onValueChange = { stepsStr = it }, keyboardType = KeyboardType.Number)
+        // Weight — with lock toggle
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                EditField(
+                    icon = Icons.Default.Scale,
+                    label = stringResource(R.string.field_weight_kg),
+                    value = weightStr,
+                    onValueChange = { weightStr = it; if (it.isNotBlank()) weightLocked = true },
+                    keyboardType = KeyboardType.Decimal,
+                )
+            }
+            IconButton(onClick = { weightLocked = !weightLocked }, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    if (weightLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = if (weightLocked) "Unlock weight" else "Lock weight",
+                    tint = if (weightLocked) Primary else OnSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
+        // Steps — with lock toggle
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) {
+                EditField(
+                    icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                    label = stringResource(R.string.field_steps),
+                    value = stepsStr,
+                    onValueChange = { stepsStr = it; if (it.isNotBlank()) stepsLocked = true },
+                    keyboardType = KeyboardType.Number,
+                )
+            }
+            IconButton(onClick = { stepsLocked = !stepsLocked }, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    if (stepsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = if (stepsLocked) "Unlock steps" else "Lock steps",
+                    tint = if (stepsLocked) Primary else OnSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
         EditField(icon = Icons.Default.Bedtime, label = stringResource(R.string.field_sleep_hours), value = sleepStr, onValueChange = { sleepStr = it }, keyboardType = KeyboardType.Decimal)
         EditField(icon = Icons.Default.FavoriteBorder, label = stringResource(R.string.field_resting_hr), value = hrStr, onValueChange = { hrStr = it }, keyboardType = KeyboardType.Number)
 
@@ -127,6 +168,9 @@ internal fun DailyLogEditSheet(
                     notes = notes.ifBlank { null },
                     offPlan = existingLog?.offPlan ?: false,
                     daySummary = existingLog?.daySummary,
+                    synopsis = existingLog?.synopsis,
+                    weightLocked = weightLocked,
+                    stepsLocked = stepsLocked,
                 ))
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
