@@ -40,8 +40,9 @@ class DaySummaryGenerator @Inject constructor(
      * Build a hash of the actual input data (no timestamps, no AI output).
      * If this hash matches what we last generated from, we can skip the AI call.
      */
-    private fun computeDataHash(log: DailyLog?, meals: List<MealEntry>, goal: Goal?): String {
+    private fun computeDataHash(log: DailyLog?, meals: List<MealEntry>, goal: Goal?, tone: String): String {
         val parts = mutableListOf<String>()
+        parts += "tone=$tone"
         if (log != null) {
             parts += "w=${log.weightKg}"
             parts += "s=${log.steps}"
@@ -83,14 +84,6 @@ class DaySummaryGenerator @Inject constructor(
                 return
             }
 
-            // Check data hash — skip if input data hasn't changed since last generation
-            val dataHash = computeDataHash(log, meals, goal)
-            val cachedHash = dataHashCache[date]
-            if (cachedHash == dataHash && log?.daySummary != null && log.daySummary != "⏳") {
-                appLogger.hc("DaySummary skipped for $date — data unchanged (hash=$dataHash)")
-                return
-            }
-
             // Compute TDEE & macro targets from profile
             val sex = preferencesManager.sex.first()
             val age = preferencesManager.age.first()
@@ -103,9 +96,18 @@ class DaySummaryGenerator @Inject constructor(
             } else null
             val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it) }
 
-            appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, hash=$dataHash, prevHash=$cachedHash)")
             val tone = preferencesManager.coachTone.first()
             val prompt = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
+
+            // Check data hash — skip if input data (including tone) hasn't changed
+            val dataHash = computeDataHash(log, meals, goal, tone)
+            val cachedHash = dataHashCache[date]
+            if (cachedHash == dataHash && log?.daySummary != null && log.daySummary != "⏳") {
+                appLogger.hc("DaySummary skipped for $date — data unchanged (hash=$dataHash)")
+                return
+            }
+
+            appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, tone=$tone, hash=$dataHash, prevHash=$cachedHash)")
             val result = openAiService.chat(prompt, systemPrompt(tone), feature = "day_summary")
 
             result.onSuccess { summary ->
