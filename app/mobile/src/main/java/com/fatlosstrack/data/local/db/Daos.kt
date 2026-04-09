@@ -57,6 +57,12 @@ interface DailyLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(log: DailyLog)
 
+    @Query("UPDATE daily_logs SET synopsis = :synopsis WHERE date = :date")
+    suspend fun updateSynopsis(date: LocalDate, synopsis: String)
+
+    @Query("UPDATE daily_logs SET daySummary = :summary WHERE date = :date")
+    suspend fun updateDaySummary(date: LocalDate, summary: String)
+
     @Query("SELECT * FROM daily_logs WHERE date = :date")
     suspend fun getForDate(date: LocalDate): DailyLog?
 

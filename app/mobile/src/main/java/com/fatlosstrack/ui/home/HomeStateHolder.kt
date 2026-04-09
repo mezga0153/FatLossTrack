@@ -149,16 +149,12 @@ class HomeStateHolder @Inject constructor(
 
 // ── Period summary prompt ─────────────────────────────────────────────────────
 
-private const val PERIOD_SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's weekly coach. Given the user's detailed meal and activity data, write a concise coaching summary (3-4 sentences).
+private const val PERIOD_SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's weekly coach. Given the user's data, write a 2-sentence coaching summary.
 
 Rules:
-- Reference specific data points: exact numbers, meal types, patterns you actually see in the data
-- If protein is consistently below target, call it out with numbers
-- If fast food or restaurant meals are frequent, mention the count
-- Note any standout high-calorie days or meals by name/date if visible
-- Direct and honest tone — back every statement with the user's actual numbers
-- Plain text only, no markdown, no quotes
-- End with one actionable recommendation for the next period"""
+- Sentence 1: one key observation with a specific number (kcal, protein, weight, fast food count, etc.)
+- Sentence 2: one concrete action for the next period
+- Direct and honest — no filler words, no emojis, no markdown, no quotes"""
 
 private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     val today = LocalDate.now()
@@ -201,8 +197,19 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
         appendLine("- Weight change: %.1f → %.1f kg".format(s.weights.first(), s.weights.last()))
     }
 
-    // ── Meal category distribution ──
-    if (s.meals.isNotEmpty()) {
+    // ── Per-day detail: use pre-computed synopses when available ──
+    val synopsized = s.dailyLogs.filter { !it.synopsis.isNullOrBlank() }.sortedBy { it.date }
+    if (synopsized.isNotEmpty()) {
+        appendLine()
+        appendLine("Per-day synopses:")
+        synopsized.forEach { log ->
+            appendLine()
+            appendLine(log.synopsis!!)
+        }
+    } else if (s.meals.isNotEmpty()) {
+        // Fallback: rebuild from raw meals when synopses haven't been generated yet
+
+        // Meal category distribution
         val home = s.meals.count { it.category == MealCategory.HOME }
         val restaurant = s.meals.count { it.category == MealCategory.RESTAURANT }
         val fastFood = s.meals.count { it.category == MealCategory.FAST_FOOD }
@@ -212,26 +219,9 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
         appendLine("- Home-cooked: $home (${home * 100 / total}%)")
         if (restaurant > 0) appendLine("- Restaurant: $restaurant (${restaurant * 100 / total}%)")
         if (fastFood > 0) appendLine("- Fast food: $fastFood (${fastFood * 100 / total}%)")
-    }
 
-    // ── Meal type patterns ──
-    val daysWithMeals = s.meals.map { it.date }.distinct().size
-    if (daysWithMeals > 0) {
-        val breakfastDays = s.meals.filter { it.mealType == MealType.BREAKFAST }.map { it.date }.distinct().size
-        val lunchDays = s.meals.filter { it.mealType == MealType.LUNCH }.map { it.date }.distinct().size
-        val dinnerDays = s.meals.filter { it.mealType == MealType.DINNER }.map { it.date }.distinct().size
-        val snackDays = s.meals.filter { it.mealType == MealType.SNACK }.map { it.date }.distinct().size
-        appendLine()
-        appendLine("Meal type patterns (out of $daysWithMeals days with meals):")
-        if (breakfastDays > 0) appendLine("- Breakfast: $breakfastDays days")
-        if (lunchDays > 0) appendLine("- Lunch: $lunchDays days")
-        if (dinnerDays > 0) appendLine("- Dinner: $dinnerDays days")
-        if (snackDays > 0) appendLine("- Snack: $snackDays days")
-    }
-
-    // ── Per-day meal breakdown ──
-    val mealsByDate = s.meals.groupBy { it.date }.entries.sortedBy { it.key }
-    if (mealsByDate.isNotEmpty()) {
+        // Per-day breakdown
+        val mealsByDate = s.meals.groupBy { it.date }.entries.sortedBy { it.key }
         appendLine()
         appendLine("Per-day breakdown:")
         for ((date, dayMeals) in mealsByDate) {
@@ -239,17 +229,14 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
             val dailyProtein = dayMeals.sumOf { it.totalProteinG }
             val dailyCarbs = dayMeals.sumOf { it.totalCarbsG }
             val dailyFat = dayMeals.sumOf { it.totalFatG }
-            val typeStr = dayMeals.mapNotNull { it.mealType?.name?.lowercase() }.distinct().joinToString("+")
             val hasMacros = dailyProtein > 0 || dailyCarbs > 0 || dailyFat > 0
             val macros = if (hasMacros) " [P:${dailyProtein}g C:${dailyCarbs}g F:${dailyFat}g]" else ""
             val dayLog = s.dailyLogs.find { it.date == date }
             val steps = dayLog?.steps?.let { " | ${it} steps" } ?: ""
-            appendLine("$date (${dayMeals.size} meal${if (dayMeals.size != 1) "s" else ""}${if (typeStr.isNotEmpty()) ", $typeStr" else ""}): $dailyKcal kcal$macros$steps")
-            dayMeals.take(5).forEach { meal ->
+            appendLine("$date: $dailyKcal kcal$macros$steps")
+            dayMeals.take(4).forEach { meal ->
                 val typeLabel = meal.mealType?.name?.lowercase() ?: "meal"
-                val kcalStr = if (meal.totalKcal > 0) " — ${meal.totalKcal} kcal" else ""
-                val proteinStr = if (meal.totalProteinG > 0) ", P:${meal.totalProteinG}g" else ""
-                appendLine("  • [$typeLabel] ${meal.description.take(45)}$kcalStr$proteinStr")
+                appendLine("  • [$typeLabel] ${meal.description.take(45)} — ${meal.totalKcal} kcal")
             }
         }
     }

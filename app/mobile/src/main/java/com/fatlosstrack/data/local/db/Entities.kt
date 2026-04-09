@@ -60,6 +60,7 @@ data class DailyLog(
     val notes: String? = null,
     val offPlan: Boolean = false,
     val daySummary: String? = null,
+    val synopsis: String? = null,
 )
 
 @Entity(tableName = "insights")

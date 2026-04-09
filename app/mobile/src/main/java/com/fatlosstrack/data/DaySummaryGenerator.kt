@@ -69,16 +69,11 @@ class DaySummaryGenerator @Inject constructor(
     suspend fun generateForDate(date: LocalDate, reason: String = "unknown") {
         appLogger.hc("DaySummary requested for $date — reason: $reason")
         try {
-            if (!openAiService.hasApiKey()) {
-                appLogger.hc("DaySummary skipped for $date — no API key")
-                return
-            }
-
             val log = dailyLogDao.getForDate(date)
             val meals = mealDao.getMealsForDate(date).first()
             val goal = goalDao.getCurrentGoal().first()
 
-            // Skip if there's nothing to summarize
+            // Skip if there's nothing to work with
             if (log == null && meals.isEmpty()) {
                 appLogger.hc("DaySummary skipped for $date — no data")
                 return
@@ -96,10 +91,24 @@ class DaySummaryGenerator @Inject constructor(
             } else null
             val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it) }
 
-            val tone = preferencesManager.coachTone.first()
-            val prompt = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
+            // Always build + persist synopsis (deterministic — no API key needed)
+            val synopsis = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
+            if (log != null) {
+                dailyLogDao.updateSynopsis(date, synopsis)
+            } else {
+                dailyLogDao.upsert(DailyLog(date = date, synopsis = synopsis))
+            }
+            appLogger.hc("DaySynopsis stored for $date (${synopsis.length} chars)")
 
-            // Check data hash — skip if input data (including tone) hasn't changed
+            // AI summary requires API key
+            if (!openAiService.hasApiKey()) {
+                appLogger.hc("DaySummary skipped for $date — no API key")
+                return
+            }
+
+            val tone = preferencesManager.coachTone.first()
+
+            // Check data hash — skip AI call if input data (including tone) hasn't changed
             val dataHash = computeDataHash(log, meals, goal, tone)
             val cachedHash = dataHashCache[date]
             if (cachedHash == dataHash && log?.daySummary != null && log.daySummary != "⏳") {
@@ -108,13 +117,12 @@ class DaySummaryGenerator @Inject constructor(
             }
 
             appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, tone=$tone, hash=$dataHash, prevHash=$cachedHash)")
-            val result = openAiService.chat(prompt, systemPrompt(tone), feature = "day_summary")
+            val result = openAiService.chat(synopsis, systemPrompt(tone), feature = "day_summary")
 
             result.onSuccess { summary ->
                 val trimmed = summary.trim().removeSurrounding("\"")
                 if (trimmed.isNotBlank()) {
-                    val existing = log ?: DailyLog(date = date)
-                    dailyLogDao.upsert(existing.copy(daySummary = trimmed))
+                    dailyLogDao.updateDaySummary(date, trimmed)
                     dataHashCache[date] = dataHash
                     appLogger.hc("DaySummary generated for $date: ${trimmed.take(60)}… (hash=$dataHash)")
                 }
