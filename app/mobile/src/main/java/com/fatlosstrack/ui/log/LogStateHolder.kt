@@ -3,6 +3,7 @@ package com.fatlosstrack.ui.log
 import androidx.compose.runtime.Stable
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.remote.OpenAiService
@@ -20,6 +21,7 @@ class LogStateHolder @Inject constructor(
     private val _preferencesManager: PreferencesManager,
     private val _daySummaryGenerator: DaySummaryGenerator,
     private val _openAiService: OpenAiService,
+    private val _bookmarkedMealDao: BookmarkedMealDao,
 ) {
     // ── Preference flows ──
     val startDate get() = _preferencesManager.startDate
@@ -34,4 +36,5 @@ class LogStateHolder @Inject constructor(
     val dailyLogDao get() = _dailyLogDao
     val daySummaryGenerator get() = _daySummaryGenerator
     val openAiService get() = _openAiService
+    val bookmarkedMealDao get() = _bookmarkedMealDao
 }

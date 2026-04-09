@@ -1,6 +1,7 @@
 package com.fatlosstrack.ui.log
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
+import com.fatlosstrack.data.local.db.BookmarkedMeal
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
@@ -48,6 +50,7 @@ fun AddMealSheet(
     prefillMealType: MealType? = null,
     prefillItemsJson: String? = null,
     showDateSelector: Boolean = false,
+    bookmarks: List<BookmarkedMeal> = emptyList(),
 ) {
     var description by remember { mutableStateOf(prefillDescription) }
     var kcalStr by remember { mutableStateOf(prefillKcal?.toString() ?: "") }
@@ -78,6 +81,38 @@ fun AddMealSheet(
                     }
                 }
                 IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = OnSurfaceVariant) }
+            }
+        }
+
+        // From bookmarks section
+        if (bookmarks.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.section_bookmarks), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(bookmarks) { bm ->
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                description = bm.description
+                                kcalStr = if (bm.totalKcal > 0) bm.totalKcal.toString() else ""
+                                proteinStr = if (bm.totalProteinG > 0) bm.totalProteinG.toString() else ""
+                                carbsStr = if (bm.totalCarbsG > 0) bm.totalCarbsG.toString() else ""
+                                fatStr = if (bm.totalFatG > 0) bm.totalFatG.toString() else ""
+                                selectedCategory = bm.category
+                                selectedMealType = bm.mealType
+                            },
+                            label = { Text(bm.name, style = MaterialTheme.typography.labelSmall) },
+                            leadingIcon = { Icon(Icons.Default.Bookmark, contentDescription = null, modifier = Modifier.size(14.dp)) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = com.fatlosstrack.ui.theme.CardSurface,
+                                labelColor = OnSurface,
+                                iconColor = Secondary,
+                            ),
+                        )
+                    }
+                }
             }
         }
 
@@ -299,6 +334,7 @@ internal fun MealEditSheet(
     onSave: (MealEntry) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    onBookmark: ((name: String, meal: MealEntry) -> Unit)? = null,
     openAiService: OpenAiService? = null,
 ) {
     var description by remember { mutableStateOf(meal.description) }
@@ -314,6 +350,8 @@ internal fun MealEditSheet(
     var aiPrompt by remember { mutableStateOf("") }
     var aiLoading by remember { mutableStateOf(false) }
     var aiError by remember { mutableStateOf<String?>(null) }
+    var showBookmarkDialog by remember { mutableStateOf(false) }
+    var bookmarkName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val aiFocusRequester = remember { FocusRequester() }
 
@@ -536,6 +574,20 @@ internal fun MealEditSheet(
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.button_edit))
                     }
+                    if (onBookmark != null) {
+                        OutlinedButton(
+                            onClick = {
+                                bookmarkName = meal.description.take(40)
+                                showBookmarkDialog = true
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Secondary),
+                        ) {
+                            Icon(Icons.Default.BookmarkAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.button_bookmark))
+                        }
+                    }
                     if (openAiService != null) {
                         OutlinedButton(
                             onClick = { aiEditing = true; aiError = null },
@@ -667,5 +719,42 @@ internal fun MealEditSheet(
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+
+    // Bookmark name dialog
+    if (showBookmarkDialog) {
+        AlertDialog(
+            onDismissRequest = { showBookmarkDialog = false },
+            title = { Text(stringResource(R.string.bookmark_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = bookmarkName,
+                    onValueChange = { bookmarkName = it },
+                    label = { Text(stringResource(R.string.bookmark_name_label)) },
+                    singleLine = true,
+                    colors = editFieldColors(),
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (bookmarkName.isNotBlank()) {
+                            onBookmark?.invoke(bookmarkName.trim(), meal)
+                        }
+                        showBookmarkDialog = false
+                    },
+                    enabled = bookmarkName.isNotBlank(),
+                ) {
+                    Text(stringResource(R.string.button_bookmark_save), color = Secondary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBookmarkDialog = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            },
+            containerColor = com.fatlosstrack.ui.theme.CardSurface,
+        )
     }
 }

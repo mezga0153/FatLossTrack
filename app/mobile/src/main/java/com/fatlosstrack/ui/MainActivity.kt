@@ -12,6 +12,7 @@ import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
+import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.home.HomeStateHolder
@@ -85,6 +86,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var settingsStateHolder: SettingsStateHolder
 
+    @Inject
+    lateinit var bookmarkedMealDao: BookmarkedMealDao
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
@@ -124,6 +128,7 @@ class MainActivity : AppCompatActivity() {
                         trendsStateHolder = trendsStateHolder,
                         logStateHolder = logStateHolder,
                         settingsStateHolder = settingsStateHolder,
+                        bookmarkedMealDao = bookmarkedMealDao,
                     )
                 }
             }

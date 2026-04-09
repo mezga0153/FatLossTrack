@@ -29,6 +29,7 @@ import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
+import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
@@ -49,6 +50,7 @@ import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.settings.AiUsageScreen
+import com.fatlosstrack.ui.settings.BookmarksScreen
 import com.fatlosstrack.ui.settings.ModelSelectorScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
 import com.fatlosstrack.ui.trends.TrendsStateHolder
@@ -80,6 +82,7 @@ fun FatLossTrackNavGraph(
     trendsStateHolder: TrendsStateHolder,
     logStateHolder: LogStateHolder,
     settingsStateHolder: SettingsStateHolder,
+    bookmarkedMealDao: BookmarkedMealDao,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -121,7 +124,8 @@ fun FatLossTrackNavGraph(
             currentRoute == "set_goal_onboarding" ||
             currentRoute == "log_viewer" ||
             currentRoute == "ai_usage" ||
-            currentRoute == "model_selector"
+            currentRoute == "model_selector" ||
+            currentRoute == "bookmarks"
 
     // Hide AiBar on chat tab too (it has its own input)
     val hideAiBar = hideChrome || currentRoute == Tab.Chat.route
@@ -214,6 +218,7 @@ fun FatLossTrackNavGraph(
                         onViewAiUsage = { navController.navigate("ai_usage") },
                         onViewModelSelector = { navController.navigate("model_selector") },
                         onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
+                        onManageBookmarks = { navController.navigate("bookmarks") },
                     )
                 }
 
@@ -255,6 +260,14 @@ fun FatLossTrackNavGraph(
                 composable("model_selector") {
                     ModelSelectorScreen(
                         preferencesManager = preferencesManager,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Bookmarks
+                composable("bookmarks") {
+                    BookmarksScreen(
+                        bookmarkedMealDao = bookmarkedMealDao,
                         onBack = { navController.popBackStack() },
                     )
                 }

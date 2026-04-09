@@ -71,6 +71,7 @@ fun SettingsScreen(
     onViewAiUsage: (() -> Unit)? = null,
     onViewModelSelector: (() -> Unit)? = null,
     onViewWelcome: (() -> Unit)? = null,
+    onManageBookmarks: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -843,6 +844,29 @@ fun SettingsScreen(
                 ) {
                     Text(
                         stringResource(R.string.ai_usage_button),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+            if (onManageBookmarks != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onManageBookmarks)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.bookmarks_manage_button),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Icon(

@@ -138,6 +138,7 @@ fun LogScreen(
         dailyLogDao = state.dailyLogDao,
         daySummaryGenerator = state.daySummaryGenerator,
         openAiService = state.openAiService,
+        bookmarkedMealDao = state.bookmarkedMealDao,
         onCameraForDate = onCameraForDate,
         logTag = "LogScreen",
     )

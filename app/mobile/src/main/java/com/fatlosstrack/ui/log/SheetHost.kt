@@ -4,6 +4,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
+import com.fatlosstrack.data.local.db.BookmarkedMeal
+import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
@@ -35,6 +37,7 @@ fun LogSheetHost(
     dailyLogDao: DailyLogDao,
     daySummaryGenerator: DaySummaryGenerator?,
     openAiService: OpenAiService?,
+    bookmarkedMealDao: BookmarkedMealDao? = null,
     onCameraForDate: (LocalDate) -> Unit = {},
     logTag: String = "SheetHost",
 ) {
@@ -42,6 +45,8 @@ fun LogSheetHost(
     val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val mealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val addMealSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val bookmarks by (bookmarkedMealDao?.getAll() ?: kotlinx.coroutines.flow.flowOf(emptyList<BookmarkedMeal>())).collectAsState(initial = emptyList())
 
     // ── Daily log edit sheet ──
     if (state.editingDate != null) {
@@ -117,6 +122,23 @@ fun LogSheetHost(
                         state.selectedMeal = null
                     }
                 },
+                onBookmark = if (bookmarkedMealDao != null) { name, meal ->
+                    scope.launch {
+                        bookmarkedMealDao.insert(
+                            BookmarkedMeal(
+                                name = name,
+                                description = meal.description,
+                                itemsJson = meal.itemsJson,
+                                totalKcal = meal.totalKcal,
+                                totalProteinG = meal.totalProteinG,
+                                totalCarbsG = meal.totalCarbsG,
+                                totalFatG = meal.totalFatG,
+                                category = meal.category,
+                                mealType = meal.mealType,
+                            )
+                        )
+                    }
+                } else null,
                 openAiService = openAiService,
             )
         }
@@ -135,6 +157,7 @@ fun LogSheetHost(
         ) {
             AddMealSheet(
                 date = state.addMealForDate!!,
+                bookmarks = bookmarks,
                 onSave = { newMeal ->
                     scope.launch {
                         mealDao.insert(newMeal)

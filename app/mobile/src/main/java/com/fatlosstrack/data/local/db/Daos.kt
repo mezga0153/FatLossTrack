@@ -154,3 +154,18 @@ data class DailyModelUsage(
     val promptTokens: Long,
     val completionTokens: Long,
 )
+
+@Dao
+interface BookmarkedMealDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(meal: BookmarkedMeal): Long
+
+    @Query("SELECT * FROM bookmarked_meals ORDER BY createdAt DESC")
+    fun getAll(): Flow<List<BookmarkedMeal>>
+
+    @Delete
+    suspend fun delete(meal: BookmarkedMeal)
+
+    @Update
+    suspend fun update(meal: BookmarkedMeal)
+}

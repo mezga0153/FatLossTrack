@@ -92,3 +92,18 @@ data class AiUsageEntry(
     val completionTokens: Int,
     val createdAt: Instant = Instant.now(),
 )
+
+@Entity(tableName = "bookmarked_meals")
+data class BookmarkedMeal(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val description: String = "",
+    val itemsJson: String? = null,
+    val totalKcal: Int = 0,
+    val totalProteinG: Int = 0,
+    val totalCarbsG: Int = 0,
+    val totalFatG: Int = 0,
+    val category: MealCategory = MealCategory.HOME,
+    val mealType: MealType? = null,
+    val createdAt: Instant = Instant.now(),
+)

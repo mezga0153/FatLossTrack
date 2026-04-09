@@ -55,6 +55,25 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS bookmarked_meals (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "name TEXT NOT NULL, " +
+                    "description TEXT NOT NULL DEFAULT '', " +
+                    "itemsJson TEXT DEFAULT NULL, " +
+                    "totalKcal INTEGER NOT NULL DEFAULT 0, " +
+                    "totalProteinG INTEGER NOT NULL DEFAULT 0, " +
+                    "totalCarbsG INTEGER NOT NULL DEFAULT 0, " +
+                    "totalFatG INTEGER NOT NULL DEFAULT 0, " +
+                    "category TEXT NOT NULL DEFAULT 'HOME', " +
+                    "mealType TEXT DEFAULT NULL, " +
+                    "createdAt INTEGER NOT NULL)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FatLossDatabase {
@@ -62,7 +81,7 @@ object DatabaseModule {
             context,
             FatLossDatabase::class.java,
             "fatloss_track.db"
-        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build()
+        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build()
     }
 
     @Provides fun provideWeightDao(db: FatLossDatabase): WeightDao = db.weightDao()
@@ -72,6 +91,7 @@ object DatabaseModule {
     @Provides fun provideInsightDao(db: FatLossDatabase): InsightDao = db.insightDao()
     @Provides fun provideChatMessageDao(db: FatLossDatabase): ChatMessageDao = db.chatMessageDao()
     @Provides fun provideAiUsageDao(db: FatLossDatabase): AiUsageDao = db.aiUsageDao()
+    @Provides fun provideBookmarkedMealDao(db: FatLossDatabase): BookmarkedMealDao = db.bookmarkedMealDao()
 
     @Provides
     @Singleton

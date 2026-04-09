@@ -217,6 +217,17 @@
     <string name="model_selector_pricing_hint">Prices per 1M tokens: ↑ input  ↓ output</string>
     <string name="model_recommended">Recommended</string>
     <string name="ai_usage_button">AI Usage</string>
+    <!-- Bookmarks -->
+    <string name="section_bookmarks">From bookmarks</string>
+    <string name="button_bookmark">Bookmark</string>
+    <string name="button_bookmark_save">Save</string>
+    <string name="bookmark_dialog_title">Save bookmark</string>
+    <string name="bookmark_name_label">Name</string>
+    <string name="bookmarks_manage_button">Meal Bookmarks</string>
+    <string name="bookmarks_screen_title">Meal Bookmarks</string>
+    <string name="bookmarks_empty">No bookmarks yet</string>
+    <string name="bookmarks_empty_hint">Long-tap any meal and tap \'Bookmark\' to save it</string>
+    <string name="bookmark_rename_title">Rename bookmark</string>
     <string name="ai_usage_title">AI Usage</string>
     <string name="ai_usage_overview">Overview</string>
     <string name="ai_usage_total_requests">Total requests</string>
