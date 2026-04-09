@@ -189,7 +189,7 @@ fun SettingsScreen(
 
     // AI settings
     val storedApiKey by preferencesManager.openAiApiKey.collectAsState(initial = "")
-    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5-mini")
+    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5.4-mini")
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 

@@ -46,6 +46,10 @@ import java.time.temporal.ChronoUnit
 private data class ModelPricing(val inputPer1M: Double, val outputPer1M: Double)
 
 private val MODEL_PRICING = mapOf(
+    "gpt-5.4" to ModelPricing(3.50, 28.0),
+    "gpt-5.4-mini" to ModelPricing(0.50, 4.0),
+    "gpt-5.4-nano" to ModelPricing(0.10, 0.80),
+    "gpt-5.4-pro" to ModelPricing(35.0, 280.0),
     "gpt-5.2" to ModelPricing(1.75, 14.0),
     "gpt-5.2-codex" to ModelPricing(1.75, 14.0),
     "gpt-5.2-pro" to ModelPricing(21.0, 168.0),

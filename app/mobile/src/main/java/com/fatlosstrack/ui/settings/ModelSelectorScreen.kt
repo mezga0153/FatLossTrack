@@ -42,14 +42,15 @@ private data class ModelOption(
 )
 
 private val MODEL_OPTIONS = listOf(
-    ModelOption("gpt-5.2", "GPT-5.2", "Best", BadgeStyle.PRIMARY, "$1.75", "$14"),
-    ModelOption("gpt-5-mini", "GPT-5 mini", "Fast", BadgeStyle.SECONDARY, "$0.25", "$2", recommended = true),
-    ModelOption("gpt-5-nano", "GPT-5 nano", "Cheapest", BadgeStyle.SECONDARY, "$0.05", "$0.40"),
+    ModelOption("gpt-5.4", "GPT-5.4", "Best", BadgeStyle.PRIMARY, "$3.50", "$28"),
+    ModelOption("gpt-5.4-mini", "GPT-5.4 mini", "Fast", BadgeStyle.SECONDARY, "$0.50", "$4", recommended = true),
+    ModelOption("gpt-5.4-nano", "GPT-5.4 nano", "Cheapest", BadgeStyle.SECONDARY, "$0.10", "$0.80"),
+    ModelOption("gpt-5.4-pro", "GPT-5.4 Pro", "Smartest", BadgeStyle.ACCENT, "$35", "$280"),
+    ModelOption("gpt-5.2", "GPT-5.2", null, inputPrice = "$1.75", outputPrice = "$14"),
+    ModelOption("gpt-5-mini", "GPT-5 mini", null, inputPrice = "$0.25", outputPrice = "$2"),
     ModelOption("gpt-4.1", "GPT-4.1", null, inputPrice = "$2", outputPrice = "$8"),
-    ModelOption("gpt-4.1-mini", "GPT-4.1 mini", null, inputPrice = "$0.40", outputPrice = "$1.60"),
     ModelOption("gpt-4o-mini", "GPT-4o mini", null, inputPrice = "$0.15", outputPrice = "$0.60"),
     ModelOption("o4-mini", "o4-mini", "Reasoning", BadgeStyle.ACCENT, "$1.10", "$4.40"),
-    ModelOption("gpt-5.2-pro", "GPT-5.2 Pro", "Smartest", BadgeStyle.ACCENT, "$21", "$168"),
 )
 
 /** Resolve a model id to its display name. */
@@ -64,7 +65,7 @@ fun ModelSelectorScreen(
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5-mini")
+    val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5.4-mini")
     var selectedModel by remember(storedModel) { mutableStateOf(storedModel) }
 
     Column(
