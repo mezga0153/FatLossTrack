@@ -84,6 +84,7 @@ class AnalysisResultStateHolder @Inject constructor(
 
     private val bitmaps = mutableListOf<Bitmap>()
     private var currentMode: CaptureMode = CaptureMode.LogMeal
+    private var userComment: String = ""
 
     /** Initialize for photo analysis. Resets state and starts analysis. */
     fun startPhotoAnalysis(mode: CaptureMode, targetDate: LocalDate) {
@@ -150,6 +151,7 @@ class AnalysisResultStateHolder @Inject constructor(
                         return@launch
                     }
                     bitmaps.addAll(loaded)
+                    userComment = CapturedPhotoStore.peekComment()
                 }
 
                 val modeStr = if (currentMode == CaptureMode.SuggestMeal) "suggest" else "log"
@@ -157,7 +159,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     "Image analysis: mode=$modeStr, photos=${bitmaps.size}" +
                         if (correction != null) ", correction" else "",
                 )
-                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction)
+                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction, userComment.takeIf { it.isNotBlank() })
 
                 apiResult.fold(
                     onSuccess = { raw ->

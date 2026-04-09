@@ -281,18 +281,23 @@ class OpenAiService @Inject constructor(
         photos: List<Bitmap>,
         mode: String, // "log" or "suggest"
         correction: String? = null,
+        userComment: String? = null,
     ): Result<String> = runCatching {
-        appLogger.ai("Vision analysis: ${photos.size} photos, mode=$mode${if (correction != null) ", correction" else ""}")
+        appLogger.ai("Vision analysis: ${photos.size} photos, mode=$mode${if (correction != null) ", correction" else ""}${if (userComment != null) ", note" else ""}")
         val apiKey = prefs.openAiApiKey.first()
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
 
         val basePrompt = if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT
-        val prompt = if (correction != null) {
-            "$basePrompt\n\nIMPORTANT CORRECTION from user: $correction\nPlease re-analyze with this correction applied."
-        } else {
-            basePrompt
+        val prompt = buildString {
+            append(basePrompt)
+            if (!userComment.isNullOrBlank()) {
+                append("\n\nUser note: $userComment")
+            }
+            if (correction != null) {
+                append("\n\nIMPORTANT CORRECTION from user: $correction\nPlease re-analyze with this correction applied.")
+            }
         }
 
         val contentArray = buildJsonArray {

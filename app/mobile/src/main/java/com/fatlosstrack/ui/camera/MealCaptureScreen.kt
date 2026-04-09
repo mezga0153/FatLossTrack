@@ -92,6 +92,7 @@ fun MealCaptureScreen(
     // Photos state
     val capturedPhotos = remember { mutableStateListOf<Uri>() }
     var viewingIndex by remember { mutableIntStateOf(-1) }
+    var userComment by remember { mutableStateOf("") }
 
     // Gallery picker — pick up to (3 - current) images
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -251,6 +252,35 @@ fun MealCaptureScreen(
                 Spacer(Modifier.height(8.dp))
             }
 
+            // Optional user comment
+            OutlinedTextField(
+                value = userComment,
+                onValueChange = { userComment = it },
+                placeholder = {
+                    Text(
+                        stringResource(R.string.capture_comment_hint),
+                        color = Color.White.copy(alpha = 0.4f),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Primary.copy(alpha = 0.6f),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                    cursorColor = Primary,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                ),
+                textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White),
+                maxLines = 2,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+            )
+
             // Shutter row
             Row(
                 modifier = Modifier
@@ -308,7 +338,7 @@ fun MealCaptureScreen(
                 ) {
                     IconButton(
                         onClick = {
-                            CapturedPhotoStore.store(capturedPhotos.toList())
+                            CapturedPhotoStore.store(capturedPhotos.toList(), userComment.trim())
                             onAnalyze(mode, capturedPhotos.size)
                         },
                         modifier = Modifier

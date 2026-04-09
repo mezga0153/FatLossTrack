@@ -372,6 +372,7 @@
     <string name="camera_permission_required">Camera permission required</string>
     <string name="button_grant_permission">Grant permission</string>
     <string name="capture_photo_count">%d/3 photos</string>
+    <string name="capture_comment_hint">Add a note for the AI (optional)</string>
     <string name="cd_gallery">Gallery</string>
     <string name="cd_take_photo">Take photo</string>
     <string name="cd_analyze">Analyze</string>
