@@ -170,7 +170,12 @@ fun HomeScreen(
 
     // AI period summary — cached by data fingerprint
     val dataFingerprint = remember(pastLogs, pastMeals) {
-        val logSig = pastLogs.sumOf { (it.weightKg?.hashCode() ?: 0) + (it.steps ?: 0) + (it.sleepHours?.hashCode() ?: 0) }
+        // Steps are bucketed to the nearest 1000 so ±500 churn doesn't regenerate the summary
+        val logSig = pastLogs.sumOf {
+            (it.weightKg?.let { w -> (w * 10).toInt() } ?: 0) +
+            ((it.steps ?: 0) / 1000) +
+            (it.sleepHours?.let { s -> (s * 2).toInt() } ?: 0)
+        }
         val mealSig = pastMeals.sumOf { it.totalKcal + it.description.hashCode() }
         "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig"
     }
