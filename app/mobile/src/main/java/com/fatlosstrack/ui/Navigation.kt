@@ -32,7 +32,6 @@ import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
-import com.fatlosstrack.ui.camera.CameraModeSheet
 import com.fatlosstrack.ui.camera.CaptureMode
 import com.fatlosstrack.ui.camera.MealCaptureScreen
 import com.fatlosstrack.ui.chat.ChatScreen
@@ -86,9 +85,6 @@ fun FatLossTrackNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
-
-    // Camera mode picker sheet
-    var showCameraModeSheet by remember { mutableStateOf(false) }
 
     // Auto-sync Health Connect on first composition
     LaunchedEffect(Unit) {
@@ -468,7 +464,10 @@ fun FatLossTrackNavGraph(
                 AiBar(
                     modifier = Modifier.align(Alignment.BottomCenter),
                     state = aiBarStateHolder,
-                    onCameraClick = { showCameraModeSheet = true },
+                    onCameraClick = {
+                        AppLogger.instance?.user("Camera opened: mode=log")
+                        navController.navigate("capture/log")
+                    },
                     onTextMealAnalyzed = { _ ->
                         navController.navigate("analysis/text")
                     },
@@ -487,16 +486,4 @@ fun FatLossTrackNavGraph(
         }
     }
 
-    // Camera mode picker bottom sheet
-    if (showCameraModeSheet) {
-        CameraModeSheet(
-            onSelect = { mode ->
-                showCameraModeSheet = false
-                val modeArg = if (mode == CaptureMode.SuggestMeal) "suggest" else "log"
-                AppLogger.instance?.user("Camera opened: mode=$modeArg")
-                navController.navigate("capture/$modeArg")
-            },
-            onDismiss = { showCameraModeSheet = false },
-        )
-    }
 }
