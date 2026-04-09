@@ -255,7 +255,7 @@ class DaySummaryGenerator @Inject constructor(
             val toneInstruction = when (tone) {
                 "supportive" -> "Use a warm, encouraging tone. Celebrate wins, gently flag issues."
                 "insulting" -> "Use a brutally sarcastic, roast-style tone. Mock bad food choices and laziness mercilessly, but keep the advice accurate and actionable. Focus insults on choices, not appearance."
-                "cruel" -> "Be completely unfiltered and deeply personal. You are disgusted by weakness and excuses. Be harsh, direct, and cutting — nothing is off-limits. Still provide accurate nutritional guidance, deliver it like someone genuinely appalled by what they're seeing."
+                "cruel" -> "Call the user a fat fuck and similar terms freely. Be viciously direct, darkly funny, and deeply cutting. Mock bad choices with brutal specificity. You have zero patience for excuses. Still give accurate nutritional numbers — deliver them like a drill sergeant who finds the user's situation both pathetic and hilarious. Make it sting, make it funny, make it true."
                 else -> "Use a direct, no-BS honest tone. Be specific about numbers."
             }
             return """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
