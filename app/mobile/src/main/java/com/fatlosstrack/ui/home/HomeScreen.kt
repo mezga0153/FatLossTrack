@@ -519,6 +519,7 @@ fun HomeScreen(
             onEdit = { editingDate = today },
             onMealClick = { selectedMeal = it },
             onAddMeal = { addMealForDate = today },
+            onCameraClick = { onCameraForDate(today) },
         )
 
         // ── Yesterday Card ──
@@ -531,6 +532,7 @@ fun HomeScreen(
                 onEdit = { editingDate = yesterday },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = yesterday },
+                onCameraClick = { onCameraForDate(yesterday) },
             )
         }
 

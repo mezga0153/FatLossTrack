@@ -122,6 +122,7 @@ fun LogScreen(
                 onEdit = { editingDate = date },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = date },
+                onCameraClick = { onCameraForDate(date) },
             )
         }
 

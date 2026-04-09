@@ -36,6 +36,7 @@ internal fun DayCard(
     onEdit: () -> Unit,
     onMealClick: (MealEntry) -> Unit,
     onAddMeal: () -> Unit,
+    onCameraClick: (() -> Unit)? = null,
 ) {
     val dateLabel = when (date) {
         LocalDate.now() -> stringResource(R.string.day_today)
@@ -53,8 +54,10 @@ internal fun DayCard(
             // Header
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(dateLabel, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit), tint = Primary, modifier = Modifier.size(18.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit), tint = Primary, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
 
@@ -72,8 +75,15 @@ internal fun DayCard(
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.section_meals), style = MaterialTheme.typography.labelMedium, color = OnSurfaceVariant)
-                IconButton(onClick = onAddMeal, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_meal), tint = Primary, modifier = Modifier.size(18.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onCameraClick != null) {
+                        IconButton(onClick = onCameraClick, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = stringResource(R.string.cd_log_camera), tint = Accent, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                    IconButton(onClick = onAddMeal, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add_meal), tint = Primary, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
 
