@@ -329,7 +329,7 @@ internal fun parseAnalysisJson(raw: String): AnalysisResult {
     val mealTypeStr = json["meal_type"]?.jsonPrimitive?.content ?: ""
     val mealType = when (mealTypeStr.lowercase()) {
         "breakfast" -> MealType.BREAKFAST
-        "brunch" -> MealType.BRUNCH
+        "brunch" -> MealType.BREAKFAST // legacy mapping
         "lunch" -> MealType.LUNCH
         "dinner" -> MealType.DINNER
         "snack" -> MealType.SNACK

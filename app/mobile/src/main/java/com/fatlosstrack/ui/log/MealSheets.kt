@@ -233,7 +233,7 @@ fun AddMealSheet(
         // Meal type selector
         Text(stringResource(R.string.section_meal_type), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MealType.entries.forEach { type ->
+            MealType.entries.filter { it != MealType.BRUNCH }.forEach { type ->
                 FilterChip(
                     selected = selectedMealType == type,
                     onClick = { selectedMealType = if (selectedMealType == type) null else type },

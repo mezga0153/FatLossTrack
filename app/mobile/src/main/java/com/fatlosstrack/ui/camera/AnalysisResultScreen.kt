@@ -361,7 +361,6 @@ internal fun ResultContent(
                     @Suppress("ktlint")
                     val mealTypes = listOf(
                         MealType.BREAKFAST to stringResource(R.string.meal_type_breakfast),
-                        MealType.BRUNCH to stringResource(R.string.meal_type_brunch),
                         MealType.LUNCH to stringResource(R.string.meal_type_lunch),
                         MealType.DINNER to stringResource(R.string.meal_type_dinner),
                         MealType.SNACK to stringResource(R.string.meal_type_snack),

@@ -49,7 +49,7 @@ internal fun categoryColor(c: MealCategory) = when (c) {
 @Composable
 internal fun mealTypeLabel(t: MealType) = when (t) {
     MealType.BREAKFAST -> stringResource(R.string.meal_type_breakfast)
-    MealType.BRUNCH -> stringResource(R.string.meal_type_brunch)
+    MealType.BRUNCH -> stringResource(R.string.meal_type_breakfast) // legacy — maps to Breakfast
     MealType.LUNCH -> stringResource(R.string.meal_type_lunch)
     MealType.DINNER -> stringResource(R.string.meal_type_dinner)
     MealType.SNACK -> stringResource(R.string.meal_type_snack)
