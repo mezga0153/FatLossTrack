@@ -168,8 +168,9 @@ fun HomeScreen(
         ((latestWeight - goalW) / weeklyRate!!).toInt()
     } else null
 
-    // AI period summary — cached by data fingerprint
-    val dataFingerprint = remember(pastLogs, pastMeals) {
+    // AI period summary — cached by data fingerprint (includes tone so changing tone busts cache)
+    val coachTone by state.preferencesManager.coachTone.collectAsState(initial = "honest")
+    val dataFingerprint = remember(pastLogs, pastMeals, coachTone) {
         // Steps are bucketed to the nearest 1000 so ±500 churn doesn't regenerate the summary
         val logSig = pastLogs.sumOf {
             (it.weightKg?.let { w -> (w * 10).toInt() } ?: 0) +
@@ -177,7 +178,7 @@ fun HomeScreen(
             (it.sleepHours?.let { s -> (s * 2).toInt() } ?: 0)
         }
         val mealSig = pastMeals.sumOf { it.totalKcal + it.description.hashCode() }
-        "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig"
+        "${pastLogs.size}-${pastMeals.size}-$logSig-$mealSig-$coachTone"
     }
 
     LaunchedEffect(dataFingerprint) {

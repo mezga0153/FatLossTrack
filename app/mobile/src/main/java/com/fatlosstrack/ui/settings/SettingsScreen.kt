@@ -72,6 +72,7 @@ fun SettingsScreen(
     onViewModelSelector: (() -> Unit)? = null,
     onViewWelcome: (() -> Unit)? = null,
     onManageBookmarks: (() -> Unit)? = null,
+    onToneChanged: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -291,14 +292,17 @@ fun SettingsScreen(
                 ToneChip(stringResource(R.string.tone_honest), selectedTone == "honest") {
                     selectedTone = "honest"
                     scope.launch { preferencesManager.setCoachTone("honest") }
+                    onToneChanged?.invoke()
                 }
                 ToneChip(stringResource(R.string.tone_supportive), selectedTone == "supportive") {
                     selectedTone = "supportive"
                     scope.launch { preferencesManager.setCoachTone("supportive") }
+                    onToneChanged?.invoke()
                 }
                 ToneChip("Insulting", selectedTone == "insulting") {
                     selectedTone = "insulting"
                     scope.launch { preferencesManager.setCoachTone("insulting") }
+                    onToneChanged?.invoke()
                 }
                 ToneChip("Cruel", selectedTone == "cruel") {
                     showCruelConfirm = true
@@ -319,6 +323,7 @@ fun SettingsScreen(
                         showCruelConfirm = false
                         selectedTone = "cruel"
                         scope.launch { preferencesManager.setCoachTone("cruel") }
+                        onToneChanged?.invoke()
                     }) { Text("Yes, enable it", color = com.fatlosstrack.ui.theme.Tertiary) }
                 },
                 dismissButton = {

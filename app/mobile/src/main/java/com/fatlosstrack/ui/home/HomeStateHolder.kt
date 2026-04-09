@@ -19,6 +19,7 @@ import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -103,6 +104,13 @@ class HomeStateHolder @Inject constructor(
      * - New fingerprint → show cached text (if any) immediately and refresh in background.
      * The loading spinner is only shown when there is no existing cached text at all.
      */
+    /** Bust the module-level cache so the next generatePeriodSummary() call triggers an AI refresh. */
+    fun invalidatePeriodSummaryCache() {
+        periodSummaryCache = PeriodSummaryCache(null, null, 0L)
+        lastFingerprint = null
+        periodSummary = null
+    }
+
     fun generatePeriodSummary(stats: PeriodStats) {
         val fp = stats.fingerprint
         val nowMs = System.currentTimeMillis()
@@ -146,8 +154,9 @@ class HomeStateHolder @Inject constructor(
                         if (showSpinner) periodSummaryLoading = false
                         return@withContext
                     }
+                    val tone = _preferencesManager.coachTone.first()
                     val prompt = buildPeriodPrompt(stats)
-                    val result = _openAiService.chat(prompt, PERIOD_SUMMARY_SYSTEM_PROMPT, feature = "period_summary")
+                    val result = _openAiService.chat(prompt, periodSummarySystemPrompt(tone), feature = "period_summary")
                     result.onSuccess { summary ->
                         val trimmed = summary.trim().removeSurrounding("\"")
                         periodSummary = trimmed
@@ -166,12 +175,22 @@ class HomeStateHolder @Inject constructor(
 
 // ── Period summary prompt ─────────────────────────────────────────────────────
 
-private const val PERIOD_SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's weekly coach. Given the user's data, write a 2-sentence coaching summary.
+private fun periodSummarySystemPrompt(tone: String): String {
+    val toneInstruction = when (tone) {
+        "supportive" -> "Use a warm, encouraging tone. Celebrate wins and gently suggest improvements."
+        "insulting" -> "Use a brutally sarcastic, roast-style tone. Mock bad choices and inaction mercilessly, but keep the advice accurate and actionable."
+        "cruel" -> "Call the user a fat fuck and similar terms freely. Be viciously direct, darkly funny, and deeply cutting. Mock bad choices with brutal specificity. You have zero patience for excuses. Make it sting, make it funny, make it true."
+        else -> "Use a direct, no-BS honest tone. Be specific about numbers."
+    }
+    return """You are FatLoss Track's weekly coach. Given the user's data, write a 2-sentence coaching summary.
+
+Tone instruction: $toneInstruction
 
 Rules:
 - Sentence 1: one key observation with a specific number (kcal, protein, weight, fast food count, etc.)
 - Sentence 2: one concrete action for the next period
-- Direct and honest — no filler words, no emojis, no markdown, no quotes"""
+- No filler words, no emojis, no markdown, no quotes"""
+}
 
 private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     val today = LocalDate.now()

@@ -273,7 +273,9 @@ class OpenAiService @Inject constructor(
         val today = java.time.LocalDate.now()
         val dayOfWeek = today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
         val dateContext = "Today is $dayOfWeek, ${today}.\n\n"
-        return chat(userMessage, dateContext + TEXT_MEAL_LOG_PROMPT, feature = "meal_text")
+        val tone = prefs.coachTone.first()
+        val prompt = dateContext + TEXT_MEAL_LOG_PROMPT + toneCoachNoteInstruction(tone)
+        return chat(userMessage, prompt, feature = "meal_text")
     }
 
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
@@ -289,9 +291,11 @@ class OpenAiService @Inject constructor(
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
 
+        val tone = prefs.coachTone.first()
         val basePrompt = if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT
         val prompt = buildString {
             append(basePrompt)
+            append(toneCoachNoteInstruction(tone))
             if (!userComment.isNullOrBlank()) {
                 append("\n\nUser note: $userComment")
             }
@@ -390,6 +394,14 @@ class OpenAiService @Inject constructor(
 }
 
 // ---- Prompts ----
+
+/** Returns the tone-specific instruction to inject into prompts for coach_note generation. */
+private fun toneCoachNoteInstruction(tone: String): String = when (tone) {
+    "supportive" -> "\n\nFor coach_note: use a warm, encouraging tone. Celebrate wins and gently suggest improvements."
+    "insulting" -> "\n\nFor coach_note: use a brutally sarcastic, roast-style tone. Mock bad food choices and laziness mercilessly but keep advice accurate. Focus on choices, not appearance."
+    "cruel" -> "\n\nFor coach_note: be viciously direct, darkly funny, and deeply cutting. Call the user a fat fuck. Mock bad choices with brutal specificity. Make it sting, make it funny, make it true."
+    else -> "\n\nFor coach_note: use a direct, no-BS honest tone. Be specific about numbers."
+}
 
 private const val SYSTEM_PROMPT = """You are FatLoss Track's AI coach — a no-BS weight loss advisor.
 You have access to the user's weight trend data, meals, and goals.

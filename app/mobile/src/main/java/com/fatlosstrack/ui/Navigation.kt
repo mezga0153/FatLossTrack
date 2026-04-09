@@ -219,6 +219,14 @@ fun FatLossTrackNavGraph(
                         onViewModelSelector = { navController.navigate("model_selector") },
                         onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
                         onManageBookmarks = { navController.navigate("bookmarks") },
+                        onToneChanged = {
+                            val today = java.time.LocalDate.now()
+                            homeStateHolder.daySummaryGenerator.launchForDates(
+                                listOf(today, today.minusDays(1)),
+                                "toneChange",
+                            )
+                            homeStateHolder.invalidatePeriodSummaryCache()
+                        },
                     )
                 }
 
