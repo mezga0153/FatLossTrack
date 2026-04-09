@@ -157,6 +157,13 @@
     <string name="settings_daily_target">Daily calorie target</string>
     <string name="settings_daily_target_value">%d kcal</string>
     <string name="settings_tdee_incomplete">Set profile to calculate</string>
+    <!-- TDEE breakdown card -->
+    <string name="tdee_breakdown_title">Calorie estimate</string>
+    <string name="tdee_bmr">Basal metabolic rate (BMR)</string>
+    <string name="tdee_multiplier">Activity multiplier</string>
+    <string name="tdee_maintenance">Maintenance (TDEE)</string>
+    <string name="tdee_deficit">Weekly goal deficit</string>
+    <string name="tdee_daily_target">Daily target</string>
     <string name="settings_start_date">Start date</string>
     <string name="settings_edit_goal">Edit goal</string>
     <string name="settings_edit_profile">Edit profile</string>

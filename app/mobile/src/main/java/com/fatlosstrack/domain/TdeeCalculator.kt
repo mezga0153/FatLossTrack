@@ -8,16 +8,21 @@ package com.fatlosstrack.domain
  *   Female: (10 × weight_kg) + (6.25 × height_cm) - (5 × age) - 161
  *   "Yes":  average of male & female = (10 × weight_kg) + (6.25 × height_cm) - (5 × age) - 78
  *
+ * Activity multipliers are intentionally conservative — standard textbook values
+ * (1.375-1.725) consistently overestimate TDEE in practice because people
+ * overestimate their activity level. These adjusted values are closer to
+ * real-world measurements from doubly-labelled water studies.
+ *
  * TDEE = BMR × activity multiplier
  * Daily target = TDEE - daily deficit
  */
 object TdeeCalculator {
 
     private val activityMultipliers = mapOf(
-        "sedentary" to 1.2f,    // Little/no exercise
-        "light" to 1.375f,      // Light exercise 1-3 days/week
-        "moderate" to 1.55f,    // Moderate exercise 3-5 days/week
-        "active" to 1.725f,     // Hard exercise 6-7 days/week
+        "sedentary" to 1.2f,    // Desk job, little/no exercise
+        "light" to 1.35f,       // Light exercise 1-3 days/week (was 1.375)
+        "moderate" to 1.5f,     // Moderate exercise 3-5 days/week (was 1.55)
+        "active" to 1.6f,       // Hard exercise 6-7 days/week (was 1.725)
     )
 
     /**
@@ -39,9 +44,13 @@ object TdeeCalculator {
      */
     fun tdee(weightKg: Float, heightCm: Int, age: Int, sex: String, activityLevel: String): Int {
         val bmrVal = bmr(weightKg, heightCm, age, sex)
-        val multiplier = activityMultipliers[activityLevel] ?: 1.375f
+        val multiplier = activityMultipliers[activityLevel] ?: 1.35f
         return (bmrVal * multiplier).toInt()
     }
+
+    /** Returns the activity multiplier for a given level. */
+    fun multiplierFor(activityLevel: String): Float =
+        activityMultipliers[activityLevel] ?: 1.35f
 
     /**
      * Calculate daily calorie target = TDEE - deficit.

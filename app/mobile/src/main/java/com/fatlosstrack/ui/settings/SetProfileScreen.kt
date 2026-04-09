@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.domain.TdeeCalculator
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -50,6 +51,8 @@ fun SetProfileScreen(
     val savedAge by preferencesManager.age.collectAsState(initial = null)
     val savedSex by preferencesManager.sex.collectAsState(initial = null)
     val savedActivityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
+    val savedStartWeight by preferencesManager.startWeight.collectAsState(initial = null)
+    val savedWeeklyRate by preferencesManager.weeklyRate.collectAsState(initial = 0.5f)
 
     var heightCm by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -163,6 +166,44 @@ fun SetProfileScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariant,
                 )
+            }
+
+            // ── TDEE Breakdown card ──
+            val wKg = (savedStartWeight ?: heightCm.toIntOrNull()?.let { it / 100f * it / 100f * 22f })?.let {
+                // prefer start weight from prefs; rough estimation if not set
+                savedStartWeight
+            }
+            val hCm = heightCm.toIntOrNull()
+            val ageInt = age.toIntOrNull()
+            val sexStr = sex.ifBlank { null }
+            if (wKg != null && hCm != null && ageInt != null && sexStr != null) {
+                val bmrVal = TdeeCalculator.bmr(wKg, hCm, ageInt, sexStr)
+                val multiplier = TdeeCalculator.multiplierFor(activityLevel)
+                val tdeeVal = (bmrVal * multiplier).toInt()
+                val deficitPerDay = (savedWeeklyRate * 1100).toInt()
+                val dailyTarget = (tdeeVal - deficitPerDay).coerceAtLeast(1200)
+
+                Column(
+                    modifier = androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CardSurface)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.tdee_breakdown_title),
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = OnSurface,
+                    )
+                    TdeeRow(stringResource(R.string.tdee_bmr), "$bmrVal kcal")
+                    TdeeRow(stringResource(R.string.tdee_multiplier), "×${"%.2f".format(multiplier)}")
+                    HorizontalDivider(color = OnSurface.copy(alpha = 0.08f))
+                    TdeeRow(stringResource(R.string.tdee_maintenance), "$tdeeVal kcal", highlight = true)
+                    TdeeRow(stringResource(R.string.tdee_deficit), "−$deficitPerDay kcal/day")
+                    HorizontalDivider(color = OnSurface.copy(alpha = 0.08f))
+                    TdeeRow(stringResource(R.string.tdee_daily_target), "$dailyTarget kcal", highlight = true, accentColor = Secondary)
+                }
             }
 
             // ── Save button ──
@@ -318,6 +359,33 @@ private fun ActivityChip(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             color = if (selected) Primary else OnSurface,
+        )
+    }
+}
+
+@Composable
+private fun TdeeRow(
+    label: String,
+    value: String,
+    highlight: Boolean = false,
+    accentColor: androidx.compose.ui.graphics.Color = Primary,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = if (highlight) MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+            else MaterialTheme.typography.bodySmall,
+            color = if (highlight) OnSurface else OnSurfaceVariant,
+        )
+        Text(
+            value,
+            style = if (highlight) MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            else MaterialTheme.typography.bodySmall,
+            color = if (highlight) accentColor else OnSurfaceVariant,
         )
     }
 }
