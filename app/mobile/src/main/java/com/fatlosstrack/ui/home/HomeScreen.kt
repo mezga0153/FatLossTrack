@@ -196,6 +196,8 @@ fun HomeScreen(
                 daysLogged = daysLogged,
                 weights = weights,
                 logCount = logs.size,
+                meals = pastMeals,
+                dailyLogs = pastLogs,
                 fingerprint = dataFingerprint,
             ),
         )

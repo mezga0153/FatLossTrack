@@ -8,8 +8,12 @@ import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
+import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
+import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
+import com.fatlosstrack.data.local.db.MealEntry
+import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.data.local.db.WeightDao
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
@@ -40,6 +44,8 @@ data class PeriodStats(
     val daysLogged: Int,
     val weights: List<Double>,
     val logCount: Int,
+    val meals: List<MealEntry> = emptyList(),
+    val dailyLogs: List<DailyLog> = emptyList(),
     val fingerprint: String,
 )
 
@@ -143,14 +149,16 @@ class HomeStateHolder @Inject constructor(
 
 // ── Period summary prompt ─────────────────────────────────────────────────────
 
-private const val PERIOD_SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's weekly coach. Given a user's multi-day stats and their goal, write a SHORT motivational coaching summary (2-3 sentences, under 200 characters).
+private const val PERIOD_SUMMARY_SYSTEM_PROMPT = """You are FatLoss Track's weekly coach. Given the user's detailed meal and activity data, write a concise coaching summary (3-4 sentences).
 
 Rules:
-- Be specific about how these days helped or hurt their goal
-- Reference actual numbers when relevant
-- Supportive but honest tone
+- Reference specific data points: exact numbers, meal types, patterns you actually see in the data
+- If protein is consistently below target, call it out with numbers
+- If fast food or restaurant meals are frequent, mention the count
+- Note any standout high-calorie days or meals by name/date if visible
+- Direct and honest tone — back every statement with the user's actual numbers
 - Plain text only, no markdown, no quotes
-- Focus on the trend and what to do next"""
+- End with one actionable recommendation for the next period"""
 
 private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     val today = LocalDate.now()
@@ -162,20 +170,18 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     s.latestWeight?.let { appendLine("Current weight: %.1f kg".format(it)) }
     s.weeklyRate?.let { appendLine("Target rate: %.1f kg/week".format(it)) }
 
-    if (s.dailyTargetKcal != null) {
-        val mt = com.fatlosstrack.domain.TdeeCalculator.macroTargets(s.dailyTargetKcal)
+    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+    if (s.dailyTargetKcal != null && mt != null) {
         appendLine("Daily target: ${s.dailyTargetKcal} kcal (protein ${mt.first}g / carbs ${mt.second}g / fat ${mt.third}g)")
     }
 
     appendLine()
-    appendLine("Period stats (last ${s.lookbackDays} days, excluding today):")
+    appendLine("Period averages (last ${s.lookbackDays} days, excluding today):")
     appendLine("- Meals logged: ${s.totalMeals}")
-
     if (s.avgKcalPerDay != null) {
         val kcalPct = if (s.dailyTargetKcal != null) " (${s.avgKcalPerDay * 100 / s.dailyTargetKcal}% of target)" else ""
         appendLine("- Avg kcal/day: ${s.avgKcalPerDay}$kcalPct")
     }
-    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
     if (s.avgProteinPerDay != null && s.avgProteinPerDay > 0) {
         val pct = mt?.let { " (${s.avgProteinPerDay * 100 / it.first}% of target)" } ?: ""
         appendLine("- Avg protein/day: ${s.avgProteinPerDay}g$pct")
@@ -193,5 +199,68 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     appendLine("- Days with data: ${s.daysLogged} / ${s.lookbackDays}")
     if (s.weights.size >= 2) {
         appendLine("- Weight change: %.1f → %.1f kg".format(s.weights.first(), s.weights.last()))
+    }
+
+    // ── Meal category distribution ──
+    if (s.meals.isNotEmpty()) {
+        val home = s.meals.count { it.category == MealCategory.HOME }
+        val restaurant = s.meals.count { it.category == MealCategory.RESTAURANT }
+        val fastFood = s.meals.count { it.category == MealCategory.FAST_FOOD }
+        val total = s.meals.size
+        appendLine()
+        appendLine("Meal category breakdown ($total meals):")
+        appendLine("- Home-cooked: $home (${home * 100 / total}%)")
+        if (restaurant > 0) appendLine("- Restaurant: $restaurant (${restaurant * 100 / total}%)")
+        if (fastFood > 0) appendLine("- Fast food: $fastFood (${fastFood * 100 / total}%)")
+    }
+
+    // ── Meal type patterns ──
+    val daysWithMeals = s.meals.map { it.date }.distinct().size
+    if (daysWithMeals > 0) {
+        val breakfastDays = s.meals.filter { it.mealType == MealType.BREAKFAST }.map { it.date }.distinct().size
+        val lunchDays = s.meals.filter { it.mealType == MealType.LUNCH }.map { it.date }.distinct().size
+        val dinnerDays = s.meals.filter { it.mealType == MealType.DINNER }.map { it.date }.distinct().size
+        val snackDays = s.meals.filter { it.mealType == MealType.SNACK }.map { it.date }.distinct().size
+        appendLine()
+        appendLine("Meal type patterns (out of $daysWithMeals days with meals):")
+        if (breakfastDays > 0) appendLine("- Breakfast: $breakfastDays days")
+        if (lunchDays > 0) appendLine("- Lunch: $lunchDays days")
+        if (dinnerDays > 0) appendLine("- Dinner: $dinnerDays days")
+        if (snackDays > 0) appendLine("- Snack: $snackDays days")
+    }
+
+    // ── Per-day meal breakdown ──
+    val mealsByDate = s.meals.groupBy { it.date }.entries.sortedBy { it.key }
+    if (mealsByDate.isNotEmpty()) {
+        appendLine()
+        appendLine("Per-day breakdown:")
+        for ((date, dayMeals) in mealsByDate) {
+            val dailyKcal = dayMeals.sumOf { it.totalKcal }
+            val dailyProtein = dayMeals.sumOf { it.totalProteinG }
+            val dailyCarbs = dayMeals.sumOf { it.totalCarbsG }
+            val dailyFat = dayMeals.sumOf { it.totalFatG }
+            val typeStr = dayMeals.mapNotNull { it.mealType?.name?.lowercase() }.distinct().joinToString("+")
+            val hasMacros = dailyProtein > 0 || dailyCarbs > 0 || dailyFat > 0
+            val macros = if (hasMacros) " [P:${dailyProtein}g C:${dailyCarbs}g F:${dailyFat}g]" else ""
+            val dayLog = s.dailyLogs.find { it.date == date }
+            val steps = dayLog?.steps?.let { " | ${it} steps" } ?: ""
+            appendLine("$date (${dayMeals.size} meal${if (dayMeals.size != 1) "s" else ""}${if (typeStr.isNotEmpty()) ", $typeStr" else ""}): $dailyKcal kcal$macros$steps")
+            dayMeals.take(5).forEach { meal ->
+                val typeLabel = meal.mealType?.name?.lowercase() ?: "meal"
+                val kcalStr = if (meal.totalKcal > 0) " — ${meal.totalKcal} kcal" else ""
+                val proteinStr = if (meal.totalProteinG > 0) ", P:${meal.totalProteinG}g" else ""
+                appendLine("  • [$typeLabel] ${meal.description.take(45)}$kcalStr$proteinStr")
+            }
+        }
+    }
+
+    // ── Existing day summaries (if available) ──
+    val summaries = s.dailyLogs
+        .filter { !it.daySummary.isNullOrBlank() && it.daySummary != "\u23F3" }
+        .sortedBy { it.date }
+    if (summaries.isNotEmpty()) {
+        appendLine()
+        appendLine("AI day summaries already generated for this period:")
+        summaries.forEach { log -> appendLine("${log.date}: ${log.daySummary}") }
     }
 }
