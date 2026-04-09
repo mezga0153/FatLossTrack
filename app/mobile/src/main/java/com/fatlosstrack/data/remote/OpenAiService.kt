@@ -399,6 +399,7 @@ When you suggest or describe a specific meal, OR when the user reports something
 [MEAL]{"description":"Short meal name","kcal":123,"protein_g":10,"carbs_g":20,"fat_g":5,"meal_type":"lunch","day_offset":0,"items":[{"name":"Item","portion":"100g","calories":123,"protein_g":10,"fat_g":5,"carbs_g":20}]}[/MEAL]
 
 Fields: meal_type is one of breakfast|lunch|dinner|snack (pick the most appropriate). day_offset is 0 for today, -1 for yesterday, -2 for two days ago, etc. — use 0 unless the user explicitly mentions a past day.
+IMPORTANT: ALL macro fields (protein_g, carbs_g, fat_g) are REQUIRED and must be non-zero estimates. Never omit them or leave them as 0 unless the food genuinely contains zero of that macro (e.g. pure sugar has 0 protein). Always estimate realistic values.
 Place each [MEAL]...[/MEAL] block on its own line right after describing that meal. You can include multiple blocks if suggesting multiple meals. The block must be valid JSON. Do NOT put the block inside a markdown code fence."""
 
 private const val VISION_SYSTEM_PROMPT = """You are a nutrition analysis assistant for FatLoss Track.

@@ -742,8 +742,8 @@ private fun MealLogCard(
     val typeLabel = meal.mealType?.replaceFirstChar { it.uppercase() }
     val subtitle = buildString {
         if (typeLabel != null) { append(typeLabel); append(" · ") }
-        append("${meal.kcal} kcal · ${meal.proteinG}g P")
-        if (meal.carbsG > 0 || meal.fatG > 0) append(" · ${meal.carbsG}g C · ${meal.fatG}g F")
+        append("${meal.kcal} kcal")
+        append(" · ${meal.proteinG}g P · ${meal.carbsG}g C · ${meal.fatG}g F")
         if (meal.dayOffset != 0) { append(" · "); append(dateLabel) }
     }
 
