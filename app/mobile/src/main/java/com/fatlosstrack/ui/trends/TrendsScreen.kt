@@ -2,6 +2,7 @@ package com.fatlosstrack.ui.trends
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,11 +17,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fatlosstrack.R
+import com.fatlosstrack.ui.components.ChartSeries
 import com.fatlosstrack.ui.components.InfoCard
+import com.fatlosstrack.ui.components.MultiSeriesLineChart
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
+import com.fatlosstrack.ui.components.alignedPearson
+import com.fatlosstrack.ui.components.correlationLabel
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
@@ -28,6 +34,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Trends tab — analytical deep-dive with real data.
@@ -41,19 +49,19 @@ import java.util.Locale
 fun TrendsScreen(
     state: TrendsStateHolder,
 ) {
-    var selectedRange by remember { mutableStateOf("30d") }
-    val ranges = listOf("7d", "30d", "90d")
+    var selectedRange by remember { mutableStateOf("1M") }
+    val ranges = listOf("7D", "1M", "All")
 
-    val daysBack = when (selectedRange) {
-        "7d" -> 6L
-        "30d" -> 29L
-        else -> 89L
+    val since = when (selectedRange) {
+        "7D" -> LocalDate.now().minusDays(6L)
+        "1M" -> LocalDate.now().minusDays(29L)
+        else -> LocalDate.of(2000, 1, 1) // All
     }
-    val since = LocalDate.now().minusDays(daysBack)
+    val isAllRange = selectedRange == "All"
 
-    val logs by state.logsSince(since).collectAsState(initial = emptyList())
-    val meals by state.mealsSince(since).collectAsState(initial = emptyList())
-    val weightEntries by state.weightsSince(since).collectAsState(initial = emptyList())
+    val logs by (if (isAllRange) state.allLogs() else state.logsSince(since)).collectAsState(initial = emptyList())
+    val meals by (if (isAllRange) state.allMeals() else state.mealsSince(since)).collectAsState(initial = emptyList())
+    val weightEntries by (if (isAllRange) state.allWeights() else state.weightsSince(since)).collectAsState(initial = emptyList())
 
     val goalWeight by state.goalWeight.collectAsState(initial = null)
     val weeklyRate by state.weeklyRate.collectAsState(initial = null)
@@ -143,6 +151,10 @@ fun TrendsScreen(
             .map { it.date to it.boneMassKg!! }
     }
 
+    // ── Compare Metrics state ────────────────────────────────────────────────
+    // Build available series after all data is computed (see below)
+    var selectedSeriesIds by remember { mutableStateOf(setOf<String>()) }
+
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Column(
@@ -174,6 +186,164 @@ fun TrendsScreen(
             }
         }
 
+        // ── Compare Metrics card ──────────────────────────────────────────────
+        val comparePrimary = Primary
+        val compareSecondary = Secondary
+        val compareTertiary = Tertiary
+        val compareAccent = Accent
+        val compareSeriesOptions = remember(
+            weightData, bodyFatData, leanMassData, kcalByDay, sleepData, stepsData, bodyWaterData,
+            comparePrimary, compareSecondary, compareTertiary, compareAccent,
+        ) {
+            buildList {
+                if (weightData.size >= 2) add(AvailableSeries("weight", "Weight", comparePrimary, "kg", weightData))
+                if (bodyFatData.size >= 2) add(AvailableSeries("bodyfat", "Body Fat %", compareTertiary, "%", bodyFatData))
+                if (leanMassData.size >= 2) add(AvailableSeries("lean", "Lean Mass", compareSecondary, "kg", leanMassData))
+                if (kcalByDay.size >= 2) add(AvailableSeries("kcal", "Calories", compareAccent, "kcal", kcalByDay.map { (d, v) -> d to v.toDouble() }))
+                if (sleepData.size >= 2) add(AvailableSeries("sleep", "Sleep", androidx.compose.ui.graphics.Color(0xFF9F7AEA), "h", sleepData))
+                if (stepsData.size >= 2) add(AvailableSeries("steps", "Steps", androidx.compose.ui.graphics.Color(0xFF38B2AC), "k", stepsData.map { (d, v) -> d to v / 1000.0 }))
+                if (bodyWaterData.size >= 2) add(AvailableSeries("water", "Body Water", comparePrimary.copy(alpha = 0.65f), "kg", bodyWaterData))
+            }
+        }
+
+        // Drop selections that are no longer available when range changes
+        LaunchedEffect(compareSeriesOptions) {
+            val validIds = compareSeriesOptions.map { it.id }.toSet()
+            selectedSeriesIds = selectedSeriesIds.intersect(validIds)
+        }
+
+        val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions) {
+            compareSeriesOptions.filter { it.id in selectedSeriesIds }
+                .map { ChartSeries(it.label, it.color, it.unit, it.data) }
+        }
+
+        val correlationPairs = remember(selectedChartSeries) {
+            if (selectedChartSeries.size < 2) emptyList()
+            else buildList {
+                for (i in 0 until selectedChartSeries.size) {
+                    for (j in i + 1 until selectedChartSeries.size) {
+                        val r = alignedPearson(selectedChartSeries[i].data, selectedChartSeries[j].data)
+                        if (r != null) add(Triple(selectedChartSeries[i].label, selectedChartSeries[j].label, r))
+                    }
+                }
+            }
+        }
+
+        if (compareSeriesOptions.isNotEmpty()) {
+            InfoCard(label = "Compare Metrics") {
+                // Series picker chips
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    compareSeriesOptions.forEach { s ->
+                        val isSelected = s.id in selectedSeriesIds
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                selectedSeriesIds = if (isSelected) {
+                                    selectedSeriesIds - s.id
+                                } else if (selectedSeriesIds.size < 3) {
+                                    selectedSeriesIds + s.id
+                                } else {
+                                    selectedSeriesIds
+                                }
+                            },
+                            label = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(s.color),
+                                    )
+                                    Text(s.label, fontSize = 12.sp)
+                                }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = s.color.copy(alpha = 0.18f),
+                                selectedLabelColor = s.color,
+                                selectedLeadingIconColor = s.color,
+                            ),
+                        )
+                    }
+                }
+
+                when {
+                    selectedChartSeries.size >= 2 -> {
+                        Spacer(Modifier.height(8.dp))
+                        MultiSeriesLineChart(
+                            series = selectedChartSeries,
+                            modifier = Modifier.height(180.dp),
+                        )
+                        // Correlation badges
+                        if (correlationPairs.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            correlationPairs.forEach { (labelA, labelB, r) ->
+                                val desc = correlationLabel(r)
+                                val rColor = when {
+                                    abs(r) >= 0.7 -> Secondary
+                                    abs(r) >= 0.4 -> Primary
+                                    abs(r) >= 0.2 -> OnSurfaceVariant
+                                    else -> OnSurfaceVariant.copy(alpha = 0.5f)
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(CardSurface)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        "$labelA × $labelB",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = OnSurface,
+                                    )
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            desc,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = rColor,
+                                        )
+                                        Text(
+                                            "r = ${"%+.2f".format(r)}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = rColor,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                            }
+                        }
+                    }
+                    selectedChartSeries.size == 1 -> {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Select one more metric to compare",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                    else -> {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Select 2–3 metrics to overlay on a single chart with correlation stats",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         // ── Weight Trend Chart ──
         if (weightData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_weight)) {
@@ -183,7 +353,7 @@ fun TrendsScreen(
                 val actualDays = if (firstDate != null && lastDate != null)
                     java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toInt().coerceAtLeast(1) else 1
                 val refTarget = when (selectedRange) {
-                    "90d" -> goalWeight?.toDouble()
+                    "All" -> goalWeight?.toDouble()
                     else -> firstWeight?.let { it - (weeklyRate ?: 0f).toDouble() * actualDays / 7.0 }
                 }
                 val dateLabels = weightData.map { (date, _) ->
@@ -191,7 +361,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "%d. %s".format(date.dayOfMonth, monthName)
                 }
-                val xLabels = weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7d") }
+                val xLabels = weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7D") }
                 TrendChart(
                     dataPoints = weightData.mapIndexed { i, (_, w) -> i to w },
                     dateLabels = dateLabels,
@@ -243,7 +413,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = bodyFatData.mapIndexed { i, (_, v) -> i to v },
                     color = Tertiary,
@@ -273,7 +443,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = leanMassData.mapIndexed { i, (_, v) -> i to v },
                     color = Secondary,
@@ -303,7 +473,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = bodyWaterData.mapIndexed { i, (_, v) -> i to v },
                     color = Primary,
@@ -333,7 +503,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                     color = Secondary,
@@ -365,7 +535,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = macrosByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = macrosByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 val targets = dailyTargetKcal?.let {
                     com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalWeight, actualLeanMassKg = latestLeanMassKg)
                 }
@@ -400,7 +570,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = sleepData.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
@@ -430,7 +600,7 @@ fun TrendsScreen(
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                val xLabels = stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
                     data = stepsData.mapIndexed { i, (_, s) -> i to s.toDouble() },
                     color = Secondary,
@@ -453,7 +623,11 @@ fun TrendsScreen(
 
         // ── Habits Summary ──
         val daysWithMeals = kcalByDay.size
-        val totalDays = (daysBack + 1).toInt()
+        val totalDays = when (selectedRange) {
+            "7D" -> 7
+            "1M" -> 30
+            else -> logs.size.coerceAtLeast(1)
+        }
         val loggingRate = if (totalDays > 0) daysWithMeals * 100 / totalDays else 0
         val daysWithAlcohol = meals.filter { it.hasAlcohol }.map { it.date }.distinct().size
 
@@ -493,6 +667,14 @@ private fun xAxisLabel(date: LocalDate, use7dDayNames: Boolean): String {
         "${date.dayOfMonth}. $month"
     }
 }
+
+private data class AvailableSeries(
+    val id: String,
+    val label: String,
+    val color: androidx.compose.ui.graphics.Color,
+    val unit: String,
+    val data: List<Pair<LocalDate, Double>>,
+)
 
 @Composable
 private fun StatColumn(
