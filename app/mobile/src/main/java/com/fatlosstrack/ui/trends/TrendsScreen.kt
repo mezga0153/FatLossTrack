@@ -22,6 +22,7 @@ import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
+import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -60,6 +61,7 @@ fun TrendsScreen(
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
+    val latestLeanMassKg = rememberLatestLeanMassKg(state.dailyLogDaoForLeanMass)
 
     // Weight data — merge DailyLog weights + WeightEntry
     val weightData = remember(logs, weightEntries) {
@@ -118,6 +120,28 @@ fun TrendsScreen(
             .map { it.date to it.steps!! }
     }
     val avgSteps = if (stepsData.isNotEmpty()) stepsData.map { it.second }.average().toInt() else null
+
+    // Body composition data
+    val bodyFatData = remember(logs) {
+        logs.filter { it.bodyFatPct != null }
+            .sortedBy { it.date }
+            .map { it.date to it.bodyFatPct!! }
+    }
+    val leanMassData = remember(logs) {
+        logs.filter { it.leanBodyMassKg != null }
+            .sortedBy { it.date }
+            .map { it.date to it.leanBodyMassKg!! }
+    }
+    val bodyWaterData = remember(logs) {
+        logs.filter { it.bodyWaterKg != null }
+            .sortedBy { it.date }
+            .map { it.date to it.bodyWaterKg!! }
+    }
+    val boneMassData = remember(logs) {
+        logs.filter { it.boneMassKg != null }
+            .sortedBy { it.date }
+            .map { it.date to it.boneMassKg!! }
+    }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
@@ -211,6 +235,96 @@ fun TrendsScreen(
             }
         }
 
+        // ── Body Fat % Trend ──
+        if (bodyFatData.size >= 2) {
+            InfoCard(label = "Body Fat %") {
+                val labels = bodyFatData.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                SimpleLineChart(
+                    data = bodyFatData.mapIndexed { i, (_, v) -> i to v },
+                    color = Tertiary,
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    unit = "%",
+                    modifier = Modifier.height(120.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.1f%%".format(bodyFatData.map { it.second }.average()))
+                    val delta = bodyFatData.last().second - bodyFatData.first().second
+                    StatColumn("Change", "%+.1f%%".format(delta), if (delta < 0) Secondary else Tertiary)
+                    StatColumn("Latest", "%.1f%%".format(bodyFatData.last().second))
+                }
+            }
+        }
+
+        // ── Lean Body Mass Trend ──
+        if (leanMassData.size >= 2) {
+            InfoCard(label = "Lean Mass") {
+                val labels = leanMassData.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                SimpleLineChart(
+                    data = leanMassData.mapIndexed { i, (_, v) -> i to v },
+                    color = Secondary,
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    unit = "kg",
+                    modifier = Modifier.height(120.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.1f kg".format(leanMassData.map { it.second }.average()))
+                    val delta = leanMassData.last().second - leanMassData.first().second
+                    StatColumn("Change", "%+.1f kg".format(delta), if (delta >= 0) Secondary else Tertiary)
+                    StatColumn("Latest", "%.1f kg".format(leanMassData.last().second))
+                }
+            }
+        }
+
+        // ── Body Water Trend ──
+        if (bodyWaterData.size >= 2) {
+            InfoCard(label = "Body Water") {
+                val labels = bodyWaterData.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
+                SimpleLineChart(
+                    data = bodyWaterData.mapIndexed { i, (_, v) -> i to v },
+                    color = Primary,
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    unit = "kg",
+                    modifier = Modifier.height(120.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.1f kg".format(bodyWaterData.map { it.second }.average()))
+                    val delta = bodyWaterData.last().second - bodyWaterData.first().second
+                    StatColumn("Change", "%+.1f kg".format(delta), if (delta >= 0) Secondary else Tertiary)
+                    StatColumn("Latest", "%.1f kg".format(bodyWaterData.last().second))
+                }
+            }
+        }
+
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_calories)) {
@@ -253,7 +367,7 @@ fun TrendsScreen(
                 }
                 val xLabels = macrosByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 val targets = dailyTargetKcal?.let {
-                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalWeight)
+                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalWeight, actualLeanMassKg = latestLeanMassKg)
                 }
                 MacroBarChart(
                     data = macrosByDay.map { it.second },

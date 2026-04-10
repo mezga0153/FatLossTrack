@@ -29,4 +29,5 @@ class TrendsStateHolder @Inject constructor(
     fun logsSince(since: LocalDate) = dailyLogDao.getLogsSince(since)
     fun mealsSince(since: LocalDate) = mealDao.getMealsSince(since)
     fun weightsSince(since: LocalDate) = weightDao.getEntriesSince(since)
+    val dailyLogDaoForLeanMass get() = dailyLogDao
 }

@@ -34,6 +34,7 @@ internal fun DayCard(
     meals: List<MealEntry>,
     dailyTargetKcal: Int? = null,
     goalWeightKg: Float? = null,
+    leanMassKg: Float? = null,
     onEdit: () -> Unit,
     onMealClick: (MealEntry) -> Unit,
     onAddMeal: () -> Unit,
@@ -72,6 +73,18 @@ internal fun DayCard(
                 StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, stringResource(R.string.stat_heart_rate))
             }
 
+            // Body composition chips (only shown when scale data is present)
+            val hasBodyComp = log != null && (log.bodyFatPct != null || log.bodyWaterKg != null || log.leanBodyMassKg != null || log.boneMassKg != null)
+            if (hasBodyComp && log != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    log.bodyFatPct?.let { StatChip(Icons.Default.Percent, "%.1f%%".format(it), "Fat") }
+                    log.leanBodyMassKg?.let { StatChip(Icons.Default.FitnessCenter, "%.1f kg".format(it), "Lean") }
+                    log.bodyWaterKg?.let { StatChip(Icons.Default.WaterDrop, "%.1f kg".format(it), "Water") }
+                    log.boneMassKg?.let { StatChip(Icons.Default.Straighten, "%.2f kg".format(it), "Bone") }
+                }
+            }
+
             // Meals section
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -97,7 +110,9 @@ internal fun DayCard(
                 val dayTotalCarbs = meals.sumOf { it.totalCarbsG }
                 val dayTotalFat = meals.sumOf { it.totalFatG }
                 // Macro targets from daily calorie target (for percentage calculations)
-                val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalWeightKg) }
+                val macroTargets = dailyTargetKcal?.let {
+                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalWeightKg, actualLeanMassKg = leanMassKg)
+                }
                 val targetProtein = macroTargets?.first ?: dayTotalProtein
                 val targetCarbs = macroTargets?.second ?: dayTotalCarbs
                 val targetFat = macroTargets?.third ?: dayTotalFat
