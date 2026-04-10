@@ -11,6 +11,7 @@ import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealCategory
+import com.fatlosstrack.data.local.db.measuredLeanMassKg
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
@@ -19,6 +20,8 @@ import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,6 +99,7 @@ class HomeStateHolder @Inject constructor(
     var periodSummaryLoading: Boolean by mutableStateOf(false)
         private set
     private var lastFingerprint: String? = periodSummaryCache.fingerprint
+    private var pendingSummaryJob: Job? = null
 
     /**
      * Generate (or serve from cache) the AI period summary.
@@ -106,6 +110,8 @@ class HomeStateHolder @Inject constructor(
      */
     /** Bust the module-level cache so the next generatePeriodSummary() call triggers an AI refresh. */
     fun invalidatePeriodSummaryCache() {
+        pendingSummaryJob?.cancel()
+        pendingSummaryJob = null
         periodSummaryCache = PeriodSummaryCache(null, null, 0L)
         lastFingerprint = null
         periodSummary = null
@@ -140,13 +146,19 @@ class HomeStateHolder @Inject constructor(
         if (cache.text != null && periodSummary == null) {
             periodSummary = cache.text
         }
-        val showSpinner = periodSummary == null
-        if (showSpinner) periodSummaryLoading = true
 
-        val ageMin = if (cache.generatedAtMs > 0) (nowMs - cache.generatedAtMs) / 60_000 else -1L
-        AppLogger.instance?.hc("PeriodSummary: refreshing (fp=$lastFingerprint→$fp, age=${ageMin}min, hasCache=${cache.text != null})")
+        // Debounce: cancel any pending AI call and wait 500ms for data to settle.
+        // Multiple Flow emissions during initial load would otherwise fire several concurrent requests.
+        pendingSummaryJob?.cancel()
+        pendingSummaryJob = appScope.launch {
+            delay(500)
 
-        appScope.launch {
+            val showSpinner = periodSummary == null
+            if (showSpinner) periodSummaryLoading = true
+
+            val ageMin = if (cache.generatedAtMs > 0) (System.currentTimeMillis() - cache.generatedAtMs) / 60_000 else -1L
+            AppLogger.instance?.hc("PeriodSummary: refreshing (fp=$lastFingerprint→$fp, age=${ageMin}min, hasCache=${cache.text != null})")
+
             withContext(Dispatchers.IO) {
                 try {
                     if (!_openAiService.hasApiKey()) {
@@ -202,7 +214,8 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     s.latestWeight?.let { appendLine("Current weight: %.1f kg".format(it)) }
     s.weeklyRate?.let { appendLine("Target rate: %.1f kg/week".format(it)) }
 
-    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, s.goalWeight) }
+    val latestLeanMass = s.dailyLogs.firstOrNull { it.measuredLeanMassKg != null }?.measuredLeanMassKg?.toFloat()
+    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = s.goalWeight, actualLeanMassKg = latestLeanMass) }
     if (s.dailyTargetKcal != null && mt != null) {
         appendLine("Daily target: ${s.dailyTargetKcal} kcal (protein ${mt.first}g / carbs ${mt.second}g / fat ${mt.third}g)")
     }

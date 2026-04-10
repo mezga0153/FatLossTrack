@@ -72,18 +72,21 @@ object TdeeCalculator {
     /**
      * Derive daily macro targets from calorie target.
      *
-     * When [leanMassKg] is provided (use goal weight as a proxy), protein is set at
-     * 2.2 g/kg of lean mass — the evidence-based minimum for muscle preservation
+     * When lean mass is known (from Health Connect or estimation), protein is set at
+     * 2.2 g/kg of lean mass — the evidence-based amount for muscle preservation
      * during a calorie deficit. Remaining calories are split 55% carbs / 45% fat.
      *
-     * Without [leanMassKg], falls back to the flat percentage split:
-     * 30% protein, 40% carbs, 30% fat.
+     * [goalBodyWeightKg]: goal body weight — lean mass is estimated as 75% of this.
+     * [actualLeanMassKg]: measured lean mass (e.g. from smart scale via HC). Takes priority.
+     *
+     * Without either, falls back to the flat percentage split: 30% protein, 40% carbs, 30% fat.
      *
      * @return Triple(proteinG, carbsG, fatG)
      */
-    fun macroTargets(dailyTargetKcal: Int, leanMassKg: Float? = null): Triple<Int, Int, Int> {
-        if (leanMassKg != null && leanMassKg > 0f) {
-            val proteinG = (leanMassKg * 2.2f).toInt()
+    fun macroTargets(dailyTargetKcal: Int, goalBodyWeightKg: Float? = null, actualLeanMassKg: Float? = null): Triple<Int, Int, Int> {
+        val leanMass = actualLeanMassKg ?: goalBodyWeightKg?.let { it * 0.75f }
+        if (leanMass != null && leanMass > 0f) {
+            val proteinG = (leanMass * 2.2f).toInt()
             val proteinKcal = proteinG * 4
             val remaining = (dailyTargetKcal - proteinKcal).coerceAtLeast(0)
             val carbsG = (remaining * 0.55 / 4).toInt()
@@ -94,9 +97,9 @@ object TdeeCalculator {
         val carbsKcal = dailyTargetKcal * 0.40
         val fatKcal = dailyTargetKcal * 0.30
         return Triple(
-            (proteinKcal / 4).toInt(),  // 4 kcal per gram protein
-            (carbsKcal / 4).toInt(),    // 4 kcal per gram carbs
-            (fatKcal / 9).toInt(),      // 9 kcal per gram fat
+            (proteinKcal / 4).toInt(),
+            (carbsKcal / 4).toInt(),
+            (fatKcal / 9).toInt(),
         )
     }
 }

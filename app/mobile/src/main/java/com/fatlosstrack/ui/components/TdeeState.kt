@@ -5,6 +5,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.DailyLogDao
+import com.fatlosstrack.data.local.db.measuredLeanMassKg
 import com.fatlosstrack.domain.TdeeCalculator
 
 /**
@@ -29,5 +31,18 @@ fun rememberDailyTargetKcal(preferencesManager: PreferencesManager): Int? {
         val h = height ?: return@remember null
         val w = startWeight ?: return@remember null
         TdeeCalculator.dailyTarget(w, h, a, s, activityLevel, weeklyRate)
+    }
+}
+
+/**
+ * Returns the most recent measured lean mass (kg) from DailyLog data.
+ * Prefers recorded [leanBodyMassKg] from HC, then derives from weight + body fat %.
+ * Falls back to null when no body comp data has been synced.
+ */
+@Composable
+fun rememberLatestLeanMassKg(dailyLogDao: DailyLogDao): Float? {
+    val logs by dailyLogDao.getAllLogs().collectAsState(initial = emptyList())
+    return remember(logs) {
+        logs.firstOrNull { it.measuredLeanMassKg != null }?.measuredLeanMassKg?.toFloat()
     }
 }

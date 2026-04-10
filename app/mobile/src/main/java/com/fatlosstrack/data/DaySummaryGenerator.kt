@@ -4,6 +4,7 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
+import com.fatlosstrack.data.local.db.measuredLeanMassKg
 import com.fatlosstrack.data.local.db.GoalDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
@@ -89,7 +90,8 @@ class DaySummaryGenerator @Inject constructor(
             val dailyTargetKcal = if (sex != null && age != null && height != null && weight != null) {
                 TdeeCalculator.dailyTarget(weight, height, age, sex, activityLevel, rate)
             } else null
-            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goal?.targetKg?.toFloat()) }
+            val leanMassKg = log?.measuredLeanMassKg?.toFloat()
+            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goal?.targetKg?.toFloat(), actualLeanMassKg = leanMassKg) }
 
             // Always build + persist synopsis (deterministic — no API key needed)
             val synopsis = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)

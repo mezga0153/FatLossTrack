@@ -2,6 +2,7 @@ package com.fatlosstrack.domain
 
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
+import com.fatlosstrack.data.local.db.measuredLeanMassKg
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.WeightDao
 import kotlinx.coroutines.flow.first
@@ -69,7 +70,8 @@ class ChatContextUseCase @Inject constructor(
         val dailyTargetKcal = if (sex != null && age != null && heightCm != null && startWeight != null) {
             TdeeCalculator.dailyTarget(startWeight, heightCm, age, sex, activityLevel, goalRate)
         } else null
-        val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalKg) }
+        val latestLeanMass = logs.firstOrNull { it.measuredLeanMassKg != null }?.measuredLeanMassKg?.toFloat()
+        val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalKg, actualLeanMassKg = latestLeanMass) }
         if (dailyTargetKcal != null && macroTargets != null) {
             sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
         }

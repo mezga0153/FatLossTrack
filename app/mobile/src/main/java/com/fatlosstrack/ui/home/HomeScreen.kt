@@ -27,6 +27,7 @@ import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
+import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
@@ -74,6 +75,7 @@ fun HomeScreen(
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
+    val latestLeanMassKg = rememberLatestLeanMassKg(state.dailyLogDao)
 
     val startDate = startDateStr?.let {
         try { LocalDate.parse(it) } catch (_: Exception) { null }
@@ -431,7 +433,7 @@ fun HomeScreen(
                                 val labels = filteredMacros.map { (d, _) -> dateLabelFor(d) }
                                 val xLabels = filteredMacros.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 val targets = dailyTargetKcal?.let {
-                                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalW)
+                                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalW, actualLeanMassKg = latestLeanMassKg)
                                 }
                                 MacroBarChart(
                                     data = filteredMacros.map { (_, m) -> m },
@@ -525,11 +527,12 @@ fun HomeScreen(
             meals = todayMeals,
             dailyTargetKcal = dailyTargetKcal,
             goalWeightKg = goalW,
+            leanMassKg = latestLeanMassKg,
             onEdit = { editingDate = today },
             onMealClick = { selectedMeal = it },
             onAddMeal = { addMealForDate = today },
             onCameraClick = { onCameraForDate(today) },
-        )
+)
 
         // ── Yesterday Card ──
         if (yesterdayLog != null || yesterdayMeals.isNotEmpty()) {
@@ -539,6 +542,7 @@ fun HomeScreen(
                 meals = yesterdayMeals,
                 dailyTargetKcal = dailyTargetKcal,
                 goalWeightKg = goalW,
+                leanMassKg = latestLeanMassKg,
                 onEdit = { editingDate = yesterday },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = yesterday },

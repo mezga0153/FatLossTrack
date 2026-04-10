@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
+import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
 
@@ -58,6 +59,7 @@ fun LogScreen(
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
+    val latestLeanMassKg = rememberLatestLeanMassKg(state.dailyLogDao)
     val goalWeightKg by state.preferencesManager.goalWeight.collectAsState(initial = null)
 
     // Sheet state
@@ -121,6 +123,7 @@ fun LogScreen(
                 meals = mealsByDate[date] ?: emptyList(),
                 dailyTargetKcal = dailyTargetKcal,
                 goalWeightKg = goalWeightKg,
+                leanMassKg = latestLeanMassKg,
                 onEdit = { editingDate = date },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = date },
