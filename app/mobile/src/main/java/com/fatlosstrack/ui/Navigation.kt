@@ -212,6 +212,9 @@ fun FatLossTrackNavGraph(
                         onSyncHealthConnect = {
                             healthConnectSyncService?.launchSync(7, "Settings:manualHcSync")
                         },
+                        onSyncFromStart = {
+                            healthConnectSyncService?.launchSyncFromStart()
+                        },
                         onViewLog = if (appLogger != null) {
                             { navController.navigate("log_viewer") }
                         } else null,

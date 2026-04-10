@@ -67,6 +67,7 @@ fun SettingsScreen(
     onEditGoal: () -> Unit = {},
     onEditProfile: () -> Unit = {},
     onSyncHealthConnect: (() -> Unit)? = null,
+    onSyncFromStart: (() -> Unit)? = null,
     onViewLog: (() -> Unit)? = null,
     onViewAiUsage: (() -> Unit)? = null,
     onViewModelSelector: (() -> Unit)? = null,
@@ -117,7 +118,7 @@ fun SettingsScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        hcPermGranted = granted.containsAll(HealthConnectManager.PERMISSIONS)
+        hcPermGranted = healthConnectManager.hasCorePermissionsGranted(granted)
         if (hcPermGranted) {
             hcLastSyncMsg = "Permissions granted — tap Sync now"
         }
@@ -247,8 +248,18 @@ fun SettingsScreen(
             if (weightForTdee != null && heightForTdee != null && ageForTdee != null && sexForTdee != null) {
                 val tdeeVal = TdeeCalculator.tdee(weightForTdee, heightForTdee, ageForTdee, sexForTdee, savedActivityLevel)
                 val dailyTarget = TdeeCalculator.dailyTarget(weightForTdee, heightForTdee, ageForTdee, sexForTdee, savedActivityLevel, rateVal)
+                val latestLeanMass by state.latestLeanMassKg.collectAsState(initial = null)
+                val macros = TdeeCalculator.macroTargets(
+                    dailyTarget,
+                    goalBodyWeightKg = savedGoalWeight,
+                    actualLeanMassKg = latestLeanMass?.toFloat(),
+                )
+                val proteinBasis = if (latestLeanMass != null) "%.1f kg lean mass (HC)".format(latestLeanMass) else savedGoalWeight?.let { "est. from %.1f kg goal".format(it) }
                 SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_value, tdeeVal))
                 SettingsRow(stringResource(R.string.settings_daily_target), stringResource(R.string.settings_daily_target_value, dailyTarget))
+                SettingsRow("Protein target", "${macros.first}g / day" + (if (proteinBasis != null) "  ·  $proteinBasis" else ""))
+                SettingsRow("Carbs target", "${macros.second}g / day")
+                SettingsRow("Fat target", "${macros.third}g / day")
             } else {
                 SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_incomplete))
             }
@@ -479,6 +490,22 @@ fun SettingsScreen(
                                 Spacer(Modifier.width(8.dp))
                             }
                             Text(stringResource(R.string.hc_sync_now), color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                        if (onSyncFromStart != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    hcSyncing = true
+                                    onSyncFromStart.invoke()
+                                    scope.launch {
+                                        kotlinx.coroutines.delay(500)
+                                        hcSyncing = false
+                                        hcLastSyncMsg = "Full import started"
+                                    }
+                                },
+                                enabled = !hcSyncing,
+                            ) {
+                                Text("Import all", color = Primary)
+                            }
                         }
                     }
                 }

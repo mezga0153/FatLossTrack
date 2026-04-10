@@ -5,6 +5,9 @@ import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.backup.DriveBackupManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.DailyLogDao
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
@@ -18,9 +21,15 @@ class SettingsStateHolder @Inject constructor(
     private val _preferencesManager: PreferencesManager,
     private val _healthConnectManager: HealthConnectManager,
     private val _driveBackupManager: DriveBackupManager,
+    private val _dailyLogDao: DailyLogDao,
 ) {
     val authManager get() = _authManager
     val preferencesManager get() = _preferencesManager
     val healthConnectManager get() = _healthConnectManager
     val driveBackupManager get() = _driveBackupManager
+
+    /** Most recent lean body mass (kg) from Health Connect, or null if not synced. */
+    val latestLeanMassKg: Flow<Double?> = _dailyLogDao.getAllLogs().map { logs ->
+        logs.firstOrNull { it.leanBodyMassKg != null }?.leanBodyMassKg
+    }
 }
