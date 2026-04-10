@@ -3,6 +3,7 @@ package com.fatlosstrack.data.health
 import android.util.Log
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
+import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.WeightDao
@@ -10,8 +11,10 @@ import com.fatlosstrack.data.local.db.WeightEntry
 import com.fatlosstrack.data.local.db.WeightSource
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +29,7 @@ class HealthConnectSyncService @Inject constructor(
     private val weightDao: WeightDao,
     private val appLogger: AppLogger,
     private val daySummaryGenerator: DaySummaryGenerator,
+    private val preferencesManager: PreferencesManager,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     companion object {
@@ -64,6 +68,26 @@ class HealthConnectSyncService @Inject constructor(
     }
 
     /**
+     * Fire-and-forget: syncs from the goal start date (or 365 days as fallback) to today.
+     */
+    fun launchSyncFromStart() {
+        appScope.launch {
+            val startDateStr = preferencesManager.startDate.first()
+            val days = if (startDateStr != null) {
+                val start = runCatching { LocalDate.parse(startDateStr) }.getOrNull()
+                if (start != null) {
+                    (ChronoUnit.DAYS.between(start, LocalDate.now()) + 1).toInt().coerceAtLeast(7)
+                } else 365
+            } else 365
+            appLogger.hc("Full sync: $days days back (start=$startDateStr)")
+            val changedDates = syncRecentDays(days)
+            if (changedDates.isNotEmpty()) {
+                daySummaryGenerator.launchForDates(changedDates, "fullHcSync")
+            }
+        }
+    }
+
+    /**
      * Fire-and-forget: syncs recent days on the application scope and
      * triggers summary generation for any dates that changed.
      */
@@ -92,7 +116,9 @@ class HealthConnectSyncService @Inject constructor(
     private suspend fun mergeSummary(summary: DaySummary): Boolean {
         val hasData = summary.weightKg != null || summary.steps != null ||
                 summary.sleepHours != null || summary.restingHr != null ||
-                summary.exercisesJson != null
+                summary.exercisesJson != null || summary.bodyFatPct != null ||
+                summary.bodyWaterKg != null || summary.leanBodyMassKg != null ||
+                summary.boneMassKg != null
 
         if (!hasData) return false
 
@@ -105,6 +131,10 @@ class HealthConnectSyncService @Inject constructor(
                     sleepHours = summary.sleepHours ?: existing.sleepHours,
                     restingHr = summary.restingHr ?: existing.restingHr,
                     exercisesJson = summary.exercisesJson ?: existing.exercisesJson,
+                    bodyFatPct = summary.bodyFatPct ?: existing.bodyFatPct,
+                    bodyWaterKg = summary.bodyWaterKg ?: existing.bodyWaterKg,
+                    leanBodyMassKg = summary.leanBodyMassKg ?: existing.leanBodyMassKg,
+                    boneMassKg = summary.boneMassKg ?: existing.boneMassKg,
                 )
             } else {
                 DailyLog(
@@ -114,6 +144,10 @@ class HealthConnectSyncService @Inject constructor(
                     sleepHours = summary.sleepHours,
                     restingHr = summary.restingHr,
                     exercisesJson = summary.exercisesJson,
+                    bodyFatPct = summary.bodyFatPct,
+                    bodyWaterKg = summary.bodyWaterKg,
+                    leanBodyMassKg = summary.leanBodyMassKg,
+                    boneMassKg = summary.boneMassKg,
                 )
             }
 
@@ -123,7 +157,11 @@ class HealthConnectSyncService @Inject constructor(
                     existing.steps != merged.steps ||
                     existing.sleepHours != merged.sleepHours ||
                     existing.restingHr != merged.restingHr ||
-                    existing.exercisesJson != merged.exercisesJson
+                    existing.exercisesJson != merged.exercisesJson ||
+                    existing.bodyFatPct != merged.bodyFatPct ||
+                    existing.bodyWaterKg != merged.bodyWaterKg ||
+                    existing.leanBodyMassKg != merged.leanBodyMassKg ||
+                    existing.boneMassKg != merged.boneMassKg
 
             if (!actuallyChanged) {
                 appLogger.hc("${summary.date}: HC data unchanged, skipping")
@@ -138,6 +176,10 @@ class HealthConnectSyncService @Inject constructor(
             summary.sleepHours?.let { parts += "sleep=${it}h" }
             summary.restingHr?.let { parts += "hr=${it} bpm" }
             summary.exercisesJson?.let { parts += "exercises" }
+            summary.bodyFatPct?.let { parts += "bodyFat=%.1f%%".format(it) }
+            summary.bodyWaterKg?.let { parts += "bodyWater=%.1f kg".format(it) }
+            summary.leanBodyMassKg?.let { parts += "leanMass=%.1f kg".format(it) }
+            summary.boneMassKg?.let { parts += "boneMass=%.1f kg".format(it) }
             val isNew = existing == null
             appLogger.hc("${summary.date}: ${if (isNew) "created" else "merged"} — ${parts.joinToString(", ")}")
 

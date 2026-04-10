@@ -34,6 +34,22 @@ class HealthConnectManager @Inject constructor(
             HealthPermission.getReadPermission(RestingHeartRateRecord::class),
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+            HealthPermission.getReadPermission(BodyFatRecord::class),
+            HealthPermission.getReadPermission(BodyWaterMassRecord::class),
+            HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+            HealthPermission.getReadPermission(BoneMassRecord::class),
+        )
+
+        // Core permissions required for sync to run.
+        // Body comp permissions are optional — their getters return null gracefully when not granted.
+        private val CORE_PERMISSIONS = setOf(
+            HealthPermission.getReadPermission(WeightRecord::class),
+            HealthPermission.getReadPermission(StepsRecord::class),
+            HealthPermission.getReadPermission(SleepSessionRecord::class),
+            HealthPermission.getReadPermission(HeartRateRecord::class),
+            HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+            HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         )
     }
 
@@ -73,15 +89,23 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
-    /** True if all required permissions are granted */
+    /** True if core permissions are granted (sync can run). Logs any missing optional ones. */
     suspend fun hasAllPermissions(): Boolean {
         val granted = getGrantedPermissions()
-        val missing = PERMISSIONS.filter { it !in granted }
-        if (missing.isNotEmpty()) {
-            appLogger.hc("Missing permissions: ${missing.joinToString(", ") { it.substringAfterLast('.') }}")
+        val missingCore = CORE_PERMISSIONS.filter { it !in granted }
+        val missingOptional = (PERMISSIONS - CORE_PERMISSIONS).filter { it !in granted }
+        if (missingCore.isNotEmpty()) {
+            appLogger.hc("Missing core permissions: ${missingCore.joinToString(", ") { it.substringAfterLast('.') }}")
         }
-        return missing.isEmpty()
+        if (missingOptional.isNotEmpty()) {
+            appLogger.hc("Missing optional permissions: ${missingOptional.joinToString(", ") { it.substringAfterLast('.') }}")
+        }
+        return missingCore.isEmpty()
     }
+
+    /** Check if a set of granted permissions (from launcher callback) covers core permissions. */
+    fun hasCorePermissionsGranted(granted: Set<String>): Boolean =
+        granted.containsAll(CORE_PERMISSIONS)
 
     // ── Read helpers ──
 
@@ -277,6 +301,86 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    /** Most recent body fat % for [date], or null */
+    suspend fun getBodyFatPct(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = BodyFatRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val result = response.records.lastOrNull()?.percentage?.value
+            appLogger.hc("  $date body-fat: ${response.records.size} records → ${result?.let { "%.1f%%".format(it) } ?: "null"}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "getBodyFatPct failed", e)
+            appLogger.hc("  $date body-fat: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    /** Most recent body water mass kg for [date], or null */
+    suspend fun getBodyWaterKg(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = BodyWaterMassRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val result = response.records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date body-water: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "getBodyWaterKg failed", e)
+            appLogger.hc("  $date body-water: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    /** Most recent lean body mass kg for [date], or null */
+    suspend fun getLeanBodyMassKg(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = LeanBodyMassRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val result = response.records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date lean-mass: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "getLeanBodyMassKg failed", e)
+            appLogger.hc("  $date lean-mass: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    /** Most recent bone mass kg for [date], or null */
+    suspend fun getBoneMassKg(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = BoneMassRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val result = response.records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date bone-mass: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "getBoneMassKg failed", e)
+            appLogger.hc("  $date bone-mass: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
     /** Pull all health data for a single date into a DaySummary */
     suspend fun getDaySummary(date: LocalDate): DaySummary {
         appLogger.hc("Reading HC data for $date …")
@@ -287,10 +391,16 @@ class HealthConnectManager @Inject constructor(
             sleepHours = getSleepHours(date),
             restingHr = getRestingHr(date),
             exercisesJson = getExercises(date),
+            bodyFatPct = getBodyFatPct(date),
+            bodyWaterKg = getBodyWaterKg(date),
+            leanBodyMassKg = getLeanBodyMassKg(date),
+            boneMassKg = getBoneMassKg(date),
         )
         val hasAny = summary.weightKg != null || summary.steps != null ||
                 summary.sleepHours != null || summary.restingHr != null ||
-                summary.exercisesJson != null
+                summary.exercisesJson != null || summary.bodyFatPct != null ||
+                summary.bodyWaterKg != null || summary.leanBodyMassKg != null ||
+                summary.boneMassKg != null
         appLogger.hc("$date summary: ${if (hasAny) "HAS DATA" else "EMPTY"}")
         return summary
     }
@@ -315,6 +425,10 @@ data class DaySummary(
     val sleepHours: Double? = null,
     val restingHr: Int? = null,
     val exercisesJson: String? = null,
+    val bodyFatPct: Double? = null,
+    val bodyWaterKg: Double? = null,
+    val leanBodyMassKg: Double? = null,
+    val boneMassKg: Double? = null,
 )
 
 /** Map Health Connect exercise type int to a readable name */
