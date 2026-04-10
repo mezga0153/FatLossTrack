@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.fatlosstrack.data.local.AppLogger
@@ -112,19 +113,19 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
-    /** Total step count for [date] */
+    /** Total step count for [date], deduplicated via HC aggregate API */
     suspend fun getSteps(date: LocalDate): Int? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
+            val response = c.aggregate(
+                AggregateRequest(
+                    metrics = setOf(StepsRecord.COUNT_TOTAL),
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val total = response.records.sumOf { it.count }
-            val result = if (total > 0) total.toInt() else null
-            appLogger.hc("  $date steps: ${response.records.size} records → ${result ?: "null"}")
+            val total = response[StepsRecord.COUNT_TOTAL]
+            val result = if (total != null && total > 0) total.toInt() else null
+            appLogger.hc("  $date steps: aggregate → ${result ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getSteps failed", e)
