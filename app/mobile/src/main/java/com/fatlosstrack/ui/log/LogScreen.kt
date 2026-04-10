@@ -58,6 +58,7 @@ fun LogScreen(
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
+    val goalWeightKg by state.preferencesManager.goalWeight.collectAsState(initial = null)
 
     // Sheet state
     val sheetState = rememberLogSheetState()
@@ -119,6 +120,7 @@ fun LogScreen(
                 log = logsByDate[date],
                 meals = mealsByDate[date] ?: emptyList(),
                 dailyTargetKcal = dailyTargetKcal,
+                goalWeightKg = goalWeightKg,
                 onEdit = { editingDate = date },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = date },

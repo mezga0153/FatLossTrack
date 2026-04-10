@@ -202,7 +202,7 @@ private fun buildPeriodPrompt(s: PeriodStats): String = buildString {
     s.latestWeight?.let { appendLine("Current weight: %.1f kg".format(it)) }
     s.weeklyRate?.let { appendLine("Target rate: %.1f kg/week".format(it)) }
 
-    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+    val mt = s.dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, s.goalWeight) }
     if (s.dailyTargetKcal != null && mt != null) {
         appendLine("Daily target: ${s.dailyTargetKcal} kcal (protein ${mt.first}g / carbs ${mt.second}g / fat ${mt.third}g)")
     }

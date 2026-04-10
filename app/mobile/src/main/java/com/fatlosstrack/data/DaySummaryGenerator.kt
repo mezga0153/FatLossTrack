@@ -89,7 +89,7 @@ class DaySummaryGenerator @Inject constructor(
             val dailyTargetKcal = if (sex != null && age != null && height != null && weight != null) {
                 TdeeCalculator.dailyTarget(weight, height, age, sex, activityLevel, rate)
             } else null
-            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it) }
+            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goal?.targetKg?.toFloat()) }
 
             // Always build + persist synopsis (deterministic — no API key needed)
             val synopsis = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)

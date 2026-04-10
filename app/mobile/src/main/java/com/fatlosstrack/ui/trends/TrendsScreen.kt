@@ -253,7 +253,7 @@ fun TrendsScreen(
                 }
                 val xLabels = macrosByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7d") }
                 val targets = dailyTargetKcal?.let {
-                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it)
+                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalWeight)
                 }
                 MacroBarChart(
                     data = macrosByDay.map { it.second },

@@ -431,7 +431,7 @@ fun HomeScreen(
                                 val labels = filteredMacros.map { (d, _) -> dateLabelFor(d) }
                                 val xLabels = filteredMacros.map { (d, _) -> xAxisLabelFor(d, is7d) }
                                 val targets = dailyTargetKcal?.let {
-                                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it)
+                                    com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalW)
                                 }
                                 MacroBarChart(
                                     data = filteredMacros.map { (_, m) -> m },
@@ -524,6 +524,7 @@ fun HomeScreen(
             log = todayLog,
             meals = todayMeals,
             dailyTargetKcal = dailyTargetKcal,
+            goalWeightKg = goalW,
             onEdit = { editingDate = today },
             onMealClick = { selectedMeal = it },
             onAddMeal = { addMealForDate = today },
@@ -537,6 +538,7 @@ fun HomeScreen(
                 log = yesterdayLog,
                 meals = yesterdayMeals,
                 dailyTargetKcal = dailyTargetKcal,
+                goalWeightKg = goalW,
                 onEdit = { editingDate = yesterday },
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = yesterday },

@@ -70,12 +70,26 @@ object TdeeCalculator {
     }
 
     /**
-     * Derive daily macro targets from calorie target using standard split:
+     * Derive daily macro targets from calorie target.
+     *
+     * When [leanMassKg] is provided (use goal weight as a proxy), protein is set at
+     * 2.2 g/kg of lean mass — the evidence-based minimum for muscle preservation
+     * during a calorie deficit. Remaining calories are split 55% carbs / 45% fat.
+     *
+     * Without [leanMassKg], falls back to the flat percentage split:
      * 30% protein, 40% carbs, 30% fat.
      *
      * @return Triple(proteinG, carbsG, fatG)
      */
-    fun macroTargets(dailyTargetKcal: Int): Triple<Int, Int, Int> {
+    fun macroTargets(dailyTargetKcal: Int, leanMassKg: Float? = null): Triple<Int, Int, Int> {
+        if (leanMassKg != null && leanMassKg > 0f) {
+            val proteinG = (leanMassKg * 2.2f).toInt()
+            val proteinKcal = proteinG * 4
+            val remaining = (dailyTargetKcal - proteinKcal).coerceAtLeast(0)
+            val carbsG = (remaining * 0.55 / 4).toInt()
+            val fatG = (remaining * 0.45 / 9).toInt()
+            return Triple(proteinG, carbsG, fatG)
+        }
         val proteinKcal = dailyTargetKcal * 0.30
         val carbsKcal = dailyTargetKcal * 0.40
         val fatKcal = dailyTargetKcal * 0.30

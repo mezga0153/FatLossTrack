@@ -33,6 +33,7 @@ internal fun DayCard(
     log: DailyLog?,
     meals: List<MealEntry>,
     dailyTargetKcal: Int? = null,
+    goalWeightKg: Float? = null,
     onEdit: () -> Unit,
     onMealClick: (MealEntry) -> Unit,
     onAddMeal: () -> Unit,
@@ -96,7 +97,7 @@ internal fun DayCard(
                 val dayTotalCarbs = meals.sumOf { it.totalCarbsG }
                 val dayTotalFat = meals.sumOf { it.totalFatG }
                 // Macro targets from daily calorie target (for percentage calculations)
-                val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it) }
+                val macroTargets = dailyTargetKcal?.let { com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalWeightKg) }
                 val targetProtein = macroTargets?.first ?: dayTotalProtein
                 val targetCarbs = macroTargets?.second ?: dayTotalCarbs
                 val targetFat = macroTargets?.third ?: dayTotalFat
