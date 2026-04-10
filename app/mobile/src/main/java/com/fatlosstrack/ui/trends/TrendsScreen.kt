@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -230,7 +231,7 @@ fun TrendsScreen(
         }
 
         if (compareSeriesOptions.isNotEmpty()) {
-            InfoCard(label = "Compare Metrics") {
+            InfoCard(label = "Compare Metrics", icon = Icons.Default.CompareArrows) {
                 // Series picker chips
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -346,7 +347,7 @@ fun TrendsScreen(
 
         // ── Weight Trend Chart ──
         if (weightData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_weight)) {
+            InfoCard(label = stringResource(R.string.trends_weight), icon = Icons.Default.Scale) {
                 val firstWeight = weightData.firstOrNull()?.second
                 val lastDate = weightData.lastOrNull()?.first
                 val firstDate = weightData.firstOrNull()?.first
@@ -396,7 +397,7 @@ fun TrendsScreen(
                 }
             }
         } else {
-            InfoCard(label = stringResource(R.string.trends_weight)) {
+            InfoCard(label = stringResource(R.string.trends_weight), icon = Icons.Default.Scale) {
                 Text(
                     stringResource(R.string.trends_no_weight_data),
                     style = MaterialTheme.typography.bodyMedium,
@@ -407,7 +408,7 @@ fun TrendsScreen(
 
         // ── Body Fat % Trend ──
         if (bodyFatData.size >= 2) {
-            InfoCard(label = "Body Fat %") {
+            InfoCard(label = "Body Fat %", icon = Icons.Default.Percent) {
                 val labels = bodyFatData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -437,7 +438,7 @@ fun TrendsScreen(
 
         // ── Lean Body Mass Trend ──
         if (leanMassData.size >= 2) {
-            InfoCard(label = "Lean Mass") {
+            InfoCard(label = "Lean Mass", icon = Icons.Default.FitnessCenter) {
                 val labels = leanMassData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -467,7 +468,7 @@ fun TrendsScreen(
 
         // ── Body Water Trend ──
         if (bodyWaterData.size >= 2) {
-            InfoCard(label = "Body Water") {
+            InfoCard(label = "Body Water", icon = Icons.Default.WaterDrop) {
                 val labels = bodyWaterData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -497,7 +498,7 @@ fun TrendsScreen(
 
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_calories)) {
+            InfoCard(label = stringResource(R.string.trends_calories), icon = Icons.Default.LocalFireDepartment) {
                 val labels = kcalByDay.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -529,7 +530,7 @@ fun TrendsScreen(
 
         // ── Macros Trend ──
         if (macrosByDay.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_macros)) {
+            InfoCard(label = stringResource(R.string.trends_macros), icon = Icons.Default.DonutSmall) {
                 val labels = macrosByDay.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -564,7 +565,7 @@ fun TrendsScreen(
 
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_sleep)) {
+            InfoCard(label = stringResource(R.string.trends_sleep), icon = Icons.Default.Bedtime) {
                 val labels = sleepData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -594,7 +595,7 @@ fun TrendsScreen(
 
         // ── Steps Trend ──
         if (stepsData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_steps)) {
+            InfoCard(label = stringResource(R.string.trends_steps), icon = Icons.AutoMirrored.Filled.DirectionsWalk) {
                 val labels = stepsData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -631,7 +632,7 @@ fun TrendsScreen(
         val loggingRate = if (totalDays > 0) daysWithMeals * 100 / totalDays else 0
         val daysWithAlcohol = meals.filter { it.hasAlcohol }.map { it.date }.distinct().size
 
-        InfoCard(label = stringResource(R.string.trends_habits)) {
+        InfoCard(label = stringResource(R.string.trends_habits), icon = Icons.Default.CheckCircle) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
