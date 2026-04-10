@@ -63,7 +63,20 @@ data class DailyLog(
     val synopsis: String? = null,
     val weightLocked: Boolean = false,
     val stepsLocked: Boolean = false,
+    val bodyFatPct: Double? = null,
+    val bodyWaterKg: Double? = null,
+    val leanBodyMassKg: Double? = null,
+    val boneMassKg: Double? = null,
 )
+
+/**
+ * Best available lean mass (kg) for this log entry.
+ * Prefers the directly measured value from HC [leanBodyMassKg], then
+ * derives it from weight + body fat %, returns null if neither is available.
+ */
+val DailyLog.measuredLeanMassKg: Double?
+    get() = leanBodyMassKg
+        ?: weightKg?.let { w -> bodyFatPct?.let { bf -> w * (1.0 - bf / 100.0) } }
 
 @Entity(tableName = "insights")
 data class Insight(
