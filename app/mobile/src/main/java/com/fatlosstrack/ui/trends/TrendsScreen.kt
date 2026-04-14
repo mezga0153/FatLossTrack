@@ -34,6 +34,7 @@ import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -154,8 +155,10 @@ fun TrendsScreen(
 
     // ── Compare Metrics state ────────────────────────────────────────────────
     // Build available series after all data is computed (see below)
-    var selectedSeriesIds by remember { mutableStateOf(setOf<String>()) }
-
+    var selectedSeriesIds by remember { mutableStateOf(setOf<String>()) }    // Lag per selected series in days (positive = shift series later, so it aligns with the next day)
+    var lagBySeriesId by remember { mutableStateOf(mapOf<String, Int>()) }
+    // Weekly average mode
+    var showWeeklyAvg by remember { mutableStateOf(false) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Column(
@@ -166,22 +169,53 @@ fun TrendsScreen(
             .padding(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Time range toggle ──
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ranges.forEach { range ->
-                val isSelected = range == selectedRange
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) Primary.copy(alpha = 0.2f) else CardSurface)
-                        .clickable { selectedRange = range }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center,
+        // ── Time range + weekly-avg toggle ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ranges.forEach { range ->
+                    val isSelected = range == selectedRange
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) Primary.copy(alpha = 0.2f) else CardSurface)
+                            .clickable { selectedRange = range }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = range,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (isSelected) Primary else OnSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            // Weekly average toggle
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (showWeeklyAvg) Primary.copy(alpha = 0.2f) else CardSurface)
+                    .clickable { showWeeklyAvg = !showWeeklyAvg }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Icon(
+                        Icons.Default.BarChart, null,
+                        modifier = Modifier.size(14.dp),
+                        tint = if (showWeeklyAvg) Primary else OnSurfaceVariant,
+                    )
                     Text(
-                        text = range,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = if (isSelected) Primary else OnSurfaceVariant,
+                        "7d avg",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (showWeeklyAvg) Primary else OnSurfaceVariant,
                     )
                 }
             }
@@ -213,9 +247,24 @@ fun TrendsScreen(
             selectedSeriesIds = selectedSeriesIds.intersect(validIds)
         }
 
-        val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions) {
+        val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions, lagBySeriesId) {
             compareSeriesOptions.filter { it.id in selectedSeriesIds }
-                .map { ChartSeries(it.label, it.color, it.unit, it.data) }
+                .map { s ->
+                    val lag = lagBySeriesId[s.id] ?: 0
+                    // Shift dates forward by lag days so this series aligns with "today+lag" dates
+                    val shiftedData = s.data.map { (date, v) -> date.plusDays(lag.toLong()) to v }
+                    ChartSeries(
+                        label = if (lag != 0) "${s.label} (+${lag}d)" else s.label,
+                        color = s.color,
+                        unit = s.unit,
+                        data = shiftedData,
+                    )
+                }
+        }
+
+        // Map from shifted label back to original series for lag UI
+        val selectedAvailableSeries = remember(selectedSeriesIds, compareSeriesOptions) {
+            compareSeriesOptions.filter { it.id in selectedSeriesIds }
         }
 
         val correlationPairs = remember(selectedChartSeries) {
@@ -242,12 +291,11 @@ fun TrendsScreen(
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                selectedSeriesIds = if (isSelected) {
-                                    selectedSeriesIds - s.id
+                                if (isSelected) {
+                                    selectedSeriesIds = selectedSeriesIds - s.id
+                                    lagBySeriesId = lagBySeriesId - s.id
                                 } else if (selectedSeriesIds.size < 3) {
-                                    selectedSeriesIds + s.id
-                                } else {
-                                    selectedSeriesIds
+                                    selectedSeriesIds = selectedSeriesIds + s.id
                                 }
                             },
                             label = {
@@ -270,6 +318,66 @@ fun TrendsScreen(
                                 selectedLeadingIconColor = s.color,
                             ),
                         )
+                    }
+                }
+
+                // Lag controls — shown when 2+ series selected
+                if (selectedAvailableSeries.size >= 2) {
+                    Spacer(Modifier.height(8.dp))
+                    selectedAvailableSeries.forEach { s ->
+                        val lag = lagBySeriesId[s.id] ?: 0
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(s.color),
+                                )
+                                Text(
+                                    s.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceVariant,
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            ) {
+                                IconButton(
+                                    onClick = { if (lag > 0) lagBySeriesId = lagBySeriesId + (s.id to lag - 1) },
+                                    modifier = Modifier.size(28.dp),
+                                    enabled = lag > 0,
+                                ) {
+                                    Icon(Icons.Default.Remove, null, modifier = Modifier.size(14.dp), tint = if (lag > 0) s.color else OnSurfaceVariant.copy(alpha = 0.3f))
+                                }
+                                Text(
+                                    if (lag == 0) "0d" else "+${lag}d",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (lag > 0) s.color else OnSurfaceVariant,
+                                    modifier = Modifier.widthIn(min = 30.dp),
+                                )
+                                IconButton(
+                                    onClick = { if (lag < 7) lagBySeriesId = lagBySeriesId + (s.id to lag + 1) },
+                                    modifier = Modifier.size(28.dp),
+                                    enabled = lag < 7,
+                                ) {
+                                    Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp), tint = if (lag < 7) s.color else OnSurfaceVariant.copy(alpha = 0.3f))
+                                }
+                                Text(
+                                    "lag",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceVariant.copy(alpha = 0.6f),
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -352,23 +460,26 @@ fun TrendsScreen(
                 val lastDate = weightData.lastOrNull()?.first
                 val firstDate = weightData.firstOrNull()?.first
                 val actualDays = if (firstDate != null && lastDate != null)
-                    java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toInt().coerceAtLeast(1) else 1
+                    ChronoUnit.DAYS.between(firstDate, lastDate).toInt().coerceAtLeast(1) else 1
                 val refTarget = when (selectedRange) {
                     "All" -> goalWeight?.toDouble()
                     else -> firstWeight?.let { it - (weeklyRate ?: 0f).toDouble() * actualDays / 7.0 }
                 }
-                val dateLabels = weightData.map { (date, _) ->
+                val wwa = if (showWeeklyAvg) weeklyOf(weightData, selectedRange == "7D") else null
+                val chartPoints = wwa?.data ?: weightData.mapIndexed { i, (_, w) -> i to w }
+                val dateLabels = wwa?.dateLabels ?: weightData.map { (date, _) ->
                     val monthName = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "%d. %s".format(date.dayOfMonth, monthName)
                 }
-                val xLabels = weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7D") }
+                val xLabels = wwa?.xAxisLabels ?: weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7D") }
                 TrendChart(
-                    dataPoints = weightData.mapIndexed { i, (_, w) -> i to w },
+                    dataPoints = chartPoints,
                     dateLabels = dateLabels,
                     xAxisLabels = xLabels,
                     startLineKg = firstWeight,
                     targetLineKg = refTarget,
+                    bandData = wwa?.bandData,
                     modifier = Modifier.height(160.dp),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -409,18 +520,20 @@ fun TrendsScreen(
         // ── Body Fat % Trend ──
         if (bodyFatData.size >= 2) {
             InfoCard(label = "Body Fat %", icon = Icons.Default.Percent) {
-                val labels = bodyFatData.map { (d, _) ->
+                val wa = if (showWeeklyAvg) weeklyOf(bodyFatData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: bodyFatData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = bodyFatData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: bodyFatData.mapIndexed { i, (_, v) -> i to v },
                     color = Tertiary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "%",
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -439,18 +552,20 @@ fun TrendsScreen(
         // ── Lean Body Mass Trend ──
         if (leanMassData.size >= 2) {
             InfoCard(label = "Lean Mass", icon = Icons.Default.FitnessCenter) {
-                val labels = leanMassData.map { (d, _) ->
+                val wa = if (showWeeklyAvg) weeklyOf(leanMassData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: leanMassData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = leanMassData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: leanMassData.mapIndexed { i, (_, v) -> i to v },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "kg",
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -469,18 +584,20 @@ fun TrendsScreen(
         // ── Body Water Trend ──
         if (bodyWaterData.size >= 2) {
             InfoCard(label = "Body Water", icon = Icons.Default.WaterDrop) {
-                val labels = bodyWaterData.map { (d, _) ->
+                val wa = if (showWeeklyAvg) weeklyOf(bodyWaterData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: bodyWaterData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = bodyWaterData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: bodyWaterData.mapIndexed { i, (_, v) -> i to v },
                     color = Primary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "kg",
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -499,14 +616,16 @@ fun TrendsScreen(
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_calories), icon = Icons.Default.LocalFireDepartment) {
-                val labels = kcalByDay.map { (d, _) ->
+                val kcalDoubleData = kcalByDay.map { (d, v) -> d to v.toDouble() }
+                val wa = if (showWeeklyAvg) weeklyOf(kcalDoubleData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: kcalByDay.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
+                    data = wa?.data ?: kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -514,6 +633,7 @@ fun TrendsScreen(
                     refLineValue = dailyTargetKcal?.toDouble(),
                     refLineColor = Secondary,
                     refLineLabel = dailyTargetKcal?.let { "$it kcal" },
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(140.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -566,18 +686,20 @@ fun TrendsScreen(
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_sleep), icon = Icons.Default.Bedtime) {
-                val labels = sleepData.map { (d, _) ->
+                val wa = if (showWeeklyAvg) weeklyOf(sleepData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: sleepData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = sleepData.mapIndexed { i, (_, h) -> i to h },
+                    data = wa?.data ?: sleepData.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "h",
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -596,18 +718,21 @@ fun TrendsScreen(
         // ── Steps Trend ──
         if (stepsData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_steps), icon = Icons.AutoMirrored.Filled.DirectionsWalk) {
-                val labels = stepsData.map { (d, _) ->
+                val stepsDoubleData = stepsData.map { (d, v) -> d to v.toDouble() }
+                val wa = if (showWeeklyAvg) weeklyOf(stepsDoubleData, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: stepsData.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = stepsData.mapIndexed { i, (_, s) -> i to s.toDouble() },
+                    data = wa?.data ?: stepsDoubleData.mapIndexed { i, (_, s) -> i to s },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
                     unit = "steps",
+                    bandData = wa?.bandData,
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -667,6 +792,44 @@ private fun xAxisLabel(date: LocalDate, use7dDayNames: Boolean): String {
             .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
         "${date.dayOfMonth}. $month"
     }
+}
+
+/**
+ * Result of weekly aggregation: (index, avg) pairs, (index, min, max) bands, and axis labels.
+ * Index = day offset from earliest date in the input series.
+ */
+private data class WeeklyResult(
+    val data: List<Pair<Int, Double>>,
+    val bandData: List<Triple<Int, Double, Double>>,
+    val dateLabels: List<String>,
+    val xAxisLabels: List<String>,
+)
+
+/**
+ * Groups [raw] into 7-day buckets and returns weekly avg ± min/max band.
+ * The x-index for each week is the day-offset of the midpoint of that bucket.
+ */
+private fun weeklyOf(raw: List<Pair<LocalDate, Double>>, labelFor7D: Boolean = false): WeeklyResult {
+    if (raw.size < 2) return WeeklyResult(emptyList(), emptyList(), emptyList(), emptyList())
+    val minDate = raw.minOf { it.first }
+    val buckets = raw.sortedBy { it.first }
+        .groupBy { (date, _) -> ChronoUnit.DAYS.between(minDate, date).toInt() / 7 }
+    val data = mutableListOf<Pair<Int, Double>>()
+    val bands = mutableListOf<Triple<Int, Double, Double>>()
+    val dateLabels = mutableListOf<String>()
+    val xLabels = mutableListOf<String>()
+    buckets.toSortedMap().forEach { (weekIdx, entries) ->
+        val vals = entries.map { it.second }
+        val midOffset = weekIdx * 7 + 3
+        val midDate = minDate.plusDays(midOffset.toLong())
+        data.add(midOffset to vals.average())
+        bands.add(Triple(midOffset, vals.min(), vals.max()))
+        val m = midDate.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+        dateLabels.add("${midDate.dayOfMonth}. $m")
+        xLabels.add(xAxisLabel(midDate, labelFor7D))
+    }
+    return WeeklyResult(data, bands, dateLabels, xLabels)
 }
 
 private data class AvailableSeries(

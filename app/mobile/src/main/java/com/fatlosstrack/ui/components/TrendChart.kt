@@ -41,6 +41,8 @@ fun TrendChart(
     startLineKg: Double? = null,
     targetLineKg: Double? = null,
     modifier: Modifier = Modifier,
+    /** Per-point (index, min, max) band — when provided, replaces the fill-to-bottom. */
+    bandData: List<Triple<Int, Double, Double>>? = null,
 ) {
     if (dataPoints.size < 2) return
 
@@ -174,18 +176,30 @@ fun TrendChart(
                 }
             }
 
-            // Gradient fill under line
-            val fillPath = Path().apply {
-                dataPoints.forEachIndexed { i, (dayIdx, value) ->
-                    val x = xFor(dayIdx)
-                    val y = yFor(value)
-                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+            // Band fill OR gradient fill-to-bottom
+            if (bandData != null && bandData.size >= 2) {
+                val bandPath = Path().apply {
+                    bandData.forEachIndexed { i, (idx, minV, _) ->
+                        val x = xFor(idx); val y = yFor(minV)
+                        if (i == 0) moveTo(x, y) else lineTo(x, y)
+                    }
+                    bandData.reversed().forEach { (idx, _, maxV) -> lineTo(xFor(idx), yFor(maxV)) }
+                    close()
                 }
-                lineTo(xFor(dataPoints.last().first), padTop + chartHeight)
-                lineTo(xFor(dataPoints.first().first), padTop + chartHeight)
-                close()
+                drawPath(bandPath, color = confidenceBandColor)
+            } else {
+                val fillPath = Path().apply {
+                    dataPoints.forEachIndexed { i, (dayIdx, value) ->
+                        val x = xFor(dayIdx)
+                        val y = yFor(value)
+                        if (i == 0) moveTo(x, y) else lineTo(x, y)
+                    }
+                    lineTo(xFor(dataPoints.last().first), padTop + chartHeight)
+                    lineTo(xFor(dataPoints.first().first), padTop + chartHeight)
+                    close()
+                }
+                drawPath(fillPath, color = confidenceBandColor)
             }
-            drawPath(fillPath, color = confidenceBandColor)
 
             // Trend line
             val linePath = Path().apply {

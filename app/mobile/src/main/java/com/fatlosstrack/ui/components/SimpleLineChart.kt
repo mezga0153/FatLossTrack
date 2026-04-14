@@ -35,6 +35,8 @@ fun SimpleLineChart(
     refLineValue: Double? = null,
     refLineColor: Color = Color(0xFF59D8A0),
     refLineLabel: String? = null,
+    /** Per-point (index, min, max) band drawn behind the line when in weekly-avg mode. */
+    bandData: List<Triple<Int, Double, Double>>? = null,
 ) {
     if (data.size < 2) return
 
@@ -159,6 +161,21 @@ fun SimpleLineChart(
                         labelPaint,
                     )
                 }
+            }
+
+            // Band fill (weekly avg min/max range)
+            if (bandData != null && bandData.size >= 2) {
+                val bandPath = Path()
+                bandData.forEachIndexed { i, (idx, minV, _) ->
+                    val x = xFor(idx)
+                    val y = yFor(minV)
+                    if (i == 0) bandPath.moveTo(x, y) else bandPath.lineTo(x, y)
+                }
+                bandData.reversed().forEach { (idx, _, maxV) ->
+                    bandPath.lineTo(xFor(idx), yFor(maxV))
+                }
+                bandPath.close()
+                drawPath(bandPath, color.copy(alpha = 0.18f))
             }
 
             // Line path
