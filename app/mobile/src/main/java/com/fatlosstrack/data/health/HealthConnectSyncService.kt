@@ -57,7 +57,15 @@ class HealthConnectSyncService @Inject constructor(
         appLogger.hc("Starting sync: $days days ($from → $today)")
         Log.d(TAG, "Syncing $days days from $from to $today")
 
-        val summaries = hcManager.getSummaries(from, today)
+        // Use the most recent weight before the sync window as reference for filtering
+        // out weigh-ins from other people on shared scales (picks the value closest to
+        // the user's own previous weight when multiple records exist for a day).
+        val referenceWeight = weightDao.getMostRecentBefore(from)?.valueKg
+        if (referenceWeight != null) {
+            appLogger.hc("Sync reference weight: %.1f kg (from before $from)".format(referenceWeight))
+        }
+
+        val summaries = hcManager.getSummaries(from, today, referenceWeight)
         for (summary in summaries) {
             if (mergeSummary(summary)) updatedDates.add(summary.date)
         }
@@ -97,6 +105,51 @@ class HealthConnectSyncService @Inject constructor(
             if (changedDates.isNotEmpty()) {
                 daySummaryGenerator.launchForDates(changedDates, reason)
             }
+        }
+    }
+
+    /**
+     * One-time cleanup: for any date that has multiple weight_entries rows, keep the one
+     * closest to the previous day's value and delete the rest.
+     * Runs quickly in-memory — no network calls.
+     */
+    suspend fun cleanupDuplicateWeights() {
+        val all = weightDao.getAllEntriesSnapshot()
+        // Group by date; only care about dates with duplicates
+        val byDate = all.groupBy { it.date }.filter { it.value.size > 1 }
+        if (byDate.isEmpty()) return
+
+        appLogger.hc("Weight dedup: ${byDate.size} dates with duplicates")
+        val toDelete = mutableListOf<com.fatlosstrack.data.local.db.WeightEntry>()
+
+        // Build a running map of the last accepted weight so we can resolve chains
+        val accepted = mutableMapOf<java.time.LocalDate, Double>()
+        // Pre-seed with all non-duplicate dates
+        all.filter { entry -> byDate[entry.date] == null }.forEach { accepted[it.date] = it.valueKg }
+
+        for ((date, entries) in byDate.entries.sortedBy { it.key }) {
+            // Find reference: most recent accepted weight before this date
+            val ref = accepted.entries
+                .filter { it.key.isBefore(date) }
+                .maxByOrNull { it.key }
+                ?.value
+
+            val keeper = if (ref != null) {
+                entries.minByOrNull { kotlin.math.abs(it.valueKg - ref) }!!
+            } else {
+                // No prior data — prefer MANUAL source, otherwise last entry
+                entries.firstOrNull { it.source == com.fatlosstrack.data.local.db.WeightSource.MANUAL }
+                    ?: entries.last()
+            }
+
+            toDelete += entries.filter { it.id != keeper.id }
+            accepted[date] = keeper.valueKg
+            appLogger.hc("  $date: kept %.1f kg (ref=${ref?.let { "%.1f".format(it) } ?: "none"}), deleted ${entries.size - 1}".format(keeper.valueKg))
+        }
+
+        if (toDelete.isNotEmpty()) {
+            weightDao.deleteEntries(toDelete)
+            appLogger.hc("Weight dedup: deleted ${toDelete.size} duplicate entries")
         }
     }
 

@@ -20,6 +20,16 @@ interface WeightDao {
 
     @Query("SELECT * FROM weight_entries ORDER BY date ASC")
     fun getAllEntries(): Flow<List<WeightEntry>>
+
+    @Query("SELECT * FROM weight_entries WHERE date < :date ORDER BY date DESC LIMIT 1")
+    suspend fun getMostRecentBefore(date: LocalDate): WeightEntry?
+
+    /** All entries ordered by date ascending — used for deduplication. */
+    @Query("SELECT * FROM weight_entries ORDER BY date ASC")
+    suspend fun getAllEntriesSnapshot(): List<WeightEntry>
+
+    @Delete
+    suspend fun deleteEntries(entries: List<WeightEntry>)
 }
 
 @Dao
@@ -166,7 +176,7 @@ interface BookmarkedMealDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(meal: BookmarkedMeal): Long
 
-    @Query("SELECT * FROM bookmarked_meals ORDER BY createdAt DESC")
+    @Query("SELECT * FROM bookmarked_meals ORDER BY sortOrder ASC, createdAt DESC")
     fun getAll(): Flow<List<BookmarkedMeal>>
 
     @Delete
@@ -174,4 +184,7 @@ interface BookmarkedMealDao {
 
     @Update
     suspend fun update(meal: BookmarkedMeal)
+
+    @Update
+    suspend fun updateAll(meals: List<BookmarkedMeal>)
 }

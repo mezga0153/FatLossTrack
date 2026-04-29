@@ -116,8 +116,12 @@ class HealthConnectManager @Inject constructor(
         return TimeRangeFilter.between(start, end)
     }
 
-    /** Latest weight (kg) recorded on [date], or null */
-    suspend fun getWeight(date: LocalDate): Double? {
+    /**
+     * Weight (kg) recorded on [date], or null.
+     * When multiple records exist and [referenceWeightKg] is provided, picks the value
+     * closest to the reference (filters out weigh-ins from other people on shared scales).
+     */
+    suspend fun getWeight(date: LocalDate, referenceWeightKg: Double? = null): Double? {
         val c = client ?: return null
         return try {
             val response = c.readRecords(
@@ -126,8 +130,15 @@ class HealthConnectManager @Inject constructor(
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.weight?.inKilograms
-            appLogger.hc("  $date weight: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            val records = response.records
+            val result = when {
+                records.isEmpty() -> null
+                records.size == 1 || referenceWeightKg == null -> records.last().weight.inKilograms
+                else -> records.minByOrNull { kotlin.math.abs(it.weight.inKilograms - referenceWeightKg) }
+                    ?.weight?.inKilograms
+            }
+            val selectionNote = if (records.size > 1 && referenceWeightKg != null) " (closest to ref %.1f kg)".format(referenceWeightKg) else ""
+            appLogger.hc("  $date weight: ${records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}$selectionNote")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getWeight failed", e)
@@ -382,11 +393,11 @@ class HealthConnectManager @Inject constructor(
     }
 
     /** Pull all health data for a single date into a DaySummary */
-    suspend fun getDaySummary(date: LocalDate): DaySummary {
+    suspend fun getDaySummary(date: LocalDate, referenceWeightKg: Double? = null): DaySummary {
         appLogger.hc("Reading HC data for $date …")
         val summary = DaySummary(
             date = date,
-            weightKg = getWeight(date),
+            weightKg = getWeight(date, referenceWeightKg),
             steps = getSteps(date),
             sleepHours = getSleepHours(date),
             restingHr = getRestingHr(date),
@@ -405,12 +416,19 @@ class HealthConnectManager @Inject constructor(
         return summary
     }
 
-    /** Pull summaries for a date range (inclusive) */
-    suspend fun getSummaries(from: LocalDate, to: LocalDate): List<DaySummary> {
+    /**
+     * Pull summaries for a date range (inclusive).
+     * [initialReferenceWeightKg] is used for the first day's weight selection when multiple
+     * records exist; each day's resolved weight then becomes the reference for the next day.
+     */
+    suspend fun getSummaries(from: LocalDate, to: LocalDate, initialReferenceWeightKg: Double? = null): List<DaySummary> {
         val summaries = mutableListOf<DaySummary>()
         var d = from
+        var referenceWeight = initialReferenceWeightKg
         while (!d.isAfter(to)) {
-            summaries.add(getDaySummary(d))
+            val summary = getDaySummary(d, referenceWeight)
+            summaries.add(summary)
+            if (summary.weightKg != null) referenceWeight = summary.weightKg
             d = d.plusDays(1)
         }
         return summaries

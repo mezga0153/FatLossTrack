@@ -89,8 +89,9 @@ fun FatLossTrackNavGraph(
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
 
-    // Auto-sync Health Connect on first composition
+    // Auto-sync Health Connect on first composition; clean up duplicate weight entries first
     LaunchedEffect(Unit) {
+        healthConnectSyncService?.cleanupDuplicateWeights()
         healthConnectSyncService?.launchSync(7, "Navigation:autoHcSync")
     }
 
