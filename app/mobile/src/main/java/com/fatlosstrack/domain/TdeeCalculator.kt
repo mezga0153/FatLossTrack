@@ -102,4 +102,25 @@ object TdeeCalculator {
             (fatKcal / 9).toInt(),
         )
     }
+
+    /**
+     * Macro targets for diabetes meal control.
+     * Carbs are capped at [maxCarbsPerDay]. Remaining calories go to protein and fat.
+     * Protein is prioritised at 1.6 g/kg of body weight (or 25% of kcal as fallback).
+     * @return Triple(proteinG, carbsG, fatG)
+     */
+    fun diabetesMacroTargets(
+        dailyTargetKcal: Int,
+        maxCarbsPerDay: Int,
+        bodyWeightKg: Float? = null,
+    ): Triple<Int, Int, Int> {
+        val carbsG = maxCarbsPerDay.coerceAtMost((dailyTargetKcal * 0.45 / 4).toInt()) // never exceed 45% of kcal even if target is generous
+        val carbsKcal = carbsG * 4
+        val remaining = (dailyTargetKcal - carbsKcal).coerceAtLeast(0)
+        val proteinG = bodyWeightKg?.let { (it * 1.6f).toInt() }
+            ?: (remaining * 0.45 / 4).toInt()
+        val proteinKcal = proteinG * 4
+        val fatG = ((remaining - proteinKcal).coerceAtLeast(0) / 9).toInt()
+        return Triple(proteinG, carbsG, fatG)
+    }
 }

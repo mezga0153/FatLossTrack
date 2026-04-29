@@ -72,6 +72,9 @@ fun HomeScreen(
     val startWeight by state.startWeight.collectAsState(initial = null)
     val weeklyRate by state.weeklyRate.collectAsState(initial = null)
     val startDateStr by state.startDate.collectAsState(initial = null)
+    val goalType by state.preferencesManager.goalType.collectAsState(initial = "weight_loss")
+    val maxCarbsPerDay by state.preferencesManager.maxCarbsPerDay.collectAsState(initial = 150)
+    val maxCarbsPerMeal by state.preferencesManager.maxCarbsPerMeal.collectAsState(initial = 45)
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
@@ -231,8 +234,63 @@ fun HomeScreen(
             .padding(top = statusBarTop + 12.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Goal Progress ──
-        if (progressPct != null && goalW != null && latestWeight != null) {
+        // ── Goal Progress (weight loss) or Carb Adherence (diabetes) ──
+        if (goalType == "diabetes") {
+            // Carb adherence card for diabetes mode
+            val recentMeals = pastMeals.takeLast(pastMeals.size) // all pastMeals
+            val daysWithMealsForCarbs = recentMeals.map { it.date }.distinct().size
+            val carbAdherenceAvgPerDay = if (daysWithMealsForCarbs > 0) avgCarbsPerDay else null
+            val mealsWithinLimit = recentMeals.count { it.totalCarbsG <= maxCarbsPerMeal }
+            val mealAdherencePct = if (recentMeals.isNotEmpty()) {
+                (mealsWithinLimit * 100 / recentMeals.size).coerceIn(0, 100)
+            } else null
+            InfoCard(label = stringResource(R.string.home_carb_adherence)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Column {
+                        Text(
+                            carbAdherenceAvgPerDay?.let { "${it}g" } ?: "—",
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            color = if (carbAdherenceAvgPerDay != null && carbAdherenceAvgPerDay <= maxCarbsPerDay) Secondary else Tertiary,
+                        )
+                        Text(
+                            stringResource(R.string.home_carbs_per_day, maxCarbsPerDay),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                    if (mealAdherencePct != null) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "$mealAdherencePct%",
+                                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (mealAdherencePct >= 80) Secondary else if (mealAdherencePct >= 60) Primary else Tertiary,
+                            )
+                            Text(
+                                stringResource(R.string.home_meals_within_limit),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (carbAdherenceAvgPerDay != null) {
+                    Spacer(Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { (carbAdherenceAvgPerDay.toFloat() / maxCarbsPerDay).coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (carbAdherenceAvgPerDay <= maxCarbsPerDay) Secondary else Tertiary,
+                        trackColor = SurfaceVariant,
+                    )
+                }
+            }
+        } else if (progressPct != null && goalW != null && latestWeight != null) {
             InfoCard(label = stringResource(R.string.home_goal_progress)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

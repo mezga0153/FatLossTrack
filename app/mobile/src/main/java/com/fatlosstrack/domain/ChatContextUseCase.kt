@@ -54,12 +54,16 @@ class ChatContextUseCase @Inject constructor(
         sb.appendLine("Today: ${fmt.format(today)}")
 
         // Goal & profile info
+        val goalType = preferencesManager.goalType.first()
+        val maxCarbsPerMeal = preferencesManager.maxCarbsPerMeal.first()
+        val maxCarbsPerDay = preferencesManager.maxCarbsPerDay.first()
         val goalParts = mutableListOf<String>()
         if (startWeight != null && startWeight > 0f) goalParts += "start=${startWeight}kg"
         if (goalKg != null && goalKg > 0f) goalParts += "target=${goalKg}kg"
         goalParts += "rate=${goalRate}kg/week"
         if (heightCm != null) goalParts += "height=${heightCm}cm"
         if (!startDate.isNullOrBlank()) goalParts += "since=$startDate"
+        sb.appendLine("Goal type: ${if (goalType == "diabetes") "diabetes meal control" else "weight loss"}")
         sb.appendLine("Goal: ${goalParts.joinToString(", ")}")
         sb.appendLine("Coach tone: $coachTone")
         if (guidance.isNotBlank()) {
@@ -71,9 +75,20 @@ class ChatContextUseCase @Inject constructor(
             TdeeCalculator.dailyTarget(startWeight, heightCm, age, sex, activityLevel, goalRate)
         } else null
         val latestLeanMass = logs.firstOrNull { it.measuredLeanMassKg != null }?.measuredLeanMassKg?.toFloat()
-        val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalKg, actualLeanMassKg = latestLeanMass) }
-        if (dailyTargetKcal != null && macroTargets != null) {
-            sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
+        val macroTargets: Triple<Int, Int, Int>? = if (goalType == "diabetes") {
+            dailyTargetKcal?.let { TdeeCalculator.diabetesMacroTargets(it, maxCarbsPerDay, bodyWeightKg = startWeight) }
+        } else {
+            dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalKg, actualLeanMassKg = latestLeanMass) }
+        }
+        if (goalType == "diabetes") {
+            sb.appendLine("Max carbs per meal: ${maxCarbsPerMeal}g, Max carbs per day: ${maxCarbsPerDay}g")
+            if (dailyTargetKcal != null && macroTargets != null) {
+                sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ≤${macroTargets.second}g / fat ${macroTargets.third}g)")
+            }
+        } else {
+            if (dailyTargetKcal != null && macroTargets != null) {
+                sb.appendLine("Daily target: $dailyTargetKcal kcal (protein ${macroTargets.first}g / carbs ${macroTargets.second}g / fat ${macroTargets.third}g)")
+            }
         }
 
         if (weights.isNotEmpty()) {

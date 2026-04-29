@@ -32,6 +32,12 @@ class OpenAiService @Inject constructor(
         private const val API_URL = "https://api.openai.com/v1/chat/completions"
     }
 
+    /** Returns the appropriate system prompt for the user's goal type */
+    private suspend fun systemPromptForGoalType(): String {
+        val goalType = prefs.goalType.first()
+        return if (goalType == "diabetes") DIABETES_SYSTEM_PROMPT else SYSTEM_PROMPT
+    }
+
     /** Check if API key is configured */
     suspend fun hasApiKey(): Boolean = prefs.openAiApiKey.first().isNotBlank()
 
@@ -46,7 +52,6 @@ class OpenAiService @Inject constructor(
         }
     }
 
-    /** Record token usage from an API response */
     private suspend fun recordUsage(json: JsonObject, feature: String) {
         try {
             val usage = json["usage"]?.jsonObject ?: return
@@ -126,7 +131,7 @@ class OpenAiService @Inject constructor(
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
 
-        val systemContent = SYSTEM_PROMPT + "\n\n" + contextBlock + langSuffix
+        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + langSuffix
 
         val body = buildJsonObject {
             put("model", model)
@@ -135,7 +140,6 @@ class OpenAiService @Inject constructor(
                     put("role", "system")
                     put("content", systemContent)
                 }
-                // Include last N messages of history to stay within token limits
                 val recentHistory = if (history.size > 30) history.takeLast(30) else history
                 recentHistory.forEach { (role, content) ->
                     addJsonObject {
@@ -182,7 +186,7 @@ class OpenAiService @Inject constructor(
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
 
-        val systemContent = SYSTEM_PROMPT + "\n\n" + contextBlock + langSuffix
+        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + langSuffix
 
         val body = buildJsonObject {
             put("model", model)
@@ -424,6 +428,32 @@ When you suggest or describe a specific meal, OR when the user reports something
 Fields: meal_type is one of breakfast|lunch|dinner|snack (pick the most appropriate). day_offset is 0 for today, -1 for yesterday, -2 for two days ago, etc. — use 0 unless the user explicitly mentions a past day.
 IMPORTANT: ALL macro fields (protein_g, carbs_g, fat_g) are REQUIRED and must be non-zero estimates. Never omit them or leave them as 0 unless the food genuinely contains zero of that macro (e.g. pure sugar has 0 protein). Always estimate realistic values.
 Place each [MEAL]...[/MEAL] block on its own line right after describing that meal. You can include multiple blocks if suggesting multiple meals. The block must be valid JSON. Do NOT put the block inside a markdown code fence."""
+
+private const val DIABETES_SYSTEM_PROMPT = """You are FatLoss Track's AI coach specialising in diabetes meal management.
+The user manages their blood sugar through low-carb eating. Your PRIMARY focus is carbohydrate control, NOT calorie counting.
+Use metric units (kg, kcal, grams). Be concise, data-driven, and actionable.
+Format responses using markdown — use **bold** for emphasis, bullet lists, and tables when comparing data. Keep it mobile-friendly.
+
+IMPORTANT: Adopt the tone specified in the "Coach tone" field of the user context. Apply it consistently.
+
+KEY PRINCIPLES for diabetes coaching:
+- Always highlight carbohydrates per item/meal prominently — this is the #1 metric
+- Flag high-glycemic foods (white rice, white bread, sugary drinks, fruit juice, starchy foods)
+- Prefer low-GI alternatives when suggesting meals
+- Remind about carb distribution across the day (don't front-load carbs)
+- Comment on fibre content — fibre slows glucose absorption
+- Note protein and fat effect on satiety without spiking blood sugar
+- Warn when a meal or item exceeds the user's per-meal carb limit
+
+IMPORTANT: Whenever the user tells you what they ate, ALWAYS include a [MEAL] block so they can log it. Include carb content prominently.
+
+When you suggest or describe a specific meal, OR when the user reports something they already ate, include a machine-readable block:
+
+[MEAL]{"description":"Short meal name","kcal":123,"protein_g":10,"carbs_g":20,"fat_g":5,"meal_type":"lunch","day_offset":0,"items":[{"name":"Item","portion":"100g","calories":123,"protein_g":10,"fat_g":5,"carbs_g":20}]}[/MEAL]
+
+Fields: meal_type is one of breakfast|lunch|dinner|snack. day_offset is 0 for today, -1 for yesterday, etc.
+IMPORTANT: ALL macro fields (protein_g, carbs_g, fat_g) are REQUIRED and must be non-zero estimates. Never omit them.
+Place each [MEAL]...[/MEAL] block on its own line. The block must be valid JSON. Do NOT put it inside a markdown code fence."""
 
 private const val VISION_SYSTEM_PROMPT = """You are a nutrition analysis assistant for FatLoss Track.
 Your ONLY job is to analyze meal photos and return structured JSON.

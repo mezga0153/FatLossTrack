@@ -36,6 +36,9 @@ class PreferencesManager @Inject constructor(
         private val KEY_ACTIVITY_LEVEL = stringPreferencesKey("activity_level") // "sedentary", "light", "moderate", "active"
         private val KEY_THEME_PRESET = stringPreferencesKey("theme_preset") // ThemePreset name
         private val KEY_LAST_BACKUP_TIME = stringPreferencesKey("last_backup_time") // ISO Instant
+        private val KEY_GOAL_TYPE = stringPreferencesKey("goal_type") // "weight_loss" | "diabetes"
+        private val KEY_MAX_CARBS_PER_MEAL = intPreferencesKey("max_carbs_per_meal") // grams
+        private val KEY_MAX_CARBS_PER_DAY = intPreferencesKey("max_carbs_per_day") // grams
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -96,6 +99,21 @@ class PreferencesManager @Inject constructor(
 
     val lastBackupTime: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_LAST_BACKUP_TIME]
+    }
+
+    /** "weight_loss" (default) or "diabetes" */
+    val goalType: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_GOAL_TYPE] ?: "weight_loss"
+    }
+
+    /** Max carbs per meal (grams) for diabetes mode. Default 45g. */
+    val maxCarbsPerMeal: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MAX_CARBS_PER_MEAL] ?: 45
+    }
+
+    /** Max carbs per day (grams) for diabetes mode. Default 150g. */
+    val maxCarbsPerDay: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MAX_CARBS_PER_DAY] ?: 150
     }
 
     suspend fun setOpenAiApiKey(key: String) {
@@ -173,6 +191,19 @@ class PreferencesManager @Inject constructor(
     suspend fun setLastBackupTime(time: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LAST_BACKUP_TIME] = time
+        }
+    }
+
+    suspend fun setGoalType(type: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_GOAL_TYPE] = type
+        }
+    }
+
+    suspend fun setDiabetesTargets(maxCarbsPerMeal: Int, maxCarbsPerDay: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_MAX_CARBS_PER_MEAL] = maxCarbsPerMeal
+            prefs[KEY_MAX_CARBS_PER_DAY] = maxCarbsPerDay
         }
     }
 }

@@ -68,6 +68,9 @@
     <string name="home_goal_progress">Goal Progress</string>
     <string name="home_goal_arrow">→ %.1f kg</string>
     <string name="home_weeks_left">~%d weeks left</string>
+    <string name="home_carb_adherence">Carb Adherence</string>
+    <string name="home_carbs_per_day">avg carbs/day (target: %dg)</string>
+    <string name="home_meals_within_limit">meals within limit</string>
     <string name="home_weight_trend">Weight</string>
     <string name="home_last_n_days">Last %d days</string>
     <string name="home_logged_days">Logged data on %1$d of %2$d days</string>
@@ -273,6 +276,17 @@
 
     <!-- SetGoalScreen -->
     <string name="set_goal_title">Set Goal</string>
+    <string name="goal_section_type">Goal Type</string>
+    <string name="goal_type_desc">Choose your primary health goal to get personalised targets and AI coaching.</string>
+    <string name="goal_type_weight_loss">Weight Loss</string>
+    <string name="goal_type_diabetes">Diabetes Control</string>
+    <string name="goal_section_diabetes_carbs">Carb Targets</string>
+    <string name="goal_diabetes_carbs_desc">Set your maximum carb intake per meal and per day to manage blood sugar.</string>
+    <string name="field_max_carbs_per_meal">Max carbs/meal (g)</string>
+    <string name="field_max_carbs_per_day">Max carbs/day (g)</string>
+    <string name="diabetes_preset_strict">Strict</string>
+    <string name="diabetes_preset_moderate">Moderate</string>
+    <string name="diabetes_preset_liberal">Liberal</string>
     <string name="goal_section_height">Height</string>
     <string name="field_cm">cm</string>
     <string name="goal_section_weight">Weight</string>

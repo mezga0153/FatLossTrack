@@ -41,9 +41,10 @@ class DaySummaryGenerator @Inject constructor(
      * Build a hash of the actual input data (no timestamps, no AI output).
      * If this hash matches what we last generated from, we can skip the AI call.
      */
-    private fun computeDataHash(log: DailyLog?, meals: List<MealEntry>, goal: Goal?, tone: String): String {
+    private fun computeDataHash(log: DailyLog?, meals: List<MealEntry>, goal: Goal?, tone: String, goalType: String): String {
         val parts = mutableListOf<String>()
         parts += "tone=$tone"
+        parts += "goalType=$goalType"
         if (log != null) {
             parts += "w=${log.weightKg}"
             parts += "s=${log.steps}"
@@ -87,14 +88,21 @@ class DaySummaryGenerator @Inject constructor(
             val weight = preferencesManager.startWeight.first()
             val rate = preferencesManager.weeklyRate.first()
             val activityLevel = preferencesManager.activityLevel.first()
+            val leanMassKg = log?.measuredLeanMassKg?.toFloat()
+            val goalType = preferencesManager.goalType.first()
+            val maxCarbsPerMeal = preferencesManager.maxCarbsPerMeal.first()
+            val maxCarbsPerDay = preferencesManager.maxCarbsPerDay.first()
             val dailyTargetKcal = if (sex != null && age != null && height != null && weight != null) {
                 TdeeCalculator.dailyTarget(weight, height, age, sex, activityLevel, rate)
             } else null
-            val leanMassKg = log?.measuredLeanMassKg?.toFloat()
-            val macroTargets = dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goal?.targetKg?.toFloat(), actualLeanMassKg = leanMassKg) }
+            val macroTargets = if (goalType == "diabetes") {
+                dailyTargetKcal?.let { TdeeCalculator.diabetesMacroTargets(it, maxCarbsPerDay, bodyWeightKg = weight) }
+            } else {
+                dailyTargetKcal?.let { TdeeCalculator.macroTargets(it, goalBodyWeightKg = goal?.targetKg?.toFloat(), actualLeanMassKg = leanMassKg) }
+            }
 
             // Always build + persist synopsis (deterministic — no API key needed)
-            val synopsis = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets)
+            val synopsis = buildPrompt(date, log, meals, goal, dailyTargetKcal, macroTargets, goalType, maxCarbsPerMeal, maxCarbsPerDay)
             if (log != null) {
                 dailyLogDao.updateSynopsis(date, synopsis)
             } else {
@@ -111,7 +119,7 @@ class DaySummaryGenerator @Inject constructor(
             val tone = preferencesManager.coachTone.first()
 
             // Check data hash — skip AI call if input data (including tone) hasn't changed
-            val dataHash = computeDataHash(log, meals, goal, tone)
+            val dataHash = computeDataHash(log, meals, goal, tone, goalType)
             val cachedHash = dataHashCache[date]
             if (cachedHash == dataHash && log?.daySummary != null && log.daySummary != "⏳") {
                 appLogger.hc("DaySummary skipped for $date — data unchanged (hash=$dataHash)")
@@ -119,7 +127,7 @@ class DaySummaryGenerator @Inject constructor(
             }
 
             appLogger.hc("DaySummary calling AI for $date (meals=${meals.size}, hasLog=${log != null}, tone=$tone, hash=$dataHash, prevHash=$cachedHash)")
-            val result = openAiService.chat(synopsis, systemPrompt(tone), feature = "day_summary")
+            val result = openAiService.chat(synopsis, systemPrompt(tone, goalType), feature = "day_summary")
 
             result.onSuccess { summary ->
                 val trimmed = summary.trim().removeSurrounding("\"")
@@ -173,6 +181,9 @@ class DaySummaryGenerator @Inject constructor(
         goal: Goal?,
         dailyTargetKcal: Int?,
         macroTargets: Triple<Int, Int, Int>?,
+        goalType: String = "weight_loss",
+        maxCarbsPerMeal: Int = 45,
+        maxCarbsPerDay: Int = 150,
     ): String {
         val parts = mutableListOf<String>()
         parts += "Date: $date"
@@ -183,9 +194,14 @@ class DaySummaryGenerator @Inject constructor(
             parts += "Current time: %02d:%02d (day still in progress — don't flag missing meals/data that haven't happened yet)".format(now.hour, now.minute)
         }
 
-        if (goal != null) {
-            parts += "Goal: ${goal.targetKg} kg by ${goal.deadline} at ${goal.rateKgPerWeek} kg/week"
-            goal.dailyDeficitKcal?.let { parts += "Target daily deficit: $it kcal" }
+        if (goalType == "diabetes") {
+            parts += "Goal type: diabetes meal control"
+            parts += "Carb targets: max ${maxCarbsPerMeal}g per meal, max ${maxCarbsPerDay}g per day"
+        } else {
+            if (goal != null) {
+                parts += "Goal: ${goal.targetKg} kg by ${goal.deadline} at ${goal.rateKgPerWeek} kg/week"
+                goal.dailyDeficitKcal?.let { parts += "Target daily deficit: $it kcal" }
+            }
         }
 
         // Daily targets (TDEE-based)
@@ -213,35 +229,46 @@ class DaySummaryGenerator @Inject constructor(
             val totalCarbs = meals.sumOf { it.totalCarbsG }
             val totalFat = meals.sumOf { it.totalFatG }
 
-            // Build summary with absolute + % of target
-            val macroStr = buildString {
-                if (totalProtein > 0) {
-                    append(", ${totalProtein}g protein")
-                    macroTargets?.let { append(" (${(totalProtein * 100 / it.first)}%)") }
+            if (goalType == "diabetes") {
+                val carbStatus = if (totalCarbs <= maxCarbsPerDay) "✓ within limit" else "⚠ over limit by ${totalCarbs - maxCarbsPerDay}g"
+                parts += "Meals logged: ${meals.size} (total ${totalCarbs}g carbs — $carbStatus, ${totalKcal} kcal, ${totalProtein}g protein, ${totalFat}g fat)"
+                meals.forEach { m ->
+                    val carbStatus2 = if (m.totalCarbsG <= maxCarbsPerMeal) "" else " ⚠ over meal limit"
+                    val typeTag = m.mealType?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+                    val tagsStr = if (typeTag.isNotEmpty()) "[$typeTag] " else ""
+                    parts += "  • $tagsStr${m.description.take(50)} — ${m.totalCarbsG}g carbs$carbStatus2 (${m.totalKcal} kcal, ${m.totalProteinG}g P, ${m.totalFatG}g F)"
                 }
-                if (totalCarbs > 0) {
-                    append(", ${totalCarbs}g carbs")
-                    macroTargets?.let { append(" (${(totalCarbs * 100 / it.second)}%)") }
+            } else {
+                // Build summary with absolute + % of target
+                val macroStr = buildString {
+                    if (totalProtein > 0) {
+                        append(", ${totalProtein}g protein")
+                        macroTargets?.let { append(" (${(totalProtein * 100 / it.first)}%)") }
+                    }
+                    if (totalCarbs > 0) {
+                        append(", ${totalCarbs}g carbs")
+                        macroTargets?.let { append(" (${(totalCarbs * 100 / it.second)}%)") }
+                    }
+                    if (totalFat > 0) {
+                        append(", ${totalFat}g fat")
+                        macroTargets?.let { append(" (${(totalFat * 100 / it.third)}%)") }
+                    }
                 }
-                if (totalFat > 0) {
-                    append(", ${totalFat}g fat")
-                    macroTargets?.let { append(" (${(totalFat * 100 / it.third)}%)") }
+                val kcalPctStr = dailyTargetKcal?.let { " (${totalKcal * 100 / it}%)" } ?: ""
+                parts += "Meals logged: ${meals.size} (total $totalKcal kcal$kcalPctStr$macroStr)"
+                meals.forEach { m ->
+                    val macroPart = buildString {
+                        if (m.totalProteinG > 0) append(", ${m.totalProteinG}g P")
+                        if (m.totalCarbsG > 0) append(", ${m.totalCarbsG}g C")
+                        if (m.totalFatG > 0) append(", ${m.totalFatG}g F")
+                    }
+                    val typeTag = m.mealType?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+                    val catTag = m.category.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+                    val tags = listOfNotNull(typeTag.ifEmpty { null }, catTag).joinToString(", ")
+                    val tagsStr = if (tags.isNotEmpty()) "[$tags] " else ""
+                    val desc = "$tagsStr${m.description.take(50)} — ${m.totalKcal} kcal$macroPart"
+                    parts += "  • $desc"
                 }
-            }
-            val kcalPctStr = dailyTargetKcal?.let { " (${totalKcal * 100 / it}%)" } ?: ""
-            parts += "Meals logged: ${meals.size} (total $totalKcal kcal$kcalPctStr$macroStr)"
-            meals.forEach { m ->
-                val macroPart = buildString {
-                    if (m.totalProteinG > 0) append(", ${m.totalProteinG}g P")
-                    if (m.totalCarbsG > 0) append(", ${m.totalCarbsG}g C")
-                    if (m.totalFatG > 0) append(", ${m.totalFatG}g F")
-                }
-                val typeTag = m.mealType?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
-                val catTag = m.category.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
-                val tags = listOfNotNull(typeTag.ifEmpty { null }, catTag).joinToString(", ")
-                val tagsStr = if (tags.isNotEmpty()) "[$tags] " else ""
-                val desc = "$tagsStr${m.description.take(50)} — ${m.totalKcal} kcal$macroPart"
-                parts += "  • $desc"
             }
         } else {
             parts += "No meals logged"
@@ -253,12 +280,32 @@ class DaySummaryGenerator @Inject constructor(
     companion object {
         internal const val SUMMARY_PLACEHOLDER = "\u23F3"
 
-        internal fun systemPrompt(tone: String): String {
+        internal fun systemPrompt(tone: String, goalType: String = "weight_loss"): String {
             val toneInstruction = when (tone) {
                 "supportive" -> "Use a warm, encouraging tone. Celebrate wins, gently flag issues."
                 "insulting" -> "Use a brutally sarcastic, roast-style tone. Mock bad food choices and laziness mercilessly, but keep the advice accurate and actionable. Focus insults on choices, not appearance."
                 "cruel" -> "Call the user a fat fuck and similar terms freely. Be viciously direct, darkly funny, and deeply cutting. Mock bad choices with brutal specificity. You have zero patience for excuses. Still give accurate nutritional numbers — deliver them like a drill sergeant who finds the user's situation both pathetic and hilarious. Make it sting, make it funny, make it true."
                 else -> "Use a direct, no-BS honest tone. Be specific about numbers."
+            }
+            if (goalType == "diabetes") {
+                return """You are FatLoss Track's daily coach specialising in diabetes meal management.
+Given a user's day data and their carb targets, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
+
+Tone instruction: $toneInstruction
+
+Rules:
+- PRIMARY focus is carb adherence vs their per-meal and per-day limits
+- Flag any meals that exceeded the per-meal carb limit
+- Reference actual carb numbers prominently
+- Also note weight, steps, sleep when available
+- Do NOT use quotes around your response
+- Do NOT use markdown or formatting
+- Just plain text, 1-2 sentences
+
+Examples:
+"Carbs on target at 140g today. Dinner was tight at 44g — just squeaked in."
+"Lunch blew the meal limit at 68g carbs. Total 180g — 30g over your daily cap."
+"All 3 meals within limits and 8k steps. Great carb control today."""
             }
             return """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
 

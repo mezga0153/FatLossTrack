@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Speed
@@ -54,17 +55,24 @@ fun SetGoalScreen(
     val savedRate by preferencesManager.weeklyRate.collectAsState(initial = null)
     val savedGuidance by preferencesManager.aiGuidance.collectAsState(initial = null)
     val savedStartDate by preferencesManager.startDate.collectAsState(initial = null)
+    val savedGoalType by preferencesManager.goalType.collectAsState(initial = "weight_loss")
+    val savedMaxCarbsPerMeal by preferencesManager.maxCarbsPerMeal.collectAsState(initial = 45)
+    val savedMaxCarbsPerDay by preferencesManager.maxCarbsPerDay.collectAsState(initial = 150)
 
+    var goalType by remember { mutableStateOf("weight_loss") }
     var startWeight by remember { mutableStateOf("") }
     var goalWeight by remember { mutableStateOf("") }
     var weeklyRate by remember { mutableStateOf("") }
     var aiGuidance by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf(LocalDate.now()) }
+    var maxCarbsPerMeal by remember { mutableStateOf("45") }
+    var maxCarbsPerDay by remember { mutableStateOf("150") }
     var initialized by remember { mutableStateOf(false) }
 
     // Seed fields once from saved values — wait until rate is loaded (non-null) to avoid race
-    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedStartDate) {
+    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedStartDate, savedGoalType, savedMaxCarbsPerMeal, savedMaxCarbsPerDay) {
         if (!initialized && savedRate != null) {
+            goalType = savedGoalType
             startWeight = savedStartWeight?.let { "%.1f".format(it) } ?: ""
             goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
             weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
@@ -72,6 +80,8 @@ fun SetGoalScreen(
             startDate = savedStartDate?.let {
                 try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
             } ?: LocalDate.now()
+            maxCarbsPerMeal = savedMaxCarbsPerMeal.toString()
+            maxCarbsPerDay = savedMaxCarbsPerDay.toString()
             initialized = true
         }
     }
@@ -135,7 +145,46 @@ fun SetGoalScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // ── Weight section ──
+            // ── Goal type toggle ──
+            GoalSection(icon = Icons.Default.Flag, title = stringResource(R.string.goal_section_type)) {
+                Text(
+                    text = stringResource(R.string.goal_type_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(SurfaceVariant),
+                ) {
+                    listOf(
+                        "weight_loss" to stringResource(R.string.goal_type_weight_loss),
+                        "diabetes" to stringResource(R.string.goal_type_diabetes),
+                    ).forEach { (type, label) ->
+                        val selected = goalType == type
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (selected) Primary else Color.Transparent)
+                                .clickable { goalType = type }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary else OnSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Weight section (weight loss only) ──
+            if (goalType == "weight_loss") {
             GoalSection(icon = Icons.Default.Scale, title = stringResource(R.string.goal_section_weight)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -164,6 +213,7 @@ fun SetGoalScreen(
                     )
                 }
             }
+            }
 
             // ── Start date section ──
             GoalSection(icon = Icons.Default.CalendarMonth, title = stringResource(R.string.goal_section_start_date)) {
@@ -185,6 +235,8 @@ fun SetGoalScreen(
                 }
             }
 
+            // ── Rate + Deficit sections (weight loss only) ──
+            if (goalType == "weight_loss") {
             // ── Rate section ──
             GoalSection(icon = Icons.Default.Speed, title = stringResource(R.string.goal_section_weekly_rate)) {
                 GoalTextField(
@@ -255,6 +307,48 @@ fun SetGoalScreen(
                     }
                 }
             }
+            } // end weight_loss only
+
+            // ── Diabetes carb targets (diabetes mode only) ──
+            if (goalType == "diabetes") {
+            GoalSection(icon = Icons.Default.MonitorHeart, title = stringResource(R.string.goal_section_diabetes_carbs)) {
+                Text(
+                    text = stringResource(R.string.goal_diabetes_carbs_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    GoalTextField(
+                        value = maxCarbsPerMeal,
+                        onValueChange = { maxCarbsPerMeal = it },
+                        label = stringResource(R.string.field_max_carbs_per_meal),
+                        modifier = Modifier.weight(1f),
+                    )
+                    GoalTextField(
+                        value = maxCarbsPerDay,
+                        onValueChange = { maxCarbsPerDay = it },
+                        label = stringResource(R.string.field_max_carbs_per_day),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                // Preset chips
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Triple("30", "90", stringResource(R.string.diabetes_preset_strict)),
+                        Triple("45", "150", stringResource(R.string.diabetes_preset_moderate)),
+                        Triple("60", "200", stringResource(R.string.diabetes_preset_liberal)),
+                    ).forEach { (meal, day, label) ->
+                        val sel = maxCarbsPerMeal == meal && maxCarbsPerDay == day
+                        RateChip(meal, label, sel) { maxCarbsPerMeal = meal; maxCarbsPerDay = day }
+                    }
+                }
+            }
+            } // end diabetes only
 
             // ── AI guidance freeform ──
             GoalSection(icon = Icons.Default.Psychology, title = stringResource(R.string.goal_section_ai_guidance)) {
@@ -335,6 +429,13 @@ fun SetGoalScreen(
             Button(
                 onClick = {
                     scope.launch {
+                        preferencesManager.setGoalType(goalType)
+                        if (goalType == "diabetes") {
+                            preferencesManager.setDiabetesTargets(
+                                maxCarbsPerMeal = maxCarbsPerMeal.toIntOrNull() ?: 45,
+                                maxCarbsPerDay = maxCarbsPerDay.toIntOrNull() ?: 150,
+                            )
+                        }
                         preferencesManager.setGoal(
                             startWeight = startWeight.toFloatOrNull() ?: 0f,
                             goalWeight = goalWeight.toFloatOrNull() ?: 0f,
@@ -343,7 +444,7 @@ fun SetGoalScreen(
                             heightCm = null,
                             startDate = startDate.toString(),
                         )
-                        AppLogger.instance?.user("Goal saved: start=${startWeight}kg, goal=${goalWeight}kg, rate=${weeklyRate}kg/wk, startDate=$startDate")
+                        AppLogger.instance?.user("Goal saved: type=$goalType, start=${startWeight}kg, goal=${goalWeight}kg, rate=${weeklyRate}kg/wk, startDate=$startDate")
                     }
                     onBack()
                 },

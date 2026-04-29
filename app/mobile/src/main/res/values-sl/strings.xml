@@ -68,6 +68,9 @@
     <string name="home_goal_progress">Napredek cilja</string>
     <string name="home_goal_arrow">→ %.1f kg</string>
     <string name="home_weeks_left">~%d tednov do cilja</string>
+    <string name="home_carb_adherence">Upoštevanje OH</string>
+    <string name="home_carbs_per_day">povp. OH/dan (cilj: %dg)</string>
+    <string name="home_meals_within_limit">obrokov v mejah</string>
     <string name="home_weight_trend">Teža</string>
     <string name="home_last_n_days">Zadnjih %d dni</string>
     <string name="home_logged_days">Podatki za %1$d od %2$d dni</string>
@@ -255,6 +258,17 @@
 
     <!-- SetGoalScreen -->
     <string name="set_goal_title">Nastavi cilj</string>
+    <string name="goal_section_type">Vrsta cilja</string>
+    <string name="goal_type_desc">Izberi svoj primarni zdravstveni cilj za prilagojene tarče in AI coaching.</string>
+    <string name="goal_type_weight_loss">Izguba teže</string>
+    <string name="goal_type_diabetes">Nadzor sladkorne</string>
+    <string name="goal_section_diabetes_carbs">Ogljikohidratne tarče</string>
+    <string name="goal_diabetes_carbs_desc">Nastavi največji vnos OH na obrok in na dan za uravnavanje krvnega sladkorja.</string>
+    <string name="field_max_carbs_per_meal">Največ OH/obrok (g)</string>
+    <string name="field_max_carbs_per_day">Največ OH/dan (g)</string>
+    <string name="diabetes_preset_strict">Strogo</string>
+    <string name="diabetes_preset_moderate">Zmerno</string>
+    <string name="diabetes_preset_liberal">Liberalno</string>
     <string name="goal_section_height">Višina</string>
     <string name="field_cm">cm</string>
     <string name="goal_section_weight">Teža</string>
