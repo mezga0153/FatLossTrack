@@ -156,9 +156,9 @@ fun TrendsScreen(
     // ── Compare Metrics state ────────────────────────────────────────────────
     // Build available series after all data is computed (see below)
     var selectedSeriesIds by remember { mutableStateOf(setOf<String>()) }    // Lag per selected series in days (positive = shift series later, so it aligns with the next day)
-    var lagBySeriesId by remember { mutableStateOf(mapOf<String, Int>()) }
-    // Weekly average mode
-    var showWeeklyAvg by remember { mutableStateOf(false) }
+    var lagBySeriesId by remember { mutableStateOf(mapOf<String, Int>()) }    // Smoothing window per series: 0 = raw, 3 = 3-day rolling avg, 7 = 7-day rolling avg
+    // Global smoothing: 0 = raw, 3 = 3-day rolling avg, 7 = 7-day weekly buckets
+    var avgWindow by remember { mutableStateOf(0) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Column(
@@ -194,12 +194,13 @@ fun TrendsScreen(
                     }
                 }
             }
-            // Weekly average toggle
+            // Smoothing toggle: cycles off → 3d → 7d → off
+            val avgActive = avgWindow > 0
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (showWeeklyAvg) Primary.copy(alpha = 0.2f) else CardSurface)
-                    .clickable { showWeeklyAvg = !showWeeklyAvg }
+                    .background(if (avgActive) Primary.copy(alpha = 0.2f) else CardSurface)
+                    .clickable { avgWindow = when (avgWindow) { 0 -> 3; 3 -> 7; else -> 0 } }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -210,12 +211,12 @@ fun TrendsScreen(
                     Icon(
                         Icons.Default.BarChart, null,
                         modifier = Modifier.size(14.dp),
-                        tint = if (showWeeklyAvg) Primary else OnSurfaceVariant,
+                        tint = if (avgActive) Primary else OnSurfaceVariant,
                     )
                     Text(
-                        "7d avg",
+                        when (avgWindow) { 3 -> "3d avg"; 7 -> "7d avg"; else -> "avg off" },
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (showWeeklyAvg) Primary else OnSurfaceVariant,
+                        color = if (avgActive) Primary else OnSurfaceVariant,
                     )
                 }
             }
@@ -247,14 +248,31 @@ fun TrendsScreen(
             selectedSeriesIds = selectedSeriesIds.intersect(validIds)
         }
 
-        val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions, lagBySeriesId) {
+        val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions, lagBySeriesId, avgWindow) {
             compareSeriesOptions.filter { it.id in selectedSeriesIds }
                 .map { s ->
                     val lag = lagBySeriesId[s.id] ?: 0
-                    // Shift dates forward by lag days so this series aligns with "today+lag" dates
-                    val shiftedData = s.data.map { (date, v) -> date.plusDays(lag.toLong()) to v }
+                    // Apply global smoothing
+                    val smoothed: List<Pair<LocalDate, Double>> = when (avgWindow) {
+                        3 -> rollingAvg(s.data, 3)
+                        7 -> if (s.data.size >= 2) {
+                            val minD = s.data.minOf { it.first }
+                            s.data.sortedBy { it.first }
+                                .groupBy { (date, _) -> ChronoUnit.DAYS.between(minD, date).toInt() / 7 }
+                                .toSortedMap()
+                                .map { (weekIdx, entries) ->
+                                    minD.plusDays((weekIdx * 7 + 3).toLong()) to entries.map { it.second }.average()
+                                }
+                        } else s.data
+                        else -> s.data
+                    }
+                    // Shift dates by lag
+                    val shiftedData = smoothed.map { (date, v) -> date.plusDays(lag.toLong()) to v }
+                    val avgLabel = when (avgWindow) { 3 -> "3d avg"; 7 -> "7d avg"; else -> null }
+                    val lagLabel = if (lag != 0) "+${lag}d" else null
+                    val suffix = listOfNotNull(avgLabel, lagLabel).joinToString(", ")
                     ChartSeries(
-                        label = if (lag != 0) "${s.label} (+${lag}d)" else s.label,
+                        label = if (suffix.isNotEmpty()) "${s.label} ($suffix)" else s.label,
                         color = s.color,
                         unit = s.unit,
                         data = shiftedData,
@@ -321,7 +339,7 @@ fun TrendsScreen(
                     }
                 }
 
-                // Lag controls — shown when 2+ series selected
+                // Lag controls — only shown when 2+ series selected (lag is relative between series)
                 if (selectedAvailableSeries.size >= 2) {
                     Spacer(Modifier.height(8.dp))
                     selectedAvailableSeries.forEach { s ->
@@ -347,10 +365,7 @@ fun TrendsScreen(
                                     color = OnSurfaceVariant,
                                 )
                             }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
                                     onClick = { if (lag > 0) lagBySeriesId = lagBySeriesId + (s.id to lag - 1) },
                                     modifier = Modifier.size(28.dp),
@@ -465,14 +480,15 @@ fun TrendsScreen(
                     "All" -> goalWeight?.toDouble()
                     else -> firstWeight?.let { it - (weeklyRate ?: 0f).toDouble() * actualDays / 7.0 }
                 }
-                val wwa = if (showWeeklyAvg) weeklyOf(weightData, selectedRange == "7D") else null
-                val chartPoints = wwa?.data ?: weightData.mapIndexed { i, (_, w) -> i to w }
-                val dateLabels = wwa?.dateLabels ?: weightData.map { (date, _) ->
+                val smoothedWeight = if (avgWindow == 3) rollingAvg(weightData, 3) else weightData
+                val wwa = if (avgWindow == 7) weeklyOf(smoothedWeight, selectedRange == "7D") else null
+                val chartPoints = wwa?.data ?: smoothedWeight.mapIndexed { i, (_, w) -> i to w }
+                val dateLabels = wwa?.dateLabels ?: smoothedWeight.map { (date, _) ->
                     val monthName = date.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "%d. %s".format(date.dayOfMonth, monthName)
                 }
-                val xLabels = wwa?.xAxisLabels ?: weightData.map { (date, _) -> xAxisLabel(date, selectedRange == "7D") }
+                val xLabels = wwa?.xAxisLabels ?: smoothedWeight.map { (date, _) -> xAxisLabel(date, selectedRange == "7D") }
                 TrendChart(
                     dataPoints = chartPoints,
                     dateLabels = dateLabels,
@@ -520,15 +536,16 @@ fun TrendsScreen(
         // ── Body Fat % Trend ──
         if (bodyFatData.size >= 2) {
             InfoCard(label = "Body Fat %", icon = Icons.Default.Percent) {
-                val wa = if (showWeeklyAvg) weeklyOf(bodyFatData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: bodyFatData.map { (d, _) ->
+                val smoothedBf = if (avgWindow == 3) rollingAvg(bodyFatData, 3) else bodyFatData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedBf, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedBf.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: bodyFatData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedBf.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: bodyFatData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: smoothedBf.mapIndexed { i, (_, v) -> i to v },
                     color = Tertiary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -552,15 +569,16 @@ fun TrendsScreen(
         // ── Lean Body Mass Trend ──
         if (leanMassData.size >= 2) {
             InfoCard(label = "Lean Mass", icon = Icons.Default.FitnessCenter) {
-                val wa = if (showWeeklyAvg) weeklyOf(leanMassData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: leanMassData.map { (d, _) ->
+                val smoothedLean = if (avgWindow == 3) rollingAvg(leanMassData, 3) else leanMassData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedLean, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedLean.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: leanMassData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedLean.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: leanMassData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: smoothedLean.mapIndexed { i, (_, v) -> i to v },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -584,15 +602,16 @@ fun TrendsScreen(
         // ── Body Water Trend ──
         if (bodyWaterData.size >= 2) {
             InfoCard(label = "Body Water", icon = Icons.Default.WaterDrop) {
-                val wa = if (showWeeklyAvg) weeklyOf(bodyWaterData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: bodyWaterData.map { (d, _) ->
+                val smoothedWater = if (avgWindow == 3) rollingAvg(bodyWaterData, 3) else bodyWaterData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedWater, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedWater.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: bodyWaterData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedWater.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: bodyWaterData.mapIndexed { i, (_, v) -> i to v },
+                    data = wa?.data ?: smoothedWater.mapIndexed { i, (_, v) -> i to v },
                     color = Primary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -617,15 +636,16 @@ fun TrendsScreen(
         if (kcalByDay.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_calories), icon = Icons.Default.LocalFireDepartment) {
                 val kcalDoubleData = kcalByDay.map { (d, v) -> d to v.toDouble() }
-                val wa = if (showWeeklyAvg) weeklyOf(kcalDoubleData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: kcalByDay.map { (d, _) ->
+                val smoothedKcal = if (avgWindow == 3) rollingAvg(kcalDoubleData, 3) else kcalDoubleData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedKcal, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedKcal.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: kcalByDay.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedKcal.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: kcalByDay.mapIndexed { i, (_, kcal) -> i to kcal.toDouble() },
+                    data = wa?.data ?: smoothedKcal.mapIndexed { i, (_, v) -> i to v },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -686,15 +706,16 @@ fun TrendsScreen(
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_sleep), icon = Icons.Default.Bedtime) {
-                val wa = if (showWeeklyAvg) weeklyOf(sleepData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: sleepData.map { (d, _) ->
+                val smoothedSleep = if (avgWindow == 3) rollingAvg(sleepData, 3) else sleepData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedSleep, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedSleep.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: sleepData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedSleep.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: sleepData.mapIndexed { i, (_, h) -> i to h },
+                    data = wa?.data ?: smoothedSleep.mapIndexed { i, (_, h) -> i to h },
                     color = Primary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -719,15 +740,16 @@ fun TrendsScreen(
         if (stepsData.size >= 2) {
             InfoCard(label = stringResource(R.string.trends_steps), icon = Icons.AutoMirrored.Filled.DirectionsWalk) {
                 val stepsDoubleData = stepsData.map { (d, v) -> d to v.toDouble() }
-                val wa = if (showWeeklyAvg) weeklyOf(stepsDoubleData, selectedRange == "7D") else null
-                val labels = wa?.dateLabels ?: stepsData.map { (d, _) ->
+                val smoothedSteps = if (avgWindow == 3) rollingAvg(stepsDoubleData, 3) else stepsDoubleData
+                val wa = if (avgWindow == 7) weeklyOf(smoothedSteps, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothedSteps.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
                     "${d.dayOfMonth}. $m"
                 }
-                val xLabels = wa?.xAxisLabels ?: stepsData.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val xLabels = wa?.xAxisLabels ?: smoothedSteps.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
                 SimpleLineChart(
-                    data = wa?.data ?: stepsDoubleData.mapIndexed { i, (_, s) -> i to s },
+                    data = wa?.data ?: smoothedSteps.mapIndexed { i, (_, s) -> i to s },
                     color = Secondary,
                     dateLabels = labels,
                     xAxisLabels = xLabels,
@@ -830,6 +852,21 @@ private fun weeklyOf(raw: List<Pair<LocalDate, Double>>, labelFor7D: Boolean = f
         xLabels.add(xAxisLabel(midDate, labelFor7D))
     }
     return WeeklyResult(data, bands, dateLabels, xLabels)
+}
+
+/**
+ * Centered rolling average with window size [n]. Dates with fewer than
+ * [n]/2 neighbours on either side still get computed from available data.
+ */
+fun rollingAvg(data: List<Pair<LocalDate, Double>>, n: Int): List<Pair<LocalDate, Double>> {
+    if (n < 2 || data.size < 2) return data
+    val sorted = data.sortedBy { it.first }
+    val half = n / 2
+    return sorted.mapIndexed { i, (date, _) ->
+        val lo = (i - half).coerceAtLeast(0)
+        val hi = (i + half).coerceAtMost(sorted.lastIndex)
+        date to sorted.subList(lo, hi + 1).map { it.second }.average()
+    }
 }
 
 private data class AvailableSeries(
