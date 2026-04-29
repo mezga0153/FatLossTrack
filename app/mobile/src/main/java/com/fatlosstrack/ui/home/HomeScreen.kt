@@ -380,6 +380,11 @@ fun HomeScreen(
                     .sortedBy { it.date }
                     .map { it.date to it.steps!! }
             }
+            val filteredBloodSugar = remember(logsSource, chartRange) {
+                logsSource.filter { it.bloodSugarMmol != null && it.date >= trendCutoff }
+                    .sortedBy { it.date }
+                    .map { it.date to it.bloodSugarMmol!! }
+            }
             val filteredMacros = remember(mealsSource, chartRange) {
                 mealsSource.groupBy { it.date }
                     .map { (date, dayMeals) ->
@@ -395,13 +400,14 @@ fun HomeScreen(
 
             // Build the list of available chart pages
             data class ChartPage(val label: String, val icon: ImageVector, val titleRes: Int)
-            val pages = remember(chartData, filteredKcal, filteredSleep, filteredSteps, filteredMacros) {
+            val pages = remember(chartData, filteredKcal, filteredSleep, filteredSteps, filteredMacros, filteredBloodSugar) {
                 buildList {
                     if (chartData.size >= 2) add(ChartPage("weight", Icons.Default.MonitorWeight, R.string.home_weight_trend))
                     if (filteredKcal.size >= 2) add(ChartPage("kcal", Icons.Default.LocalFireDepartment, R.string.trends_calories))
                     if (filteredMacros.size >= 2) add(ChartPage("macros", Icons.Default.PieChart, R.string.trends_macros))
                     if (filteredSleep.size >= 2) add(ChartPage("sleep", Icons.Default.Bedtime, R.string.trends_sleep))
                     if (filteredSteps.size >= 2) add(ChartPage("steps", Icons.AutoMirrored.Filled.DirectionsWalk, R.string.trends_steps))
+                    if (filteredBloodSugar.size >= 2) add(ChartPage("bloodsugar", Icons.Default.Bloodtype, R.string.trends_blood_sugar))
                 }
             }
 
@@ -547,6 +553,18 @@ fun HomeScreen(
                                     dateLabels = labels,
                                     xAxisLabels = xLabels,
                                     unit = "steps",
+                                    modifier = Modifier.fillMaxWidth().height(130.dp),
+                                )
+                            }
+                            "bloodsugar" -> {
+                                val labels = filteredBloodSugar.map { (d, _) -> dateLabelFor(d) }
+                                val xLabels = filteredBloodSugar.map { (d, _) -> xAxisLabelFor(d, is7d) }
+                                SimpleLineChart(
+                                    data = filteredBloodSugar.mapIndexed { i, (_, v) -> i to v },
+                                    color = androidx.compose.ui.graphics.Color(0xFFE53E3E),
+                                    dateLabels = labels,
+                                    xAxisLabels = xLabels,
+                                    unit = "mmol/L",
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }

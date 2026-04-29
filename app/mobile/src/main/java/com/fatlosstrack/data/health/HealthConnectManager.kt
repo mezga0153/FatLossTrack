@@ -38,6 +38,7 @@ class HealthConnectManager @Inject constructor(
             HealthPermission.getReadPermission(BodyWaterMassRecord::class),
             HealthPermission.getReadPermission(LeanBodyMassRecord::class),
             HealthPermission.getReadPermission(BoneMassRecord::class),
+            HealthPermission.getReadPermission(BloodGlucoseRecord::class),
         )
 
         // Core permissions required for sync to run.
@@ -392,6 +393,26 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    /** Most recent fasting blood glucose in mmol/L for [date], or null */
+    suspend fun getBloodSugar(date: LocalDate): Double? {
+        val c = client ?: return null
+        return try {
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = BloodGlucoseRecord::class,
+                    timeRangeFilter = dayRange(date),
+                )
+            )
+            val result = response.records.lastOrNull()?.level?.inMillimolesPerLiter
+            appLogger.hc("  $date blood-sugar: ${response.records.size} records → ${result?.let { "%.1f mmol/L".format(it) } ?: "null"}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "getBloodSugar failed", e)
+            appLogger.hc("  $date blood-sugar: ERROR ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
     /** Pull all health data for a single date into a DaySummary */
     suspend fun getDaySummary(date: LocalDate, referenceWeightKg: Double? = null): DaySummary {
         appLogger.hc("Reading HC data for $date …")
@@ -406,12 +427,13 @@ class HealthConnectManager @Inject constructor(
             bodyWaterKg = getBodyWaterKg(date),
             leanBodyMassKg = getLeanBodyMassKg(date),
             boneMassKg = getBoneMassKg(date),
+            bloodSugarMmol = getBloodSugar(date),
         )
         val hasAny = summary.weightKg != null || summary.steps != null ||
                 summary.sleepHours != null || summary.restingHr != null ||
                 summary.exercisesJson != null || summary.bodyFatPct != null ||
                 summary.bodyWaterKg != null || summary.leanBodyMassKg != null ||
-                summary.boneMassKg != null
+                summary.boneMassKg != null || summary.bloodSugarMmol != null
         appLogger.hc("$date summary: ${if (hasAny) "HAS DATA" else "EMPTY"}")
         return summary
     }
@@ -447,6 +469,7 @@ data class DaySummary(
     val bodyWaterKg: Double? = null,
     val leanBodyMassKg: Double? = null,
     val boneMassKg: Double? = null,
+    val bloodSugarMmol: Double? = null,
 )
 
 /** Map Health Connect exercise type int to a readable name */

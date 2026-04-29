@@ -152,6 +152,11 @@ fun TrendsScreen(
             .sortedBy { it.date }
             .map { it.date to it.boneMassKg!! }
     }
+    val bloodSugarData = remember(logs) {
+        logs.filter { it.bloodSugarMmol != null }
+            .sortedBy { it.date }
+            .map { it.date to it.bloodSugarMmol!! }
+    }
 
     // ── Compare Metrics state ────────────────────────────────────────────────
     // Build available series after all data is computed (see below)
@@ -228,7 +233,7 @@ fun TrendsScreen(
         val compareTertiary = Tertiary
         val compareAccent = Accent
         val compareSeriesOptions = remember(
-            weightData, bodyFatData, leanMassData, kcalByDay, sleepData, stepsData, bodyWaterData,
+            weightData, bodyFatData, leanMassData, kcalByDay, sleepData, stepsData, bodyWaterData, bloodSugarData,
             comparePrimary, compareSecondary, compareTertiary, compareAccent,
         ) {
             buildList {
@@ -239,6 +244,7 @@ fun TrendsScreen(
                 if (sleepData.size >= 2) add(AvailableSeries("sleep", "Sleep", androidx.compose.ui.graphics.Color(0xFF9F7AEA), "h", sleepData))
                 if (stepsData.size >= 2) add(AvailableSeries("steps", "Steps", androidx.compose.ui.graphics.Color(0xFF38B2AC), "k", stepsData.map { (d, v) -> d to v / 1000.0 }))
                 if (bodyWaterData.size >= 2) add(AvailableSeries("water", "Body Water", comparePrimary.copy(alpha = 0.65f), "kg", bodyWaterData))
+                if (bloodSugarData.size >= 2) add(AvailableSeries("bloodsugar", "Blood Sugar", androidx.compose.ui.graphics.Color(0xFFE53E3E), "mmol/L", bloodSugarData))
             }
         }
 

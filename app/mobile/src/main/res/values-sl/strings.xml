@@ -127,6 +127,7 @@
     <string name="field_steps">Koraki</string>
     <string name="field_sleep_hours">Spanje (ure)</string>
     <string name="field_resting_hr">Srčni utrip v mirovanju (utripov/min)</string>
+    <string name="field_blood_sugar">Krvni sladkor (mmol/L)</string>
     <string name="field_exercise_name">Vadba</string>
     <string name="field_exercise_min">Min</string>
     <string name="field_exercise_kcal">Kcal</string>
@@ -333,6 +334,7 @@
     <string name="trends_range">Razpon</string>
     <string name="format_sleep_range">%.1f – %.1fh</string>
     <string name="trends_steps">Koraki</string>
+    <string name="trends_blood_sugar">Krvni sladkor</string>
     <string name="trends_macros">Makri</string>
     <string name="format_steps_k_day">%dk/dan</string>
     <string name="trends_habits">Navade</string>

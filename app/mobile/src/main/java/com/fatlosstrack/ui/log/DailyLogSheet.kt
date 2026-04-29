@@ -41,6 +41,7 @@ internal fun DailyLogEditSheet(
     var stepsStr by remember { mutableStateOf(existingLog?.steps?.toString() ?: "") }
     var sleepStr by remember { mutableStateOf(existingLog?.sleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "") }
     var hrStr by remember { mutableStateOf(existingLog?.restingHr?.toString() ?: "") }
+    var bloodSugarStr by remember { mutableStateOf(existingLog?.bloodSugarMmol?.let { String.format(Locale.US, "%.1f", it) } ?: "") }
     var notes by remember { mutableStateOf(existingLog?.notes ?: "") }
     var weightLocked by remember { mutableStateOf(existingLog?.weightLocked ?: false) }
     var stepsLocked by remember { mutableStateOf(existingLog?.stepsLocked ?: false) }
@@ -105,6 +106,7 @@ internal fun DailyLogEditSheet(
         }
         EditField(icon = Icons.Default.Bedtime, label = stringResource(R.string.field_sleep_hours), value = sleepStr, onValueChange = { sleepStr = it }, keyboardType = KeyboardType.Decimal)
         EditField(icon = Icons.Default.FavoriteBorder, label = stringResource(R.string.field_resting_hr), value = hrStr, onValueChange = { hrStr = it }, keyboardType = KeyboardType.Number)
+        EditField(icon = Icons.Default.Bloodtype, label = stringResource(R.string.field_blood_sugar), value = bloodSugarStr, onValueChange = { bloodSugarStr = it }, keyboardType = KeyboardType.Decimal)
 
         Text(stringResource(R.string.section_exercises), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
 
@@ -171,6 +173,7 @@ internal fun DailyLogEditSheet(
                     synopsis = existingLog?.synopsis,
                     weightLocked = weightLocked,
                     stepsLocked = stepsLocked,
+                    bloodSugarMmol = bloodSugarStr.replace(',', '.').toDoubleOrNull(),
                 ))
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),

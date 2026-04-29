@@ -74,7 +74,7 @@ internal fun DayCard(
             }
 
             // Body composition chips (only shown when scale data is present)
-            val hasBodyComp = log != null && (log.bodyFatPct != null || log.bodyWaterKg != null || log.leanBodyMassKg != null || log.boneMassKg != null)
+            val hasBodyComp = log != null && (log.bodyFatPct != null || log.bodyWaterKg != null || log.leanBodyMassKg != null || log.boneMassKg != null || log.bloodSugarMmol != null)
             if (hasBodyComp && log != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -82,6 +82,7 @@ internal fun DayCard(
                     log.leanBodyMassKg?.let { StatChip(Icons.Default.FitnessCenter, "%.1f kg".format(it), "Lean") }
                     log.bodyWaterKg?.let { StatChip(Icons.Default.WaterDrop, "%.1f kg".format(it), "Water") }
                     log.boneMassKg?.let { StatChip(Icons.Default.Straighten, "%.2f kg".format(it), "Bone") }
+                    log.bloodSugarMmol?.let { StatChip(Icons.Default.Bloodtype, "%.1f mmol/L".format(it), "BG") }
                 }
             }
 

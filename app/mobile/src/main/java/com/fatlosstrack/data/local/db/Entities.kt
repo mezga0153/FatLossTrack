@@ -67,6 +67,7 @@ data class DailyLog(
     val bodyWaterKg: Double? = null,
     val leanBodyMassKg: Double? = null,
     val boneMassKg: Double? = null,
+    val bloodSugarMmol: Double? = null,  // fasting blood glucose in mmol/L
 )
 
 /**

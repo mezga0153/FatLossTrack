@@ -171,7 +171,7 @@ class HealthConnectSyncService @Inject constructor(
                 summary.sleepHours != null || summary.restingHr != null ||
                 summary.exercisesJson != null || summary.bodyFatPct != null ||
                 summary.bodyWaterKg != null || summary.leanBodyMassKg != null ||
-                summary.boneMassKg != null
+                summary.boneMassKg != null || summary.bloodSugarMmol != null
 
         if (!hasData) return false
 
@@ -188,6 +188,7 @@ class HealthConnectSyncService @Inject constructor(
                     bodyWaterKg = summary.bodyWaterKg ?: existing.bodyWaterKg,
                     leanBodyMassKg = summary.leanBodyMassKg ?: existing.leanBodyMassKg,
                     boneMassKg = summary.boneMassKg ?: existing.boneMassKg,
+                    bloodSugarMmol = summary.bloodSugarMmol ?: existing.bloodSugarMmol,
                 )
             } else {
                 DailyLog(
@@ -201,6 +202,7 @@ class HealthConnectSyncService @Inject constructor(
                     bodyWaterKg = summary.bodyWaterKg,
                     leanBodyMassKg = summary.leanBodyMassKg,
                     boneMassKg = summary.boneMassKg,
+                    bloodSugarMmol = summary.bloodSugarMmol,
                 )
             }
 
@@ -214,7 +216,8 @@ class HealthConnectSyncService @Inject constructor(
                     existing.bodyFatPct != merged.bodyFatPct ||
                     existing.bodyWaterKg != merged.bodyWaterKg ||
                     existing.leanBodyMassKg != merged.leanBodyMassKg ||
-                    existing.boneMassKg != merged.boneMassKg
+                    existing.boneMassKg != merged.boneMassKg ||
+                    existing.bloodSugarMmol != merged.bloodSugarMmol
 
             if (!actuallyChanged) {
                 appLogger.hc("${summary.date}: HC data unchanged, skipping")
@@ -233,6 +236,7 @@ class HealthConnectSyncService @Inject constructor(
             summary.bodyWaterKg?.let { parts += "bodyWater=%.1f kg".format(it) }
             summary.leanBodyMassKg?.let { parts += "leanMass=%.1f kg".format(it) }
             summary.boneMassKg?.let { parts += "boneMass=%.1f kg".format(it) }
+            summary.bloodSugarMmol?.let { parts += "bloodSugar=%.1f mmol/L".format(it) }
             val isNew = existing == null
             appLogger.hc("${summary.date}: ${if (isNew) "created" else "merged"} — ${parts.joinToString(", ")}")
 
