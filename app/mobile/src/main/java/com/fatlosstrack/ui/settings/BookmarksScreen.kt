@@ -3,13 +3,15 @@ package com.fatlosstrack.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +34,20 @@ fun BookmarksScreen(
     val scope = rememberCoroutineScope()
     val bookmarks by bookmarkedMealDao.getAll().collectAsState(initial = emptyList())
 
+    // Local mutable list so reorder feels instant without waiting for DB round-trip
+    val displayList = remember(bookmarks) { bookmarks.toMutableStateList() }
+
     var editingBookmark by remember { mutableStateOf<BookmarkedMeal?>(null) }
     var editName by remember { mutableStateOf("") }
+
+    fun moveItem(fromIndex: Int, toIndex: Int) {
+        if (toIndex < 0 || toIndex >= displayList.size) return
+        displayList.add(toIndex, displayList.removeAt(fromIndex))
+        val updated = displayList.mapIndexed { idx, bm -> bm.copy(sortOrder = idx) }
+        displayList.clear()
+        displayList.addAll(updated)
+        scope.launch { bookmarkedMealDao.updateAll(updated) }
+    }
 
     Scaffold(
         topBar = {
@@ -85,7 +99,7 @@ fun BookmarksScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
             ) {
-                items(bookmarks, key = { it.id }) { bm ->
+                itemsIndexed(displayList, key = { _, bm -> bm.id }) { index, bm ->
                     Card(
                         colors = CardDefaults.cardColors(containerColor = CardSurface),
                         shape = RoundedCornerShape(12.dp),
@@ -111,6 +125,23 @@ fun BookmarksScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = OnSurfaceVariant,
                                 )
+                            }
+                            // Reorder arrows
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                IconButton(
+                                    onClick = { moveItem(index, index - 1) },
+                                    enabled = index > 0,
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", tint = if (index > 0) OnSurfaceVariant else OnSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { moveItem(index, index + 1) },
+                                    enabled = index < displayList.lastIndex,
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down", tint = if (index < displayList.lastIndex) OnSurfaceVariant else OnSurfaceVariant.copy(alpha = 0.2f), modifier = Modifier.size(18.dp))
+                                }
                             }
                             IconButton(onClick = {
                                 editName = bm.name

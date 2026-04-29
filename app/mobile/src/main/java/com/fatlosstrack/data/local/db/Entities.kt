@@ -121,5 +121,6 @@ data class BookmarkedMeal(
     val totalFatG: Int = 0,
     val category: MealCategory = MealCategory.HOME,
     val mealType: MealType? = null,
+    val sortOrder: Int = 0,
     val createdAt: Instant = Instant.now(),
 )
