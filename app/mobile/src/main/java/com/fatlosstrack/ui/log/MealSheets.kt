@@ -534,13 +534,13 @@ internal fun MealEditSheet(
                     Column(horizontalAlignment = Alignment.End) {
                         Text("${meal.totalKcal} kcal", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Secondary)
                         if (meal.totalProteinG > 0) {
-                            Text("${meal.totalProteinG}g protein", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Primary)
+                            Text(stringResource(R.string.format_protein_full, meal.totalProteinG), style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Primary)
                         }
                         if (meal.totalCarbsG > 0) {
-                            Text("${meal.totalCarbsG}g carbs", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Tertiary)
+                            Text(stringResource(R.string.format_carbs_full, meal.totalCarbsG), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Tertiary)
                         }
                         if (meal.totalFatG > 0) {
-                            Text("${meal.totalFatG}g fat", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Accent)
+                            Text(stringResource(R.string.format_fat_full, meal.totalFatG), style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Accent)
                         }
                     }
                 }

@@ -56,6 +56,8 @@
     <string name="format_protein_g">%dg</string>
     <string name="format_protein_full">%dg protein</string>
     <string name="format_protein_short">%dg P</string>
+    <string name="format_carbs_full">%dg carbs</string>
+    <string name="format_fat_full">%dg fat</string>
     <string name="format_hours">%.1fh</string>
     <string name="format_steps_formatted">%,d</string>
     <string name="format_bpm">%d bpm</string>
