@@ -257,9 +257,17 @@ fun SettingsScreen(
                 val proteinBasis = if (latestLeanMass != null) "%.1f kg lean mass (HC)".format(latestLeanMass) else savedGoalWeight?.let { "est. from %.1f kg goal".format(it) }
                 SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_value, tdeeVal))
                 SettingsRow(stringResource(R.string.settings_daily_target), stringResource(R.string.settings_daily_target_value, dailyTarget))
-                SettingsRow("Protein target", "${macros.first}g / day" + (if (proteinBasis != null) "  ·  $proteinBasis" else ""))
-                SettingsRow("Carbs target", "${macros.second}g / day")
-                SettingsRow("Fat target", "${macros.third}g / day")
+                SettingsRow(stringResource(R.string.settings_protein_target), "${macros.first}g / day")
+                if (proteinBasis != null) {
+                    Text(
+                        text = proteinBasis,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    )
+                }
+                SettingsRow(stringResource(R.string.settings_carbs_target), "${macros.second}g / day")
+                SettingsRow(stringResource(R.string.settings_fat_target), "${macros.third}g / day")
             } else {
                 SettingsRow(stringResource(R.string.settings_tdee), stringResource(R.string.settings_tdee_incomplete))
             }
@@ -275,14 +283,14 @@ fun SettingsScreen(
         SettingsSection(stringResource(R.string.settings_section_coach_tone)) {
             val toneLabel = when (selectedTone) {
                 "supportive" -> stringResource(R.string.tone_supportive)
-                "insulting" -> "Insulting"
-                "cruel" -> "Cruel"
+                "insulting" -> stringResource(R.string.tone_insulting)
+                "cruel" -> stringResource(R.string.tone_cruel)
                 else -> "Brutally honest"
             }
             val toneDesc = when (selectedTone) {
                 "supportive" -> stringResource(R.string.tone_supportive_desc)
-                "insulting" -> "Roast-style coaching. Mocks your food choices and laziness mercilessly — but advice stays accurate."
-                "cruel" -> "\u26a0\ufe0f Gets deeply personal. No filters. You asked for it."
+                "insulting" -> stringResource(R.string.tone_insulting_desc)
+                "cruel" -> stringResource(R.string.tone_cruel_desc)
                 else -> stringResource(R.string.tone_honest_desc)
             }
             Text(
@@ -297,8 +305,10 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
-            Row(
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ToneChip(stringResource(R.string.tone_honest), selectedTone == "honest") {
                     selectedTone = "honest"
@@ -310,12 +320,12 @@ fun SettingsScreen(
                     scope.launch { preferencesManager.setCoachTone("supportive") }
                     onToneChanged?.invoke()
                 }
-                ToneChip("Insulting", selectedTone == "insulting") {
+                ToneChip(stringResource(R.string.tone_insulting), selectedTone == "insulting") {
                     selectedTone = "insulting"
                     scope.launch { preferencesManager.setCoachTone("insulting") }
                     onToneChanged?.invoke()
                 }
-                ToneChip("Cruel", selectedTone == "cruel") {
+                ToneChip(stringResource(R.string.tone_cruel), selectedTone == "cruel") {
                     showCruelConfirm = true
                 }
             }

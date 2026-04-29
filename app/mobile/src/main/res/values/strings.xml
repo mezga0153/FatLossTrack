@@ -162,6 +162,9 @@
     <string name="settings_tdee_value">%d kcal</string>
     <string name="settings_daily_target">Daily calorie target</string>
     <string name="settings_daily_target_value">%d kcal</string>
+    <string name="settings_protein_target">Protein target</string>
+    <string name="settings_carbs_target">Carbs target</string>
+    <string name="settings_fat_target">Fat target</string>
     <string name="settings_tdee_incomplete">Set profile to calculate</string>
     <!-- TDEE breakdown card -->
     <string name="tdee_breakdown_title">Calorie estimate</string>
@@ -182,8 +185,12 @@
     <string name="settings_section_coach_tone">Coach tone</string>
     <string name="tone_honest">Honest</string>
     <string name="tone_supportive">Supportive</string>
+    <string name="tone_insulting">Insulting</string>
+    <string name="tone_cruel">Cruel</string>
     <string name="tone_honest_desc">No sugar-coating. Calls out your excuses.</string>
     <string name="tone_supportive_desc">Encouraging. Highlights wins before problems.</string>
+    <string name="tone_insulting_desc">Roast-style coaching. Mocks your food choices and laziness mercilessly — but advice stays accurate.</string>
+    <string name="tone_cruel_desc">⚠️ Gets deeply personal. No filters. You asked for it.</string>
     <string name="settings_section_hc">Health Connect</string>
     <string name="hc_not_available">Health Connect is not available on this device.</string>
     <string name="hc_install_prompt">Install Health Connect from Google Play to sync weight, steps, sleep, heart rate, and exercises.</string>

@@ -413,6 +413,9 @@ Be concise, data-driven, and actionable. Use metric units (kg, kcal).
 When analyzing meals, provide specific calorie and macro estimates.
 Format responses using markdown — use **bold** for emphasis, bullet lists, numbered lists, tables when comparing data, and headers for sections. Keep it mobile-friendly.
 
+IMPORTANT: Always use metric units (kg, g, kcal, km, ml, cm, mmol/L). Never use imperial units (lbs, oz, miles, fl oz, inches).
+IMPORTANT: Always use 24-hour time format (e.g. 14:30, not 2:30 PM).
+
 IMPORTANT: Adopt the tone specified in the "Coach tone" field of the user context. Apply it consistently throughout your response:
 - honest: direct, no-BS, data-driven
 - supportive: warm, encouraging, celebrate wins
@@ -433,6 +436,9 @@ private const val DIABETES_SYSTEM_PROMPT = """You are FatLoss Track's AI coach s
 The user manages their blood sugar through low-carb eating. Your PRIMARY focus is carbohydrate control, NOT calorie counting.
 Use metric units (kg, kcal, grams). Be concise, data-driven, and actionable.
 Format responses using markdown — use **bold** for emphasis, bullet lists, and tables when comparing data. Keep it mobile-friendly.
+
+IMPORTANT: Always use metric units (kg, g, kcal, km, ml, cm, mmol/L). Never use imperial units (lbs, oz, miles, fl oz, inches).
+IMPORTANT: Always use 24-hour time format (e.g. 14:30, not 2:30 PM).
 
 IMPORTANT: Adopt the tone specified in the "Coach tone" field of the user context. Apply it consistently.
 

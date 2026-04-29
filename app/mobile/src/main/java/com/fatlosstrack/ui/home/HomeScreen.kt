@@ -584,9 +584,17 @@ fun HomeScreen(
                 if (avgKcalPerDay != null) MiniStat(Icons.Default.LocalFireDepartment, "$avgKcalPerDay", stringResource(R.string.stat_label_kcal_day))
                 if (avgProteinPerDay != null && avgProteinPerDay > 0) MiniStat(Icons.Default.FitnessCenter, "${avgProteinPerDay}g", stringResource(R.string.stat_label_protein_day))
                 if (avgCarbsPerDay != null && avgCarbsPerDay > 0) MiniStat(Icons.Default.Grain, "${avgCarbsPerDay}g", stringResource(R.string.stat_label_carbs_day))
-                if (avgFatPerDay != null && avgFatPerDay > 0) MiniStat(Icons.Default.WaterDrop, "${avgFatPerDay}g", stringResource(R.string.stat_label_fat_day))
-                if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, stringResource(R.string.stat_steps_k, avgSteps / 1000), stringResource(R.string.stat_label_steps_day))
-                if (avgSleep != null) MiniStat(Icons.Default.Bedtime, "%.1fh".format(avgSleep), stringResource(R.string.stat_label_sleep_day))
+            }
+            if (avgFatPerDay != null && avgFatPerDay > 0 || avgSteps != null || avgSleep != null) {
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    if (avgFatPerDay != null && avgFatPerDay > 0) MiniStat(Icons.Default.WaterDrop, "${avgFatPerDay}g", stringResource(R.string.stat_label_fat_day))
+                    if (avgSteps != null) MiniStat(Icons.AutoMirrored.Filled.DirectionsWalk, stringResource(R.string.stat_steps_k, avgSteps / 1000), stringResource(R.string.stat_label_steps_day))
+                    if (avgSleep != null) MiniStat(Icons.Default.Bedtime, formatSleepDuration(avgSleep), stringResource(R.string.stat_label_sleep_day))
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(

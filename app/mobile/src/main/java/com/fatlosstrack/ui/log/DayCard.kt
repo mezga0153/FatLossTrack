@@ -69,7 +69,7 @@ internal fun DayCard(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 StatChip(Icons.Default.Scale, log?.weightKg?.let { "%.1f kg".format(it) }, stringResource(R.string.stat_weight))
                 StatChip(Icons.AutoMirrored.Filled.DirectionsWalk, log?.steps?.let { "%,d".format(it) }, stringResource(R.string.stat_steps))
-                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { "%.1fh".format(it) }, stringResource(R.string.stat_sleep))
+                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { formatSleepDuration(it) }, stringResource(R.string.stat_sleep))
                 StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, stringResource(R.string.stat_heart_rate))
             }
 

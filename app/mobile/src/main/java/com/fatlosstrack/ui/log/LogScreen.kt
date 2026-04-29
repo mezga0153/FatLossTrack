@@ -111,7 +111,7 @@ fun LogScreen(
                     MiniStat(stringResource(R.string.stat_carbs), if (todayCarbs > 0) "${todayCarbs}g" else "\u2014", "")
                     MiniStat(stringResource(R.string.stat_fat), if (todayFat > 0) "${todayFat}g" else "\u2014", "")
                     MiniStat(stringResource(R.string.stat_steps), todayLog?.steps?.let { "%,d".format(it) } ?: "\u2014", "")
-                    MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { "%.1f".format(it) } ?: "\u2014", stringResource(R.string.unit_hrs))
+                    MiniStat(stringResource(R.string.stat_sleep), todayLog?.sleepHours?.let { formatSleepDuration(it) } ?: "—", "")
                 }
             }
         }

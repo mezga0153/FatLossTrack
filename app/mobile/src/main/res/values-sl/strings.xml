@@ -162,6 +162,9 @@
     <string name="settings_tdee_value">%d kcal</string>
     <string name="settings_daily_target">Dnevni kalorični cilj</string>
     <string name="settings_daily_target_value">%d kcal</string>
+    <string name="settings_protein_target">Cilj beljakovin</string>
+    <string name="settings_carbs_target">Cilj ogljikovih hidratov</string>
+    <string name="settings_fat_target">Cilj maščob</string>
     <string name="settings_tdee_incomplete">Nastavi profil za izračun</string>
     <string name="settings_start_date">Začetni datum</string>
     <string name="settings_edit_goal">Uredi cilj</string>
@@ -175,8 +178,12 @@
     <string name="settings_section_coach_tone">Ton trenerja</string>
     <string name="tone_honest">Iskren</string>
     <string name="tone_supportive">Podporen</string>
+    <string name="tone_insulting">Žaljiv</string>
+    <string name="tone_cruel">Okruten</string>
     <string name="tone_honest_desc">Brez olepševanja. Pokaže na tvoje izgovore.</string>
     <string name="tone_supportive_desc">Spodbujajoč. Najprej izpostavi uspehe.</string>
+    <string name="tone_insulting_desc">Coaching v slogu norčevanja. Neusmiljeno ponižuje tvoje prehranske odločitve — a nasvet ostane točen.</string>
+    <string name="tone_cruel_desc">⚠️ Postane zelo osebno. Brez filtrov. Sam si prosil za to.</string>
     <string name="settings_section_hc">Health Connect</string>
     <string name="hc_not_available">Health Connect ni na voljo na tej napravi.</string>
     <string name="hc_install_prompt">Namesti Health Connect iz Google Play za sinhronizacijo teže, korakov, spanja, srčnega utripa in vadbe.</string>

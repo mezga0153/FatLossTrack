@@ -111,6 +111,13 @@ internal fun parseItems(json: String?): List<ParsedMealItem> {
 
 internal const val SUMMARY_PLACEHOLDER = DaySummaryGenerator.SUMMARY_PLACEHOLDER
 
+/** Format a sleep duration in decimal hours (e.g. 5.5) as HH:MM (e.g. "5:30"). */
+internal fun formatSleepDuration(hours: Double): String {
+    val h = hours.toInt()
+    val m = ((hours - h) * 60).toInt().coerceIn(0, 59)
+    return "%d:%02d".format(h, m)
+}
+
 /**
  * Fire-and-forget summary generation using the generator's application-scoped coroutine.
  * Writes a placeholder immediately, then generates the real summary in the background.
