@@ -282,12 +282,20 @@ fun HomeScreen(
         // ── Chart Carousel (Weight / Calories / Sleep / Steps) ──
         run {
             val allWeightEntries by state.allWeightEntries().collectAsState(initial = emptyList())
+            // All-time meal/log data — used for "1m" and "all" ranges, mirroring allWeightEntries
+            val allMealsEntries by state.allMeals().collectAsState(initial = emptyList())
+            val allLogsEntries by state.allLogs().collectAsState(initial = emptyList())
+
             var chartRange by remember { mutableStateOf("7d") }
             val trendCutoff = when (chartRange) {
                 "7d" -> today.minusDays(7)
                 "1m" -> today.minusDays(30)
                 else -> LocalDate.MIN
             }
+
+            // For "7d" use the already-loaded windowed data; for wider ranges use all-time queries
+            val mealsSource = if (chartRange == "7d") meals else allMealsEntries
+            val logsSource = if (chartRange == "7d") logs else allLogsEntries
 
             val chartData = remember(chartRange, weightData, allWeightEntries) {
                 val cutoff = trendCutoff
@@ -298,17 +306,33 @@ fun HomeScreen(
                     weightData.filter { (date, _) -> date >= cutoff }
                 }
             }
-            val filteredKcal = remember(kcalByDay, chartRange) {
-                kcalByDay.filter { (d, _) -> d >= trendCutoff }
+            val filteredKcal = remember(mealsSource, chartRange) {
+                mealsSource.groupBy { it.date }
+                    .map { (date, dayMeals) -> date to dayMeals.sumOf { it.totalKcal } }
+                    .filter { (d, _) -> d >= trendCutoff }
+                    .sortedBy { it.first }
             }
-            val filteredSleep = remember(sleepChartData, chartRange) {
-                sleepChartData.filter { (d, _) -> d >= trendCutoff }
+            val filteredSleep = remember(logsSource, chartRange) {
+                logsSource.filter { it.sleepHours != null && it.date >= trendCutoff }
+                    .sortedBy { it.date }
+                    .map { it.date to it.sleepHours!! }
             }
-            val filteredSteps = remember(stepsChartData, chartRange) {
-                stepsChartData.filter { (d, _) -> d >= trendCutoff }
+            val filteredSteps = remember(logsSource, chartRange) {
+                logsSource.filter { it.steps != null && it.date >= trendCutoff }
+                    .sortedBy { it.date }
+                    .map { it.date to it.steps!! }
             }
-            val filteredMacros = remember(macrosByDay, chartRange) {
-                macrosByDay.filter { (d, _) -> d >= trendCutoff }
+            val filteredMacros = remember(mealsSource, chartRange) {
+                mealsSource.groupBy { it.date }
+                    .map { (date, dayMeals) ->
+                        date to Triple(
+                            dayMeals.sumOf { it.totalProteinG },
+                            dayMeals.sumOf { it.totalCarbsG },
+                            dayMeals.sumOf { it.totalFatG },
+                        )
+                    }
+                    .filter { (d, m) -> d >= trendCutoff && m.first + m.second + m.third > 0 }
+                    .sortedBy { it.first }
             }
 
             // Build the list of available chart pages

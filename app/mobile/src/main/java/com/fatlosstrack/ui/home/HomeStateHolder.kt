@@ -84,6 +84,8 @@ class HomeStateHolder @Inject constructor(
     fun mealsSince(since: LocalDate) = _mealDao.getMealsSince(since)
     fun weightsSince(since: LocalDate) = _weightDao.getEntriesSince(since)
     fun allWeightEntries() = _weightDao.getAllEntries()
+    fun allMeals() = _mealDao.getAllMeals()
+    fun allLogs() = _dailyLogDao.getAllLogs()
 
     // ── Passthrough for components that still need direct access ──
     val preferencesManager get() = _preferencesManager
