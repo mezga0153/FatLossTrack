@@ -74,17 +74,21 @@ class HealthConnectSyncService @Inject constructor(
         }
 
         // Sync raw blood glucose readings (replace HC readings for the window)
-        try {
-            val bgFrom = from.atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val bgTo = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
-            bloodGlucoseDao.deleteHcReadingsBetween(bgFrom, bgTo)
-            val readings = hcManager.getBloodGlucoseReadings(from, today)
-            if (readings.isNotEmpty()) {
-                bloodGlucoseDao.insertAll(readings)
-                appLogger.hc("Synced ${readings.size} raw blood glucose readings")
+        if (hcManager.hasBloodGlucosePermission()) {
+            try {
+                val bgFrom = from.atStartOfDay(ZoneId.systemDefault()).toInstant()
+                val bgTo = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+                bloodGlucoseDao.deleteHcReadingsBetween(bgFrom, bgTo)
+                val readings = hcManager.getBloodGlucoseReadings(from, today)
+                if (readings.isNotEmpty()) {
+                    bloodGlucoseDao.insertAll(readings)
+                    appLogger.hc("Synced ${readings.size} raw blood glucose readings")
+                }
+            } catch (e: Exception) {
+                appLogger.hc("Blood glucose raw sync error: ${e.message}")
             }
-        } catch (e: Exception) {
-            appLogger.hc("Blood glucose raw sync error: ${e.message}")
+        } else {
+            appLogger.hc("Blood glucose sync skipped — READ_BLOOD_GLUCOSE permission not granted")
         }
 
         Log.d(TAG, "Sync complete: ${updatedDates.size} days updated")

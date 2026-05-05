@@ -104,6 +104,26 @@ class HealthConnectManager @Inject constructor(
         return missingCore.isEmpty()
     }
 
+    /** Whether the BLOOD_GLUCOSE read permission is currently granted. Result is cached per JVM session. */
+    private var cachedBgPermission: Boolean? = null
+
+    suspend fun hasBloodGlucosePermission(): Boolean {
+        cachedBgPermission?.let { return it }
+        val granted = try {
+            client?.permissionController?.getGrantedPermissions() ?: return false
+        } catch (e: Exception) {
+            return false
+        }
+        val result = HealthPermission.getReadPermission(BloodGlucoseRecord::class) in granted
+        cachedBgPermission = result
+        return result
+    }
+
+    /** Invalidate the cached BG permission (call after the user grants/denies via launcher). */
+    fun invalidateBgPermissionCache() {
+        cachedBgPermission = null
+    }
+
     /** Check if a set of granted permissions (from launcher callback) covers core permissions. */
     fun hasCorePermissionsGranted(granted: Set<String>): Boolean =
         granted.containsAll(CORE_PERMISSIONS)
@@ -396,6 +416,10 @@ class HealthConnectManager @Inject constructor(
     /** Most recent fasting blood glucose in mmol/L for [date], or null */
     suspend fun getBloodSugar(date: LocalDate): Double? {
         val c = client ?: return null
+        if (!hasBloodGlucosePermission()) {
+            appLogger.hc("  $date blood-sugar: skipped (permission not granted)")
+            return null
+        }
         return try {
             val response = c.readRecords(
                 ReadRecordsRequest(
@@ -416,6 +440,10 @@ class HealthConnectManager @Inject constructor(
     /** All individual blood glucose readings between [fromDate] and [toDate] (inclusive). */
     suspend fun getBloodGlucoseReadings(fromDate: LocalDate, toDate: LocalDate): List<com.fatlosstrack.data.local.db.BloodGlucoseEntry> {
         val c = client ?: return emptyList()
+        if (!hasBloodGlucosePermission()) {
+            appLogger.hc("  $fromDate–$toDate blood-glucose readings: skipped (permission not granted)")
+            return emptyList()
+        }
         return try {
             val from = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val to = toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()

@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fatlosstrack.R
+import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.ui.components.ChartSeries
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.MultiSeriesLineChart
@@ -1000,13 +1001,53 @@ fun TrendsScreen(
                 action = {
                     IconButton(onClick = {
                         val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                        OdtExporter.share(
-                            context, "Blood Glucose",
-                            listOf("Time", "Blood Glucose (mmol/L)"),
-                            bgReadings.map { r -> listOf(
+                        // Index meals by their effective timestamp for join
+                        val mealsByTime = meals.sortedBy { it.displayTime }
+                        // Build combined rows: each BG reading, with nearest meal within ±2h in adjacent columns
+                        val bgRows = bgReadings.map { r ->
+                            val rTime = r.timestamp
+                            val nearest = mealsByTime.minByOrNull { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond)
+                            }?.takeIf { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond) <= 7200
+                            }
+                            listOf(
                                 r.timestamp.atZone(ZoneId.systemDefault()).format(dateFmt),
                                 "%.2f".format(r.valueMmolL),
-                            ) },
+                                nearest?.description ?: "",
+                                nearest?.totalKcal?.toString() ?: "",
+                                nearest?.totalCarbsG?.toString() ?: "",
+                                nearest?.totalProteinG?.toString() ?: "",
+                                nearest?.totalFatG?.toString() ?: "",
+                            )
+                        }
+                        // Also add any meals that had no BG reading nearby
+                        val pairedMealIds = bgReadings.mapNotNull { r ->
+                            mealsByTime.minByOrNull { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond)
+                            }?.takeIf { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond) <= 7200
+                            }?.id
+                        }.toSet()
+                        val mealOnlyRows = mealsByTime
+                            .filter { it.id !in pairedMealIds }
+                            .map { m ->
+                                listOf(
+                                    m.displayTime.atZone(ZoneId.systemDefault()).format(dateFmt),
+                                    "",
+                                    m.description,
+                                    m.totalKcal.toString(),
+                                    m.totalCarbsG.toString(),
+                                    m.totalProteinG.toString(),
+                                    m.totalFatG.toString(),
+                                )
+                            }
+                        val allRows = (bgRows + mealOnlyRows)
+                            .sortedBy { it[0] }
+                        OdtExporter.share(
+                            context, "Blood Glucose",
+                            listOf("Time", "BG (mmol/L)", "Meal", "Kcal", "Carbs (g)", "Protein (g)", "Fat (g)"),
+                            allRows,
                         )
                     }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
                 },

@@ -104,6 +104,7 @@ fun SettingsScreen(
     // Health Connect state
     val hcAvailable = healthConnectManager.isAvailable()
     var hcPermGranted by remember { mutableStateOf(false) }
+    var hcBgPermGranted by remember { mutableStateOf(true) } // assume granted until checked
     var hcSyncing by remember { mutableStateOf(false) }
     var hcLastSyncMsg by remember { mutableStateOf<String?>(null) }
 
@@ -111,6 +112,7 @@ fun SettingsScreen(
     LaunchedEffect(hcAvailable) {
         if (hcAvailable) {
             hcPermGranted = healthConnectManager.hasAllPermissions()
+            hcBgPermGranted = healthConnectManager.hasBloodGlucosePermission()
         }
     }
 
@@ -118,7 +120,12 @@ fun SettingsScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
+        healthConnectManager.invalidateBgPermissionCache()
         hcPermGranted = healthConnectManager.hasCorePermissionsGranted(granted)
+        val bgPerm = androidx.health.connect.client.permission.HealthPermission.getReadPermission(
+            androidx.health.connect.client.records.BloodGlucoseRecord::class,
+        )
+        hcBgPermGranted = bgPerm in granted
         if (hcPermGranted) {
             hcLastSyncMsg = "Permissions granted — tap Sync now"
         }
@@ -519,6 +526,24 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                    // Blood glucose permission nudge (only shown when core perms OK but BG perm missing)
+                    if (!hcBgPermGranted) {
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Blood glucose data requires an additional permission.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedButton(
+                            onClick = { permissionLauncher.launch(HealthConnectManager.PERMISSIONS) },
+                        ) {
+                            Text("Grant blood glucose permission", color = Primary)
+                        }
+                    }
 
                 if (hcLastSyncMsg != null) {
                     Spacer(Modifier.height(4.dp))
