@@ -234,76 +234,89 @@ fun TrendsScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = statusBarTop + 12.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // ── Time range + weekly-avg toggle ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    val stickyBackground = Surface
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ── Sticky header: time range chips + avg toggle ──
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(stickyBackground)
+                .padding(top = statusBarTop + 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ranges.forEach { range ->
-                    val isSelected = range == selectedRange
-                    val displayText = if (range == "Custom" && isSelected && customFrom != null && customTo != null) {
-                        val mFrom = customFrom!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
-                        val mTo = customTo!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
-                        "${customFrom!!.dayOfMonth} $mFrom – ${customTo!!.dayOfMonth} $mTo"
-                    } else range
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) Primary.copy(alpha = 0.2f) else CardSurface)
-                            .clickable {
-                                selectedRange = range
-                                if (range == "Custom") showDateRangePicker = true
-                            }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ranges.forEach { range ->
+                        val isSelected = range == selectedRange
+                        val displayText = if (range == "Custom" && isSelected && customFrom != null && customTo != null) {
+                            val mFrom = customFrom!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
+                            val mTo = customTo!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
+                            "${customFrom!!.dayOfMonth} $mFrom – ${customTo!!.dayOfMonth} $mTo"
+                        } else range
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) Primary.copy(alpha = 0.2f) else CardSurface)
+                                .clickable {
+                                    selectedRange = range
+                                    if (range == "Custom") showDateRangePicker = true
+                                }
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = displayText,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (isSelected) Primary else OnSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                // Smoothing toggle: cycles off → 3d → 7d → off
+                val avgActive = avgWindow > 0
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (avgActive) Primary.copy(alpha = 0.2f) else CardSurface)
+                        .clickable { avgWindow = when (avgWindow) { 0 -> 3; 3 -> 7; else -> 0 } }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        Icon(
+                            Icons.Default.BarChart, null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (avgActive) Primary else OnSurfaceVariant,
+                        )
                         Text(
-                            text = displayText,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = if (isSelected) Primary else OnSurfaceVariant,
+                            when (avgWindow) { 3 -> "3d avg"; 7 -> "7d avg"; else -> "avg off" },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (avgActive) Primary else OnSurfaceVariant,
                         )
                     }
                 }
             }
-            // Smoothing toggle: cycles off → 3d → 7d → off
-            val avgActive = avgWindow > 0
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (avgActive) Primary.copy(alpha = 0.2f) else CardSurface)
-                    .clickable { avgWindow = when (avgWindow) { 0 -> 3; 3 -> 7; else -> 0 } }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Default.BarChart, null,
-                        modifier = Modifier.size(14.dp),
-                        tint = if (avgActive) Primary else OnSurfaceVariant,
-                    )
-                    Text(
-                        when (avgWindow) { 3 -> "3d avg"; 7 -> "7d avg"; else -> "avg off" },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (avgActive) Primary else OnSurfaceVariant,
-                    )
-                }
-            }
         }
 
-        // ── Compare Metrics card ──────────────────────────────────────────────
+        // ── Scrollable chart content ──
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Spacer(Modifier.height(4.dp))
+
+            // ── Compare Metrics card ──────────────────────────────────────────────
         val comparePrimary = Primary
         val compareSecondary = Secondary
         val compareTertiary = Tertiary
@@ -1025,7 +1038,8 @@ fun TrendsScreen(
         }
 
         Spacer(Modifier.height(80.dp))
-    }
+        } // end scrollable Column
+    } // end outer Column
 }
 
 private fun xAxisLabel(date: LocalDate, use7dDayNames: Boolean): String {
