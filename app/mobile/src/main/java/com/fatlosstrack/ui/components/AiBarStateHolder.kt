@@ -96,6 +96,10 @@ class AiBarStateHolder @Inject constructor(
                                 totalFatG = parsed.totalFatG,
                                 coachNote = parsed.coachNote,
                                 category = parsed.source,
+                                loggedAt = parsed.mealTime?.let {
+                                    java.time.LocalDateTime.of(targetDate, it)
+                                        .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                                },
                             ),
                         )
                         daySummaryGenerator.launchForDate(targetDate, "AiBar:textMealLogged")
@@ -140,6 +144,7 @@ class AiBarStateHolder @Inject constructor(
 
 private data class ParsedMeal(
     val dayOffset: Int,
+    val mealTime: java.time.LocalTime?,
     val description: String,
     val source: MealCategory,
     val itemsJson: String,
@@ -161,6 +166,10 @@ private fun tryParseMealJson(raw: String): ParsedMeal? {
         if (!isMeal) return null
 
         val dayOffset = json["day_offset"]?.jsonPrimitive?.int ?: 0
+        val mealTimeStr = json["meal_time"]?.jsonPrimitive?.contentOrNull
+        val mealTime = mealTimeStr?.let {
+            runCatching { java.time.LocalTime.parse(it, java.time.format.DateTimeFormatter.ofPattern("HH:mm")) }.getOrNull()
+        }
         val description = json["description"]?.jsonPrimitive?.content ?: ""
         val totalCalories = json["total_calories"]?.jsonPrimitive?.int ?: 0
         val coachNote = json["coach_note"]?.jsonPrimitive?.content ?: ""
@@ -189,6 +198,7 @@ private fun tryParseMealJson(raw: String): ParsedMeal? {
 
         ParsedMeal(
             dayOffset = dayOffset,
+            mealTime = mealTime,
             description = description,
             source = source,
             itemsJson = itemsJson,

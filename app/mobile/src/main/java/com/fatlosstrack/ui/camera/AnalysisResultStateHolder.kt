@@ -51,6 +51,7 @@ data class AnalysisResult(
     val aiNote: String,
     val source: MealCategory = MealCategory.HOME,
     val mealType: MealType? = null,
+    val mealTime: java.time.LocalTime? = null,
 )
 
 // ── State holder ─────────────────────────────────────────────────────────────
@@ -281,6 +282,10 @@ class AnalysisResultStateHolder @Inject constructor(
                     coachNote = analysisResult.aiNote,
                     category = category,
                     mealType = mealType,
+                    loggedAt = analysisResult.mealTime?.let {
+                        java.time.LocalDateTime.of(effectiveDate, it)
+                            .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                    },
                 ),
             )
             AppLogger.instance?.meal(
@@ -390,5 +395,8 @@ internal fun parseAnalysisJson(raw: String): AnalysisResult {
         aiNote = aiNote,
         source = source,
         mealType = mealType,
+        mealTime = json["meal_time"]?.jsonPrimitive?.contentOrNull?.let {
+            runCatching { java.time.LocalTime.parse(it, java.time.format.DateTimeFormatter.ofPattern("HH:mm")) }.getOrNull()
+        },
     )
 }

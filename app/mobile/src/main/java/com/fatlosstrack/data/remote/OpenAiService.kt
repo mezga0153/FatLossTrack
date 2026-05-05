@@ -274,9 +274,9 @@ class OpenAiService @Inject constructor(
      */
     suspend fun parseTextMeal(userMessage: String): Result<String> {
         appLogger.ai("Text meal parse: ${userMessage.take(80)}")
-        val today = java.time.LocalDate.now()
-        val dayOfWeek = today.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
-        val dateContext = "Today is $dayOfWeek, ${today}.\n\n"
+        val now = java.time.LocalDateTime.now()
+        val dayOfWeek = now.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
+        val dateContext = "Today is $dayOfWeek, ${now.toLocalDate()}. Current time is ${now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.\n\n"
         val tone = prefs.coachTone.first()
         val prompt = dateContext + TEXT_MEAL_LOG_PROMPT + toneCoachNoteInstruction(tone)
         return chat(userMessage, prompt, feature = "meal_text")
@@ -523,6 +523,7 @@ If it IS a meal description, respond with ONLY this JSON (no markdown fences, no
 {
   "is_meal": true,
   "day_offset": 0,
+  "meal_time": "HH:MM or null if no specific time mentioned",
   "description": "Brief summary of the meal",
   "source": "home|restaurant|fast_food",
   "meal_type": "breakfast|lunch|dinner|snack",
@@ -549,6 +550,11 @@ Rules for day_offset:
 - "two days ago" → -2
 - Named weekdays like "on Friday", "last Monday" → calculate the negative offset from today's date (provided above). Always pick the most recent past occurrence. For example if today is Sunday and user says "on Friday", day_offset = -2.
 - and so on
+
+Rules for meal_time (24-hour HH:MM string, or null):
+- If the user mentions a specific clock time ("at 7am", "at 19:30", "around noon") → emit that time as "07:00", "19:30", "12:00"
+- Vague words like "this morning", "for breakfast", "for lunch", "for dinner", "last night" without a clock time → null (do NOT guess a time)
+- No time mention at all → null
 
 For "meal_type", infer from context: "this morning" or "for breakfast" → "breakfast", "for lunch" → "lunch", "for dinner" / "evening" → "dinner", etc. If unclear, infer from food type or default to "snack". Never use "brunch".
 
