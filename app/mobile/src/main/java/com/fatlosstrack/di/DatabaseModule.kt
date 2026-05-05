@@ -108,6 +108,12 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE meal_entries ADD COLUMN loggedAt INTEGER DEFAULT NULL")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FatLossDatabase {
@@ -115,7 +121,7 @@ object DatabaseModule {
             context,
             FatLossDatabase::class.java,
             "fatloss_track.db"
-        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16).build()
+        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17).build()
     }
 
     @Provides fun provideWeightDao(db: FatLossDatabase): WeightDao = db.weightDao()

@@ -23,11 +23,13 @@ import com.fatlosstrack.data.local.db.BookmarkedMeal
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
+import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 // ══════════════════════════════════════════════════
@@ -62,6 +64,10 @@ fun AddMealSheet(
     var note by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(date) }
     var showDatePicker by remember { mutableStateOf(false) }
+    val nowTime = remember { LocalTime.now() }
+    var selectedHour by remember { mutableStateOf(nowTime.hour) }
+    var selectedMinute by remember { mutableStateOf(nowTime.minute) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -195,6 +201,50 @@ fun AddMealSheet(
             }
         }
 
+        // Time selector
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Time",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = OnSurface,
+            )
+            FilterChip(
+                selected = false,
+                onClick = { showTimePicker = true },
+                label = { Text("%02d:%02d".format(selectedHour, selectedMinute)) },
+                leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                colors = FilterChipDefaults.filterChipColors(containerColor = CardSurface, labelColor = Primary),
+            )
+        }
+
+        // Time picker dialog
+        if (showTimePicker) {
+            val timeState = rememberTimePickerState(
+                initialHour = selectedHour,
+                initialMinute = selectedMinute,
+                is24Hour = true,
+            )
+            AlertDialog(
+                onDismissRequest = { showTimePicker = false },
+                title = { Text("Select time") },
+                text = { TimePicker(state = timeState) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedHour = timeState.hour
+                        selectedMinute = timeState.minute
+                        showTimePicker = false
+                    }) { Text("OK") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                },
+            )
+        }
+
         // Description
         OutlinedTextField(
             value = description,
@@ -308,6 +358,9 @@ fun AddMealSheet(
                             category = selectedCategory,
                             mealType = selectedMealType,
                             note = note.ifBlank { null },
+                            loggedAt = java.time.LocalDateTime.of(selectedDate, LocalTime.of(selectedHour, selectedMinute))
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toInstant(),
                         )
                     )
                 }
@@ -328,6 +381,7 @@ fun AddMealSheet(
 // ── Meal Edit Sheet (tap existing meal) ──
 // ══════════════════════════════════════════════════
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MealEditSheet(
     meal: MealEntry,
@@ -354,6 +408,13 @@ internal fun MealEditSheet(
     var bookmarkName by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val aiFocusRequester = remember { FocusRequester() }
+    // Date / time editing state
+    val initZdt = remember { meal.displayTime.atZone(java.time.ZoneId.systemDefault()) }
+    var editDate by remember { mutableStateOf(meal.date) }
+    var editHour by remember { mutableStateOf(initZdt.hour) }
+    var editMinute by remember { mutableStateOf(initZdt.minute) }
+    var showEditDatePicker by remember { mutableStateOf(false) }
+    var showEditTimePicker by remember { mutableStateOf(false) }
 
     val items = remember { parseItems(meal.itemsJson) }
     val dateFmt = DateTimeFormatter.ofPattern("EEEE, d MMM \u00b7 HH:mm")
@@ -362,6 +423,42 @@ internal fun MealEditSheet(
     // Auto-scroll to bottom when AI edit card appears
     LaunchedEffect(aiEditing) {
         if (aiEditing) scrollState.animateScrollTo(scrollState.maxValue)
+    }
+
+    // Date / time picker dialogs
+    if (showEditDatePicker) {
+        val dpState = rememberDatePickerState(
+            initialSelectedDateMillis = editDate.atStartOfDay(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showEditDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dpState.selectedDateMillis?.let { millis ->
+                        editDate = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneId.of("UTC")).toLocalDate()
+                    }
+                    showEditDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showEditDatePicker = false }) { Text("Cancel") } },
+        ) { DatePicker(state = dpState) }
+    }
+    if (showEditTimePicker) {
+        val tps = rememberTimePickerState(editHour, editMinute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { showEditTimePicker = false },
+            title = { Text("Select time") },
+            text = { TimePicker(state = tps) },
+            confirmButton = {
+                TextButton(onClick = {
+                    editHour = tps.hour
+                    editMinute = tps.minute
+                    showEditTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showEditTimePicker = false }) { Text("Cancel") } },
+        )
     }
 
     Column(
@@ -374,7 +471,7 @@ internal fun MealEditSheet(
         // Header + close
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = meal.createdAt.atZone(java.time.ZoneId.systemDefault()).format(dateFmt),
+                text = meal.displayTime.atZone(java.time.ZoneId.systemDefault()).format(dateFmt),
                 style = MaterialTheme.typography.titleMedium,
                 color = OnSurface,
             )
@@ -390,6 +487,25 @@ internal fun MealEditSheet(
 
         if (editing) {
             // ── Edit mode ──
+            // Date + time row
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = false,
+                    onClick = { showEditDatePicker = true },
+                    label = { Text(editDate.format(DateTimeFormatter.ofPattern("d MMM yyyy"))) },
+                    leadingIcon = { Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(16.dp)) },
+                    colors = FilterChipDefaults.filterChipColors(containerColor = CardSurface, labelColor = Primary),
+                    modifier = Modifier.weight(1f),
+                )
+                FilterChip(
+                    selected = false,
+                    onClick = { showEditTimePicker = true },
+                    label = { Text("%02d:%02d".format(editHour, editMinute)) },
+                    leadingIcon = { Icon(Icons.Default.Schedule, null, modifier = Modifier.size(16.dp)) },
+                    colors = FilterChipDefaults.filterChipColors(containerColor = CardSurface, labelColor = Primary),
+                    modifier = Modifier.weight(1f),
+                )
+            }
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
@@ -482,7 +598,21 @@ internal fun MealEditSheet(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { editing = false; description = meal.description; kcalStr = meal.totalKcal.toString(); proteinStr = meal.totalProteinG.toString(); carbsStr = meal.totalCarbsG.toString(); fatStr = meal.totalFatG.toString(); selectedCategory = meal.category; selectedMealType = meal.mealType; note = meal.note ?: "" },
+                    onClick = {
+                        editing = false
+                        description = meal.description
+                        kcalStr = meal.totalKcal.toString()
+                        proteinStr = meal.totalProteinG.toString()
+                        carbsStr = meal.totalCarbsG.toString()
+                        fatStr = meal.totalFatG.toString()
+                        selectedCategory = meal.category
+                        selectedMealType = meal.mealType
+                        note = meal.note ?: ""
+                        editDate = meal.date
+                        val resetZdt = meal.displayTime.atZone(java.time.ZoneId.systemDefault())
+                        editHour = resetZdt.hour
+                        editMinute = resetZdt.minute
+                    },
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.button_cancel)) }
 
@@ -490,6 +620,7 @@ internal fun MealEditSheet(
                     onClick = {
                         onSave(meal.copy(
                             description = description.trim(),
+                            date = editDate,
                             totalKcal = kcalStr.toIntOrNull() ?: meal.totalKcal,
                             totalProteinG = proteinStr.toIntOrNull() ?: meal.totalProteinG,
                             totalCarbsG = carbsStr.toIntOrNull() ?: meal.totalCarbsG,
@@ -497,6 +628,9 @@ internal fun MealEditSheet(
                             category = selectedCategory,
                             mealType = selectedMealType,
                             note = note.ifBlank { null },
+                            loggedAt = java.time.LocalDateTime.of(editDate, LocalTime.of(editHour, editMinute))
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toInstant(),
                         ))
                     },
                     modifier = Modifier.weight(1f),

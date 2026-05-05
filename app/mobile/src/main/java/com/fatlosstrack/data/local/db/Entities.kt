@@ -33,7 +33,11 @@ data class MealEntry(
     val photoUri: String? = null,
     val note: String? = null,
     val createdAt: Instant = Instant.now(),
+    val loggedAt: Instant? = null,   // user-set meal time; null means use createdAt
 )
+
+/** Effective display timestamp: user-set time if available, otherwise creation time. */
+val MealEntry.displayTime: Instant get() = loggedAt ?: createdAt
 
 enum class MealCategory { HOME, RESTAURANT, FAST_FOOD }
 
