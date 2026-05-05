@@ -25,6 +25,7 @@ fun InfoCard(
     label: String? = null,
     icon: ImageVector? = null,
     onClick: (() -> Unit)? = null,
+    action: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -35,7 +36,7 @@ fun InfoCard(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(16.dp),
     ) {
-        if (label != null || icon != null) {
+        if (label != null || icon != null || action != null) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 6.dp),
@@ -55,6 +56,10 @@ fun InfoCard(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (action != null) {
+                    Spacer(Modifier.weight(1f))
+                    action()
                 }
             }
         }

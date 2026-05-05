@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -53,6 +54,7 @@ import kotlin.math.roundToInt
 fun TrendsScreen(
     state: TrendsStateHolder,
 ) {
+    val context = LocalContext.current
     var selectedRange by remember { mutableStateOf("1M") }
     val ranges = listOf("7D", "1M", "All")
 
@@ -485,7 +487,19 @@ fun TrendsScreen(
 
         // ── Weight Trend Chart ──
         if (weightData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_weight), icon = Icons.Default.Scale) {
+            InfoCard(
+                label = stringResource(R.string.trends_weight),
+                icon = Icons.Default.Scale,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Weight",
+                            listOf("Date", "Weight (kg)"),
+                            weightData.map { (d, v) -> listOf(d.toString(), "%.2f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val firstWeight = weightData.firstOrNull()?.second
                 val lastDate = weightData.lastOrNull()?.first
                 val firstDate = weightData.firstOrNull()?.first
@@ -550,7 +564,19 @@ fun TrendsScreen(
 
         // ── Body Fat % Trend ──
         if (bodyFatData.size >= 2) {
-            InfoCard(label = "Body Fat %", icon = Icons.Default.Percent) {
+            InfoCard(
+                label = "Body Fat %",
+                icon = Icons.Default.Percent,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Body Fat",
+                            listOf("Date", "Body Fat (%)"),
+                            bodyFatData.map { (d, v) -> listOf(d.toString(), "%.1f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val smoothedBf = if (avgWindow == 3) rollingAvg(bodyFatData, 3) else bodyFatData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedBf, selectedRange == "7D") else null
                 val labels = wa?.dateLabels ?: smoothedBf.map { (d, _) ->
@@ -583,7 +609,19 @@ fun TrendsScreen(
 
         // ── Lean Body Mass Trend ──
         if (leanMassData.size >= 2) {
-            InfoCard(label = "Lean Mass", icon = Icons.Default.FitnessCenter) {
+            InfoCard(
+                label = "Lean Mass",
+                icon = Icons.Default.FitnessCenter,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Lean Mass",
+                            listOf("Date", "Lean Mass (kg)"),
+                            leanMassData.map { (d, v) -> listOf(d.toString(), "%.2f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val smoothedLean = if (avgWindow == 3) rollingAvg(leanMassData, 3) else leanMassData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedLean, selectedRange == "7D") else null
                 val labels = wa?.dateLabels ?: smoothedLean.map { (d, _) ->
@@ -616,7 +654,19 @@ fun TrendsScreen(
 
         // ── Body Water Trend ──
         if (bodyWaterData.size >= 2) {
-            InfoCard(label = "Body Water", icon = Icons.Default.WaterDrop) {
+            InfoCard(
+                label = "Body Water",
+                icon = Icons.Default.WaterDrop,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Body Water",
+                            listOf("Date", "Body Water (kg)"),
+                            bodyWaterData.map { (d, v) -> listOf(d.toString(), "%.2f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val smoothedWater = if (avgWindow == 3) rollingAvg(bodyWaterData, 3) else bodyWaterData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedWater, selectedRange == "7D") else null
                 val labels = wa?.dateLabels ?: smoothedWater.map { (d, _) ->
@@ -649,7 +699,19 @@ fun TrendsScreen(
 
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_calories), icon = Icons.Default.LocalFireDepartment) {
+            InfoCard(
+                label = stringResource(R.string.trends_calories),
+                icon = Icons.Default.LocalFireDepartment,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Calories",
+                            listOf("Date", "Calories (kcal)"),
+                            kcalByDay.map { (d, v) -> listOf(d.toString(), "$v") },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val kcalDoubleData = kcalByDay.map { (d, v) -> d to v.toDouble() }
                 val smoothedKcal = if (avgWindow == 3) rollingAvg(kcalDoubleData, 3) else kcalDoubleData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedKcal, selectedRange == "7D") else null
@@ -685,7 +747,19 @@ fun TrendsScreen(
 
         // ── Macros Trend ──
         if (macrosByDay.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_macros), icon = Icons.Default.DonutSmall) {
+            InfoCard(
+                label = stringResource(R.string.trends_macros),
+                icon = Icons.Default.DonutSmall,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Macros",
+                            listOf("Date", "Protein (g)", "Carbs (g)", "Fat (g)"),
+                            macrosByDay.map { (d, t) -> listOf(d.toString(), "${t.first}", "${t.second}", "${t.third}") },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val labels = macrosByDay.map { (d, _) ->
                     val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
@@ -720,7 +794,19 @@ fun TrendsScreen(
 
         // ── Sleep Trend ──
         if (sleepData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_sleep), icon = Icons.Default.Bedtime) {
+            InfoCard(
+                label = stringResource(R.string.trends_sleep),
+                icon = Icons.Default.Bedtime,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Sleep",
+                            listOf("Date", "Sleep (h)"),
+                            sleepData.map { (d, v) -> listOf(d.toString(), "%.1f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val smoothedSleep = if (avgWindow == 3) rollingAvg(sleepData, 3) else sleepData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedSleep, selectedRange == "7D") else null
                 val labels = wa?.dateLabels ?: smoothedSleep.map { (d, _) ->
@@ -753,7 +839,19 @@ fun TrendsScreen(
 
         // ── Steps Trend ──
         if (stepsData.size >= 2) {
-            InfoCard(label = stringResource(R.string.trends_steps), icon = Icons.AutoMirrored.Filled.DirectionsWalk) {
+            InfoCard(
+                label = stringResource(R.string.trends_steps),
+                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Steps",
+                            listOf("Date", "Steps"),
+                            stepsData.map { (d, v) -> listOf(d.toString(), "$v") },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 val stepsDoubleData = stepsData.map { (d, v) -> d to v.toDouble() }
                 val smoothedSteps = if (avgWindow == 3) rollingAvg(stepsDoubleData, 3) else stepsDoubleData
                 val wa = if (avgWindow == 7) weeklyOf(smoothedSteps, selectedRange == "7D") else null
@@ -818,7 +916,23 @@ fun TrendsScreen(
 
         // ── Blood Glucose Analysis ──
         if (bgReadings.isNotEmpty()) {
-            InfoCard(label = stringResource(R.string.trends_blood_sugar), icon = Icons.Default.Bloodtype) {
+            InfoCard(
+                label = stringResource(R.string.trends_blood_sugar),
+                icon = Icons.Default.Bloodtype,
+                action = {
+                    IconButton(onClick = {
+                        val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                        OdtExporter.share(
+                            context, "Blood Glucose",
+                            listOf("Time", "Blood Glucose (mmol/L)"),
+                            bgReadings.map { r -> listOf(
+                                r.timestamp.atZone(ZoneId.systemDefault()).format(dateFmt),
+                                "%.2f".format(r.valueMmolL),
+                            ) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
                 Text(
                     "${bgReadings.size} readings · %.1f–%.1f mmol/L".format(bgReadings.minOf { it.valueMmolL }, bgReadings.maxOf { it.valueMmolL }),
                     style = MaterialTheme.typography.bodySmall,
