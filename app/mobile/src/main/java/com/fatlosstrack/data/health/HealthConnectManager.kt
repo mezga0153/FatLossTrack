@@ -413,6 +413,33 @@ class HealthConnectManager @Inject constructor(
         }
     }
 
+    /** All individual blood glucose readings between [fromDate] and [toDate] (inclusive). */
+    suspend fun getBloodGlucoseReadings(fromDate: LocalDate, toDate: LocalDate): List<com.fatlosstrack.data.local.db.BloodGlucoseEntry> {
+        val c = client ?: return emptyList()
+        return try {
+            val from = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val to = toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val response = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = BloodGlucoseRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(from, to),
+                )
+            )
+            appLogger.hc("  $fromDate–$toDate blood-glucose readings: ${response.records.size} records")
+            response.records.map { record ->
+                com.fatlosstrack.data.local.db.BloodGlucoseEntry(
+                    timestamp = record.time,
+                    valueMmolL = record.level.inMillimolesPerLiter,
+                    source = "HC",
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getBloodGlucoseReadings failed", e)
+            appLogger.hc("  blood-glucose readings ERROR: ${e.javaClass.simpleName}: ${e.message}")
+            emptyList()
+        }
+    }
+
     /** Pull all health data for a single date into a DaySummary */
     suspend fun getDaySummary(date: LocalDate, referenceWeightKg: Double? = null): DaySummary {
         appLogger.hc("Reading HC data for $date …")

@@ -31,7 +31,9 @@ import com.fatlosstrack.ui.components.correlationLabel
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
@@ -64,6 +66,13 @@ fun TrendsScreen(
     val logs by (if (isAllRange) state.allLogs() else state.logsSince(since)).collectAsState(initial = emptyList())
     val meals by (if (isAllRange) state.allMeals() else state.mealsSince(since)).collectAsState(initial = emptyList())
     val weightEntries by (if (isAllRange) state.allWeights() else state.weightsSince(since)).collectAsState(initial = emptyList())
+
+    // Blood glucose raw readings
+    val bgFrom = remember(since, isAllRange) {
+        if (isAllRange) Instant.EPOCH else since.atStartOfDay(ZoneId.systemDefault()).toInstant()
+    }
+    val bgTo = remember { LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant() }
+    val bgReadings by (if (isAllRange) state.allBgReadings() else state.bgReadingsBetween(bgFrom, bgTo)).collectAsState(initial = emptyList())
 
     val goalWeight by state.goalWeight.collectAsState(initial = null)
     val weeklyRate by state.weeklyRate.collectAsState(initial = null)
@@ -803,6 +812,35 @@ fun TrendsScreen(
                         Text("$daysWithAlcohol", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = Tertiary)
                         Text(stringResource(R.string.trends_alcohol_days), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
                     }
+                }
+            }
+        }
+
+        // ── Blood Glucose Analysis ──
+        if (bgReadings.isNotEmpty()) {
+            InfoCard(label = stringResource(R.string.trends_blood_sugar), icon = Icons.Default.Bloodtype) {
+                Text(
+                    "${bgReadings.size} readings · %.1f–%.1f mmol/L".format(bgReadings.minOf { it.valueMmolL }, bgReadings.maxOf { it.valueMmolL }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                BloodGlucoseMealLegend()
+                Spacer(Modifier.height(8.dp))
+                BloodGlucoseChart(
+                    readings = bgReadings,
+                    meals = meals,
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.1f mmol/L".format(bgReadings.map { it.valueMmolL }.average()))
+                    StatColumn("Min", "%.1f".format(bgReadings.minOf { it.valueMmolL }), Secondary)
+                    StatColumn("Max", "%.1f".format(bgReadings.maxOf { it.valueMmolL }), Tertiary)
+                    StatColumn("Readings", "${bgReadings.size}")
                 }
             }
         }

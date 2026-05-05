@@ -114,6 +114,18 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_17_18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS blood_glucose_entries (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "timestamp INTEGER NOT NULL, " +
+                    "valueMmolL REAL NOT NULL, " +
+                    "source TEXT NOT NULL DEFAULT 'HC')"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): FatLossDatabase {
@@ -121,7 +133,7 @@ object DatabaseModule {
             context,
             FatLossDatabase::class.java,
             "fatloss_track.db"
-        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17).build()
+        ).addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18).build()
     }
 
     @Provides fun provideWeightDao(db: FatLossDatabase): WeightDao = db.weightDao()
@@ -132,6 +144,7 @@ object DatabaseModule {
     @Provides fun provideChatMessageDao(db: FatLossDatabase): ChatMessageDao = db.chatMessageDao()
     @Provides fun provideAiUsageDao(db: FatLossDatabase): AiUsageDao = db.aiUsageDao()
     @Provides fun provideBookmarkedMealDao(db: FatLossDatabase): BookmarkedMealDao = db.bookmarkedMealDao()
+    @Provides fun provideBloodGlucoseDao(db: FatLossDatabase): BloodGlucoseDao = db.bloodGlucoseDao()
 
     @Provides
     @Singleton

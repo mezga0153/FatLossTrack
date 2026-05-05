@@ -188,3 +188,21 @@ interface BookmarkedMealDao {
     @Update
     suspend fun updateAll(meals: List<BookmarkedMeal>)
 }
+
+@Dao
+interface BloodGlucoseDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<BloodGlucoseEntry>)
+
+    @Query("SELECT * FROM blood_glucose_entries WHERE timestamp >= :from AND timestamp < :to ORDER BY timestamp ASC")
+    fun getReadingsBetween(from: java.time.Instant, to: java.time.Instant): Flow<List<BloodGlucoseEntry>>
+
+    @Query("SELECT * FROM blood_glucose_entries ORDER BY timestamp ASC")
+    fun getAllReadings(): Flow<List<BloodGlucoseEntry>>
+
+    @Query("SELECT * FROM blood_glucose_entries WHERE timestamp >= :from AND timestamp < :to ORDER BY timestamp ASC")
+    suspend fun getReadingsBetweenSnapshot(from: java.time.Instant, to: java.time.Instant): List<BloodGlucoseEntry>
+
+    @Query("DELETE FROM blood_glucose_entries WHERE timestamp >= :from AND timestamp < :to AND source = 'HC'")
+    suspend fun deleteHcReadingsBetween(from: java.time.Instant, to: java.time.Instant)
+}

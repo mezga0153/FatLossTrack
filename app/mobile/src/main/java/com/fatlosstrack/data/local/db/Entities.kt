@@ -129,3 +129,12 @@ data class BookmarkedMeal(
     val sortOrder: Int = 0,
     val createdAt: Instant = Instant.now(),
 )
+
+/** A single blood-glucose reading with exact timestamp (from Health Connect or entered manually). */
+@Entity(tableName = "blood_glucose_entries")
+data class BloodGlucoseEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestamp: Instant,          // exact time of the reading
+    val valueMmolL: Double,
+    val source: String = "HC",       // "HC" or "MANUAL"
+)

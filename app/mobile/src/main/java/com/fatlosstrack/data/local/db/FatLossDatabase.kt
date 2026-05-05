@@ -14,8 +14,9 @@ import androidx.room.TypeConverters
         ChatMessage::class,
         AiUsageEntry::class,
         BookmarkedMeal::class,
+        BloodGlucoseEntry::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -28,4 +29,5 @@ abstract class FatLossDatabase : RoomDatabase() {
     abstract fun chatMessageDao(): ChatMessageDao
     abstract fun aiUsageDao(): AiUsageDao
     abstract fun bookmarkedMealDao(): BookmarkedMealDao
+    abstract fun bloodGlucoseDao(): BloodGlucoseDao
 }

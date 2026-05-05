@@ -4,6 +4,7 @@ import android.util.Log
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.BloodGlucoseDao
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.WeightDao
@@ -14,12 +15,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Syncs Health Connect data into Room DailyLog + WeightEntry tables.
+ * Syncs Health Connect data into Room DailyLog + WeightEntry + BloodGlucoseEntry tables.
  * Merges with existing manual entries — HC data fills in only null fields.
  */
 @Singleton
@@ -27,6 +29,7 @@ class HealthConnectSyncService @Inject constructor(
     private val hcManager: HealthConnectManager,
     private val dailyLogDao: DailyLogDao,
     private val weightDao: WeightDao,
+    private val bloodGlucoseDao: BloodGlucoseDao,
     private val appLogger: AppLogger,
     private val daySummaryGenerator: DaySummaryGenerator,
     private val preferencesManager: PreferencesManager,
@@ -68,6 +71,20 @@ class HealthConnectSyncService @Inject constructor(
         val summaries = hcManager.getSummaries(from, today, referenceWeight)
         for (summary in summaries) {
             if (mergeSummary(summary)) updatedDates.add(summary.date)
+        }
+
+        // Sync raw blood glucose readings (replace HC readings for the window)
+        try {
+            val bgFrom = from.atStartOfDay(ZoneId.systemDefault()).toInstant()
+            val bgTo = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+            bloodGlucoseDao.deleteHcReadingsBetween(bgFrom, bgTo)
+            val readings = hcManager.getBloodGlucoseReadings(from, today)
+            if (readings.isNotEmpty()) {
+                bloodGlucoseDao.insertAll(readings)
+                appLogger.hc("Synced ${readings.size} raw blood glucose readings")
+            }
+        } catch (e: Exception) {
+            appLogger.hc("Blood glucose raw sync error: ${e.message}")
         }
 
         Log.d(TAG, "Sync complete: ${updatedDates.size} days updated")

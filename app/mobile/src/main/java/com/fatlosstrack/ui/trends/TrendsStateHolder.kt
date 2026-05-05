@@ -2,9 +2,11 @@ package com.fatlosstrack.ui.trends
 
 import androidx.compose.runtime.Stable
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.db.BloodGlucoseDao
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.WeightDao
+import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -17,6 +19,7 @@ class TrendsStateHolder @Inject constructor(
     private val dailyLogDao: DailyLogDao,
     private val mealDao: MealDao,
     private val weightDao: WeightDao,
+    private val bloodGlucoseDao: BloodGlucoseDao,
     private val _preferencesManager: PreferencesManager,
 ) {
     // ── Preference flows ──
@@ -33,4 +36,8 @@ class TrendsStateHolder @Inject constructor(
     fun allMeals() = mealDao.getAllMeals()
     fun allWeights() = weightDao.getAllEntries()
     val dailyLogDaoForLeanMass get() = dailyLogDao
+
+    // ── Blood glucose readings ──
+    fun bgReadingsBetween(from: Instant, to: Instant) = bloodGlucoseDao.getReadingsBetween(from, to)
+    fun allBgReadings() = bloodGlucoseDao.getAllReadings()
 }
