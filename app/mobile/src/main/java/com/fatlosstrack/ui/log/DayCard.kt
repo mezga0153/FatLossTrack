@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,8 +20,10 @@ import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.MealEntry
+import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -126,9 +129,10 @@ internal fun DayCard(
                             .clickable { onMealClick(meal) }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
-                        // Line 1: meal type, description
+                        // Line 1: meal type, description, time
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             if (meal.mealType != null) {
                                 Text(
@@ -145,6 +149,13 @@ internal fun DayCard(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = OnSurface,
                                 maxLines = 1,
+                                modifier = Modifier.weight(1f),
+                            )
+                            val timeFmt = remember { DateTimeFormatter.ofPattern("HH:mm") }
+                            Text(
+                                meal.displayTime.atZone(ZoneId.systemDefault()).format(timeFmt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnSurfaceVariant,
                             )
                         }
                         // Line 2: kcal P C F with percentages (of daily target when available, else day total)

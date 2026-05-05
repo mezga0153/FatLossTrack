@@ -97,7 +97,10 @@ fun TrendsScreen(
         val toDate = if (selectedRange == "Custom" && customTo != null) customTo!! else LocalDate.now()
         toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
     }
-    val bgReadings by (if (isAllRange) state.allBgReadings() else state.bgReadingsBetween(bgFrom, bgTo)).collectAsState(initial = emptyList())
+    val bgFlow = remember(bgFrom, bgTo, isAllRange) {
+        if (isAllRange) state.allBgReadings() else state.bgReadingsBetween(bgFrom, bgTo)
+    }
+    val bgReadings by bgFlow.collectAsState(initial = emptyList())
 
     val goalWeight by state.goalWeight.collectAsState(initial = null)
     val weeklyRate by state.weeklyRate.collectAsState(initial = null)
@@ -776,6 +779,91 @@ fun TrendsScreen(
             }
         }
 
+        // ── Blood Glucose Analysis ──
+        if (bgReadings.isNotEmpty()) {
+            InfoCard(
+                label = stringResource(R.string.trends_blood_sugar),
+                icon = Icons.Default.Bloodtype,
+                action = {
+                    IconButton(onClick = {
+                        val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                        // Index meals by their effective timestamp for join
+                        val mealsByTime = meals.sortedBy { it.displayTime }
+                        // Build combined rows: each BG reading, with nearest meal within ±2h in adjacent columns
+                        val bgRows = bgReadings.map { r ->
+                            val rTime = r.timestamp
+                            val nearest = mealsByTime.minByOrNull { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond)
+                            }?.takeIf { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond) <= 7200
+                            }
+                            listOf(
+                                r.timestamp.atZone(ZoneId.systemDefault()).format(dateFmt),
+                                "%.2f".format(r.valueMmolL),
+                                nearest?.description ?: "",
+                                nearest?.totalKcal?.toString() ?: "",
+                                nearest?.totalCarbsG?.toString() ?: "",
+                                nearest?.totalProteinG?.toString() ?: "",
+                                nearest?.totalFatG?.toString() ?: "",
+                            )
+                        }
+                        // Also add any meals that had no BG reading nearby
+                        val pairedMealIds = bgReadings.mapNotNull { r ->
+                            mealsByTime.minByOrNull { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond)
+                            }?.takeIf { m ->
+                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond) <= 7200
+                            }?.id
+                        }.toSet()
+                        val mealOnlyRows = mealsByTime
+                            .filter { it.id !in pairedMealIds }
+                            .map { m ->
+                                listOf(
+                                    m.displayTime.atZone(ZoneId.systemDefault()).format(dateFmt),
+                                    "",
+                                    m.description,
+                                    m.totalKcal.toString(),
+                                    m.totalCarbsG.toString(),
+                                    m.totalProteinG.toString(),
+                                    m.totalFatG.toString(),
+                                )
+                            }
+                        val allRows = (bgRows + mealOnlyRows)
+                            .sortedBy { it[0] }
+                        OdtExporter.share(
+                            context, "Blood Glucose",
+                            listOf("Time", "BG (mmol/L)", "Meal", "Kcal", "Carbs (g)", "Protein (g)", "Fat (g)"),
+                            allRows,
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
+                Text(
+                    "${bgReadings.size} readings · %.1f–%.1f mmol/L".format(bgReadings.minOf { it.valueMmolL }, bgReadings.maxOf { it.valueMmolL }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                BloodGlucoseMealLegend()
+                Spacer(Modifier.height(8.dp))
+                BloodGlucoseChart(
+                    readings = bgReadings,
+                    meals = meals,
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.1f mmol/L".format(bgReadings.map { it.valueMmolL }.average()))
+                    StatColumn("Min", "%.1f".format(bgReadings.minOf { it.valueMmolL }), Secondary)
+                    StatColumn("Max", "%.1f".format(bgReadings.maxOf { it.valueMmolL }), Tertiary)
+                    StatColumn("Readings", "${bgReadings.size}")
+                }
+            }
+        }
+
         // ── Calorie Trend ──
         if (kcalByDay.size >= 2) {
             InfoCard(
@@ -989,91 +1077,6 @@ fun TrendsScreen(
                         Text("$daysWithAlcohol", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), color = Tertiary)
                         Text(stringResource(R.string.trends_alcohol_days), style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
                     }
-                }
-            }
-        }
-
-        // ── Blood Glucose Analysis ──
-        if (bgReadings.isNotEmpty()) {
-            InfoCard(
-                label = stringResource(R.string.trends_blood_sugar),
-                icon = Icons.Default.Bloodtype,
-                action = {
-                    IconButton(onClick = {
-                        val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                        // Index meals by their effective timestamp for join
-                        val mealsByTime = meals.sortedBy { it.displayTime }
-                        // Build combined rows: each BG reading, with nearest meal within ±2h in adjacent columns
-                        val bgRows = bgReadings.map { r ->
-                            val rTime = r.timestamp
-                            val nearest = mealsByTime.minByOrNull { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond)
-                            }?.takeIf { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond) <= 7200
-                            }
-                            listOf(
-                                r.timestamp.atZone(ZoneId.systemDefault()).format(dateFmt),
-                                "%.2f".format(r.valueMmolL),
-                                nearest?.description ?: "",
-                                nearest?.totalKcal?.toString() ?: "",
-                                nearest?.totalCarbsG?.toString() ?: "",
-                                nearest?.totalProteinG?.toString() ?: "",
-                                nearest?.totalFatG?.toString() ?: "",
-                            )
-                        }
-                        // Also add any meals that had no BG reading nearby
-                        val pairedMealIds = bgReadings.mapNotNull { r ->
-                            mealsByTime.minByOrNull { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond)
-                            }?.takeIf { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond) <= 7200
-                            }?.id
-                        }.toSet()
-                        val mealOnlyRows = mealsByTime
-                            .filter { it.id !in pairedMealIds }
-                            .map { m ->
-                                listOf(
-                                    m.displayTime.atZone(ZoneId.systemDefault()).format(dateFmt),
-                                    "",
-                                    m.description,
-                                    m.totalKcal.toString(),
-                                    m.totalCarbsG.toString(),
-                                    m.totalProteinG.toString(),
-                                    m.totalFatG.toString(),
-                                )
-                            }
-                        val allRows = (bgRows + mealOnlyRows)
-                            .sortedBy { it[0] }
-                        OdtExporter.share(
-                            context, "Blood Glucose",
-                            listOf("Time", "BG (mmol/L)", "Meal", "Kcal", "Carbs (g)", "Protein (g)", "Fat (g)"),
-                            allRows,
-                        )
-                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
-                },
-            ) {
-                Text(
-                    "${bgReadings.size} readings · %.1f–%.1f mmol/L".format(bgReadings.minOf { it.valueMmolL }, bgReadings.maxOf { it.valueMmolL }),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                BloodGlucoseMealLegend()
-                Spacer(Modifier.height(8.dp))
-                BloodGlucoseChart(
-                    readings = bgReadings,
-                    meals = meals,
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    StatColumn("Avg", "%.1f mmol/L".format(bgReadings.map { it.valueMmolL }.average()))
-                    StatColumn("Min", "%.1f".format(bgReadings.minOf { it.valueMmolL }), Secondary)
-                    StatColumn("Max", "%.1f".format(bgReadings.maxOf { it.valueMmolL }), Tertiary)
-                    StatColumn("Readings", "${bgReadings.size}")
                 }
             }
         }
