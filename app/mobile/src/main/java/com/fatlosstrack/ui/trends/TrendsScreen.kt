@@ -50,30 +50,52 @@ import kotlin.math.roundToInt
  * 3. Calorie trend chart
  * 4. Habit patterns (sleep vs weight, consistency, etc.)
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrendsScreen(
     state: TrendsStateHolder,
 ) {
     val context = LocalContext.current
     var selectedRange by remember { mutableStateOf("1M") }
-    val ranges = listOf("7D", "1M", "All")
+    val ranges = listOf("7D", "1M", "All", "Custom")
+
+    // Custom date range state
+    var customFrom by remember { mutableStateOf<LocalDate?>(null) }
+    var customTo by remember { mutableStateOf<LocalDate?>(null) }
+    var showDateRangePicker by remember { mutableStateOf(false) }
 
     val since = when (selectedRange) {
         "7D" -> LocalDate.now().minusDays(6L)
         "1M" -> LocalDate.now().minusDays(29L)
+        "Custom" -> customFrom ?: LocalDate.now().minusDays(29L)
         else -> LocalDate.of(2000, 1, 1) // All
     }
     val isAllRange = selectedRange == "All"
+    val customEndDate = if (selectedRange == "Custom") customTo ?: LocalDate.now() else LocalDate.now()
 
-    val logs by (if (isAllRange) state.allLogs() else state.logsSince(since)).collectAsState(initial = emptyList())
-    val meals by (if (isAllRange) state.allMeals() else state.mealsSince(since)).collectAsState(initial = emptyList())
-    val weightEntries by (if (isAllRange) state.allWeights() else state.weightsSince(since)).collectAsState(initial = emptyList())
+    val rawLogs by (if (isAllRange) state.allLogs() else state.logsSince(since)).collectAsState(initial = emptyList())
+    val rawMeals by (if (isAllRange) state.allMeals() else state.mealsSince(since)).collectAsState(initial = emptyList())
+    val rawWeightEntries by (if (isAllRange) state.allWeights() else state.weightsSince(since)).collectAsState(initial = emptyList())
+
+    // Apply customTo filter for Custom range
+    val logs = remember(rawLogs, selectedRange, customTo) {
+        if (selectedRange == "Custom" && customTo != null) rawLogs.filter { it.date <= customTo!! } else rawLogs
+    }
+    val meals = remember(rawMeals, selectedRange, customTo) {
+        if (selectedRange == "Custom" && customTo != null) rawMeals.filter { it.date <= customTo!! } else rawMeals
+    }
+    val weightEntries = remember(rawWeightEntries, selectedRange, customTo) {
+        if (selectedRange == "Custom" && customTo != null) rawWeightEntries.filter { it.date <= customTo!! } else rawWeightEntries
+    }
 
     // Blood glucose raw readings
     val bgFrom = remember(since, isAllRange) {
         if (isAllRange) Instant.EPOCH else since.atStartOfDay(ZoneId.systemDefault()).toInstant()
     }
-    val bgTo = remember { LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant() }
+    val bgTo = remember(customTo, selectedRange) {
+        val toDate = if (selectedRange == "Custom" && customTo != null) customTo!! else LocalDate.now()
+        toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+    }
     val bgReadings by (if (isAllRange) state.allBgReadings() else state.bgReadingsBetween(bgFrom, bgTo)).collectAsState(initial = emptyList())
 
     val goalWeight by state.goalWeight.collectAsState(initial = null)
@@ -177,6 +199,41 @@ fun TrendsScreen(
     var avgWindow by remember { mutableStateOf(0) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
+    // ── Custom date range picker dialog ──
+    if (showDateRangePicker) {
+        val pickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = (customFrom ?: LocalDate.now().minusDays(29)).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+            initialSelectedEndDateMillis = (customTo ?: LocalDate.now()).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDateRangePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val fromMs = pickerState.selectedStartDateMillis
+                    val toMs = pickerState.selectedEndDateMillis
+                    if (fromMs != null) {
+                        customFrom = java.time.Instant.ofEpochMilli(fromMs).atZone(ZoneId.systemDefault()).toLocalDate()
+                    }
+                    if (toMs != null) {
+                        customTo = java.time.Instant.ofEpochMilli(toMs).atZone(ZoneId.systemDefault()).toLocalDate()
+                    }
+                    showDateRangePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDateRangePicker = false
+                    if (customFrom == null) selectedRange = "1M"
+                }) { Text("Cancel") }
+            },
+        ) {
+            DateRangePicker(
+                state = pickerState,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -194,16 +251,24 @@ fun TrendsScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ranges.forEach { range ->
                     val isSelected = range == selectedRange
+                    val displayText = if (range == "Custom" && isSelected && customFrom != null && customTo != null) {
+                        val mFrom = customFrom!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
+                        val mTo = customTo!!.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()).removeSuffix(".")
+                        "${customFrom!!.dayOfMonth} $mFrom – ${customTo!!.dayOfMonth} $mTo"
+                    } else range
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isSelected) Primary.copy(alpha = 0.2f) else CardSurface)
-                            .clickable { selectedRange = range }
+                            .clickable {
+                                selectedRange = range
+                                if (range == "Custom") showDateRangePicker = true
+                            }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = range,
+                            text = displayText,
                             style = MaterialTheme.typography.labelLarge,
                             color = if (isSelected) Primary else OnSurfaceVariant,
                         )
