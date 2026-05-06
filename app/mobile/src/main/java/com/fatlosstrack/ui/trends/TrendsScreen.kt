@@ -1154,8 +1154,9 @@ fun TrendsScreen(
         logsByDate = emptyMap(),
         mealDao = state.mealDao,
         dailyLogDao = state.dailyLogDaoForLeanMass,
-        daySummaryGenerator = null,
-        openAiService = null,
+        daySummaryGenerator = state.daySummaryGenerator,
+        openAiService = state.openAiService,
+        bookmarkedMealDao = state.bookmarkedMealDao,
         logTag = "TrendsScreen",
     )
 }
