@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -96,6 +97,8 @@ fun AnalysisResultScreen(
                 showDateSelector = true,
                 effectiveDate = state.effectiveDate,
                 onDateChanged = { state.updateEffectiveDate(it) },
+                effectiveTime = state.effectiveTime,
+                onTimeChanged = { state.updateEffectiveTime(it) },
                 onDone = {
                     state.cleanup()
                     onDone()
@@ -197,6 +200,8 @@ internal fun ResultContent(
     showDateSelector: Boolean = false,
     effectiveDate: java.time.LocalDate = java.time.LocalDate.now(),
     onDateChanged: (java.time.LocalDate) -> Unit = {},
+    effectiveTime: java.time.LocalTime? = null,
+    onTimeChanged: (java.time.LocalTime) -> Unit = {},
     onDone: () -> Unit,
     onLog: (AnalysisResult, MealCategory, MealType?) -> Unit,
     onCorrection: (String) -> Unit,
@@ -387,8 +392,11 @@ internal fun ResultContent(
             // ── Date selector ──
             if (showDateSelector) {
                 var showDatePicker by remember { mutableStateOf(false) }
+                var showTimePicker by remember { mutableStateOf(false) }
                 val today = java.time.LocalDate.now()
                 val yesterday = today.minusDays(1)
+                // Displayed time: AI-parsed or current time
+                val displayTime = effectiveTime ?: java.time.LocalTime.now()
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardSurface),
                     shape = RoundedCornerShape(12.dp),
@@ -432,6 +440,25 @@ internal fun ResultContent(
                                 ),
                             )
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Time",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = OnSurface,
+                            )
+                            FilterChip(
+                                selected = false,
+                                onClick = { showTimePicker = true },
+                                label = { Text("%02d:%02d".format(displayTime.hour, displayTime.minute)) },
+                                leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                colors = FilterChipDefaults.filterChipColors(containerColor = CardSurface, labelColor = Primary),
+                            )
+                        }
                     }
                 }
                 if (showDatePicker) {
@@ -463,6 +490,29 @@ internal fun ResultContent(
                     ) {
                         DatePicker(state = datePickerState)
                     }
+                }
+                if (showTimePicker) {
+                    val timeState = rememberTimePickerState(
+                        initialHour = displayTime.hour,
+                        initialMinute = displayTime.minute,
+                        is24Hour = true,
+                    )
+                    AlertDialog(
+                        onDismissRequest = { showTimePicker = false },
+                        title = { Text("Select time") },
+                        text = { TimePicker(state = timeState) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                onTimeChanged(java.time.LocalTime.of(timeState.hour, timeState.minute))
+                                showTimePicker = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showTimePicker = false }) {
+                                Text(stringResource(R.string.chat_clear_no))
+                            }
+                        },
+                    )
                 }
             }
 

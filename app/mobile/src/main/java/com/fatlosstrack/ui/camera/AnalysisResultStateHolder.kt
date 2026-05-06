@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import java.time.LocalDate
+import java.time.LocalTime
 import javax.inject.Inject
 
 // ── Data models ──────────────────────────────────────────────────────────────
@@ -77,10 +78,17 @@ class AnalysisResultStateHolder @Inject constructor(
         private set
     var effectiveDate: LocalDate by mutableStateOf(LocalDate.now())
         private set
+    var effectiveTime: LocalTime? by mutableStateOf(null)
+        private set
 
     /** Allow the UI to change the target date before logging. */
     fun updateEffectiveDate(date: LocalDate) {
         effectiveDate = date
+    }
+
+    /** Allow the UI to change the meal time before logging. */
+    fun updateEffectiveTime(time: LocalTime?) {
+        effectiveTime = time
     }
 
     private val bitmaps = mutableListOf<Bitmap>()
@@ -105,6 +113,7 @@ class AnalysisResultStateHolder @Inject constructor(
             effectiveDate = date
             try {
                 result = parseAnalysisJson(raw)
+                effectiveTime = result?.mealTime
             } catch (e: Exception) {
                 Log.e("Analysis", "Text meal parse failed: $raw", e)
                 errorMessage = "Failed to parse meal data"
@@ -166,6 +175,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     onSuccess = { raw ->
                         try {
                             result = parseAnalysisJson(raw)
+                            effectiveTime = result?.mealTime
                         } catch (e: Exception) {
                             Log.e("Analysis", "JSON parse failed, raw: $raw", e)
                             result = AnalysisResult(
@@ -282,7 +292,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     coachNote = analysisResult.aiNote,
                     category = category,
                     mealType = mealType,
-                    loggedAt = analysisResult.mealTime?.let {
+                    loggedAt = effectiveTime?.let {
                         java.time.LocalDateTime.of(effectiveDate, it)
                             .atZone(java.time.ZoneId.systemDefault()).toInstant()
                     },
@@ -311,6 +321,7 @@ class AnalysisResultStateHolder @Inject constructor(
         analyzing = false
         result = null
         errorMessage = null
+        effectiveTime = null
         bitmaps.clear()
     }
 }
