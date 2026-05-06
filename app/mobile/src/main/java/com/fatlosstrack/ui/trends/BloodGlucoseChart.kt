@@ -11,13 +11,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fatlosstrack.data.local.db.BloodGlucoseEntry
@@ -27,14 +28,23 @@ import com.fatlosstrack.ui.theme.*
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+
+// Normal glucose reference thresholds (mmol/L)
+private const val BG_LOW = 3.9    // hypoglycemia boundary
+private const val BG_HIGH = 7.8   // post-meal 2h target upper bound (IDF/ADA)
+private const val BG_VERY_HIGH = 10.0 // TIR upper boundary
 
 /**
- * Blood glucose line chart with meal markers.
+ * Blood glucose line chart with carbohydrate bar chart overlay.
  *
- * - Draws BG readings as a connected line with dots.
- * - Overlays meal markers colored by carb content:
- *     green = low (< 30g), amber = medium (30–60g), red = high (> 60g)
- * - Tap a meal dot to see carb count in a tooltip.
+ * - Shaded green band marks the 3.9–7.8 mmol/L target range.
+ * - Dashed reference lines at 3.9, 7.8, and 10.0 mmol/L.
+ * - Carb bars rise from the bottom; height ∝ grams of carbs.
+ *   Color: green < 30g, amber 30–60g, red > 60g.
+ * - BG readings drawn as a line on top; dots only for sparse data.
+ * - Tap a bar to see meal details in a tooltip.
  */
 @Composable
 fun BloodGlucoseChart(
@@ -47,28 +57,43 @@ fun BloodGlucoseChart(
     val timeFmt = remember { DateTimeFormatter.ofPattern("HH:mm") }
     var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
 
-    // Convert to epoch-seconds for math
+    // Time axis
     val epochSecs = readings.map { it.timestamp.epochSecond.toDouble() }
     val tMin = epochSecs.min()
     val tMax = epochSecs.max()
-    val tRange = (tMax - tMin).coerceAtLeast(3600.0) // at least 1h
+    val tRange = (tMax - tMin).coerceAtLeast(3600.0)
 
+    // BG Y axis — always include target range so reference lines are visible
     val bgValues = readings.map { it.valueMmolL }
-    val vMin = (bgValues.min() - 0.5).coerceAtLeast(0.0)
-    val vMax = bgValues.max() + 0.5
+    val vMin = (minOf(bgValues.min(), BG_LOW) - 0.3).coerceAtLeast(0.0)
+    val vMax = maxOf(bgValues.max(), BG_HIGH) + 0.5
 
-    // Meal data in range
+    // Meals within the time window (+ 5% padding)
     val mealsInRange = remember(meals, tMin, tMax) {
         meals.filter { m ->
             val t = m.displayTime.epochSecond.toDouble()
             t in (tMin - tRange * 0.05)..(tMax + tRange * 0.05)
         }
     }
+    // Carb axis max — at least 50g so bars have room to grow
+    val maxCarbs = remember(mealsInRange) {
+        mealsInRange.maxOfOrNull { it.totalCarbsG }?.coerceAtLeast(50) ?: 50
+    }
+
+    // Only draw BG dots for sparse / manual data; CGM lines are clean without them
+    val avgSpacingSec = if (readings.size > 1) tRange / (readings.size - 1) else Double.MAX_VALUE
+    val showBgDots = readings.size <= 48 || avgSpacingSec > 270.0
 
     val lineColor = Color(0xFFE53E3E)
-    // Capture @Composable theme colors before Canvas
+    val targetBandColor = Color(0xFF48BB78).copy(alpha = 0.07f)
     val gridLineColor = OnSurfaceVariant.copy(alpha = 0.12f)
-    val gridTextArgb = android.graphics.Color.argb(150, 139, 139, 163)
+    val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(7f, 5f)) }
+
+    // Pre-computed ARGB ints for nativeCanvas (no Compose colors allowed there)
+    val gridTextArgb   = android.graphics.Color.argb(150, 139, 139, 163)
+    val refLowArgb     = android.graphics.Color.argb(200,  72, 187, 120)  // green
+    val refHighArgb    = android.graphics.Color.argb(200, 236, 201,  75)  // amber
+    val refVeryHiArgb  = android.graphics.Color.argb(200, 252, 129, 129)  // red
 
     Box(modifier = modifier) {
         Canvas(
@@ -78,52 +103,106 @@ fun BloodGlucoseChart(
                     detectTapGestures { tap ->
                         val w = size.width.toFloat()
                         val h = size.height.toFloat()
-                        val padLeft = 40f; val padRight = 8f; val padTop = 12f; val padBot = 28f
-                        val chartW = w - padLeft - padRight
-                        val chartH = h - padTop - padBot
+                        val padL = 40f; val padR = 36f; val padT = 12f; val padB = 28f
+                        val chartW = w - padL - padR
+                        val chartH = h - padT - padB
+                        val chartBottom = padT + chartH
+                        val barHalfW = (chartW / (mealsInRange.size.coerceAtLeast(1) * 2.5f)).coerceIn(5f, 18f)
 
-                        fun toX(t: Double) = padLeft + ((t - tMin) / tRange * chartW).toFloat()
-                        fun toY(v: Double) = padTop + ((vMax - v) / (vMax - vMin) * chartH).toFloat()
+                        fun toX(t: Double) = padL + ((t - tMin) / tRange * chartW).toFloat()
 
+                        // Hit-test: find nearest bar whose x ± halfW and vertical bar span contain the tap
                         val hit = mealsInRange.minByOrNull { meal ->
-                            val mx = toX(meal.displayTime.epochSecond.toDouble())
-                            val my = toY(readings.minByOrNull { abs(it.timestamp.epochSecond - meal.displayTime.epochSecond) }?.valueMmolL ?: ((vMin + vMax) / 2))
-                            val dx = tap.x - mx; val dy = tap.y - my
-                            dx * dx + dy * dy
+                            abs(tap.x - toX(meal.displayTime.epochSecond.toDouble()))
                         }
                         selectedMeal = if (hit != null) {
                             val mx = toX(hit.displayTime.epochSecond.toDouble())
-                            val my = toY(readings.minByOrNull { abs(it.timestamp.epochSecond - hit.displayTime.epochSecond) }?.valueMmolL ?: ((vMin + vMax) / 2))
-                            val dist = Math.hypot((tap.x - mx).toDouble(), (tap.y - my).toDouble())
-                            if (dist < 40) hit else null
+                            val barH = (hit.totalCarbsG.toFloat() / maxCarbs * chartH).coerceAtLeast(6f)
+                            val barTop = chartBottom - barH
+                            if (abs(tap.x - mx) <= barHalfW + 8f && tap.y in (barTop - 8f)..chartBottom) hit else null
                         } else null
                     }
                 },
         ) {
             val w = size.width; val h = size.height
-            val padLeft = 40f; val padRight = 8f; val padTop = 12f; val padBot = 28f
-            val chartW = w - padLeft - padRight
-            val chartH = h - padTop - padBot
+            val padL = 40f; val padR = 36f; val padT = 12f; val padB = 28f
+            val chartW = w - padL - padR
+            val chartH = h - padT - padB
+            val chartBottom = padT + chartH
 
-            fun toX(t: Double) = padLeft + ((t - tMin) / tRange * chartW).toFloat()
-            fun toY(v: Double) = padTop + ((vMax - v) / (vMax - vMin) * chartH).toFloat()
+            fun toX(t: Double) = padL + ((t - tMin) / tRange * chartW).toFloat()
+            fun toY(v: Double) = padT + ((vMax - v) / (vMax - vMin) * chartH).toFloat()
 
-            // Grid lines
-            val gridSteps = listOf(vMin, (vMin + vMax) / 2, vMax)
-            gridSteps.forEach { v ->
+            val barHalfW = (chartW / (mealsInRange.size.coerceAtLeast(1) * 2.5f)).coerceIn(5f, 18f)
+
+            // ── Target range shaded band (3.9–7.8) ──────────────────────────────
+            val bandTop = toY(BG_HIGH.coerceAtMost(vMax))
+            val bandBot = toY(BG_LOW.coerceAtLeast(vMin))
+            drawRect(targetBandColor, topLeft = Offset(padL, bandTop), size = Size(chartW, bandBot - bandTop))
+
+            // ── BG grid lines (left axis, integer mmol/L values) ─────────────────
+            val gridStep = if ((vMax - vMin) <= 6) 1.0 else 2.0
+            val gridStart = ceil(vMin / gridStep).toInt()
+            val gridEnd = floor(vMax / gridStep).toInt()
+            for (step in gridStart..gridEnd) {
+                val v = step * gridStep
                 val y = toY(v)
-                drawLine(gridLineColor, Offset(padLeft, y), Offset(w - padRight, y), strokeWidth = 1f)
-                drawContext.canvas.nativeCanvas.apply {
-                    val paint = android.graphics.Paint().apply {
-                        color = gridTextArgb
-                        textSize = 24f
-                        textAlign = android.graphics.Paint.Align.RIGHT
-                    }
-                    drawText("%.1f".format(v), padLeft - 4f, y + 8f, paint)
+                drawLine(gridLineColor, Offset(padL, y), Offset(w - padR, y), strokeWidth = 1f)
+                drawContext.canvas.nativeCanvas.drawText(
+                    "%.0f".format(v), padL - 5f, y + 8f,
+                    android.graphics.Paint().apply { color = gridTextArgb; textSize = 24f; textAlign = android.graphics.Paint.Align.RIGHT },
+                )
+            }
+
+            // ── Reference lines ──────────────────────────────────────────────────
+            data class RefLine(val value: Double, val label: String, val argb: Int)
+            listOf(
+                RefLine(BG_LOW,       "3.9", refLowArgb),
+                RefLine(BG_HIGH,      "7.8", refHighArgb),
+                RefLine(BG_VERY_HIGH, "10",  refVeryHiArgb),
+            ).forEach { ref ->
+                if (ref.value in vMin..vMax) {
+                    val y = toY(ref.value)
+                    drawLine(
+                        Color(ref.argb),
+                        Offset(padL, y), Offset(w - padR, y),
+                        strokeWidth = 1.5f,
+                        pathEffect = dashEffect,
+                    )
+                    drawContext.canvas.nativeCanvas.drawText(
+                        ref.label, w - padR + 3f, y + 7f,
+                        android.graphics.Paint().apply { color = ref.argb; textSize = 20f; textAlign = android.graphics.Paint.Align.LEFT },
+                    )
                 }
             }
 
-            // BG line
+            // ── Carb bars (drawn before BG line so line is on top) ───────────────
+            mealsInRange.forEach { meal ->
+                val x = toX(meal.displayTime.epochSecond.toDouble())
+                val barH = (meal.totalCarbsG.toFloat() / maxCarbs * chartH).coerceAtLeast(4f)
+                val barTop = chartBottom - barH
+                val isSelected = selectedMeal?.id == meal.id
+                val carbColor = when {
+                    meal.totalCarbsG < 30 -> Color(0xFF48BB78)
+                    meal.totalCarbsG < 60 -> Color(0xFFECC94B)
+                    else                  -> Color(0xFFFC8181)
+                }
+                drawRect(
+                    color = carbColor.copy(alpha = if (isSelected) 0.80f else 0.45f),
+                    topLeft = Offset(x - barHalfW, barTop),
+                    size = Size(barHalfW * 2, barH),
+                )
+                if (isSelected) {
+                    drawRect(
+                        color = carbColor,
+                        topLeft = Offset(x - barHalfW, barTop),
+                        size = Size(barHalfW * 2, barH),
+                        style = Stroke(width = 1.5f),
+                    )
+                }
+            }
+
+            // ── BG line ──────────────────────────────────────────────────────────
             if (readings.size >= 2) {
                 val path = Path()
                 readings.forEachIndexed { i, r ->
@@ -134,82 +213,51 @@ fun BloodGlucoseChart(
                 drawPath(path, lineColor, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
             }
 
-            // BG dots
-            readings.forEach { r ->
-                val x = toX(r.timestamp.epochSecond.toDouble())
-                val y = toY(r.valueMmolL)
-                drawCircle(lineColor, radius = 4f, center = Offset(x, y))
-                drawCircle(Color.White.copy(alpha = 0.8f), radius = 2f, center = Offset(x, y))
-            }
-
-            // Meal dots
-            mealsInRange.forEach { meal ->
-                val t = meal.displayTime.epochSecond.toDouble()
-                val nearestBg = readings.minByOrNull { abs(it.timestamp.epochSecond - meal.displayTime.epochSecond) }?.valueMmolL
-                    ?: ((vMin + vMax) / 2)
-                val x = toX(t)
-                val y = toY(nearestBg)
-                val carbs = meal.totalCarbsG
-                val dotColor = when {
-                    carbs < 30 -> Color(0xFF48BB78)   // green
-                    carbs < 60 -> Color(0xFFECC94B)   // amber
-                    else -> Color(0xFFFC8181)          // red
+            // ── BG dots (only for sparse / manual readings) ───────────────────
+            if (showBgDots) {
+                readings.forEach { r ->
+                    val x = toX(r.timestamp.epochSecond.toDouble())
+                    val y = toY(r.valueMmolL)
+                    drawCircle(lineColor, radius = 3.5f, center = Offset(x, y))
+                    drawCircle(Color.White.copy(alpha = 0.8f), radius = 1.8f, center = Offset(x, y))
                 }
-                val isSelected = selectedMeal?.id == meal.id
-                val radius = if (isSelected) 10f else 7f
-                drawCircle(dotColor.copy(alpha = 0.9f), radius = radius, center = Offset(x, y))
-                drawCircle(Color.White, radius = radius * 0.45f, center = Offset(x, y))
             }
 
-            // X-axis time labels
+            // ── X-axis time labels ───────────────────────────────────────────────
             val nLabels = 4
             repeat(nLabels + 1) { i ->
                 val t = tMin + tRange * i / nLabels
                 val x = toX(t)
                 val label = java.time.Instant.ofEpochSecond(t.toLong())
                     .atZone(ZoneId.systemDefault()).format(timeFmt)
-                drawContext.canvas.nativeCanvas.apply {
-                    val paint = android.graphics.Paint().apply {
-                        color = gridTextArgb
-                        textSize = 22f
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                    drawText(label, x, h - 4f, paint)
-                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    label, x, h - 4f,
+                    android.graphics.Paint().apply { color = gridTextArgb; textSize = 22f; textAlign = android.graphics.Paint.Align.CENTER },
+                )
             }
         }
 
-        // Tooltip for selected meal
+        // ── Tooltip for selected meal ────────────────────────────────────────────
         selectedMeal?.let { meal ->
-            val cardSurface = CardSurface
-            val onSurface = OnSurface
-            val tertiary = Tertiary
-            val onSurfaceVariant = OnSurfaceVariant
             Box(modifier = Modifier.fillMaxSize()) {
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 4.dp),
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = cardSurface,
+                    color = CardSurface,
                     tonalElevation = 4.dp,
                 ) {
                     Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Text(
-                            meal.description.take(30),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = onSurface,
-                        )
+                        Text(meal.description.take(32), style = MaterialTheme.typography.labelSmall, color = OnSurface)
                         Text(
                             "${meal.totalCarbsG}g carbs · ${meal.totalKcal} kcal",
                             style = MaterialTheme.typography.labelSmall,
-                            color = tertiary,
+                            color = Tertiary,
                         )
                         Text(
                             meal.displayTime.atZone(ZoneId.systemDefault())
                                 .format(DateTimeFormatter.ofPattern("HH:mm, d MMM")),
                             style = MaterialTheme.typography.labelSmall,
-                            color = onSurfaceVariant,
+                            color = OnSurfaceVariant,
                         )
                     }
                 }
@@ -218,33 +266,49 @@ fun BloodGlucoseChart(
     }
 }
 
-/** Legend for meal dot colors */
+/** Legend row shown above the chart */
 @Composable
 fun BloodGlucoseMealLegend() {
     val onSurfaceVariant = OnSurfaceVariant
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Carb bar levels
         listOf(
-            Triple(Color(0xFF48BB78), "< 30g carbs", "Low"),
-            Triple(Color(0xFFECC94B), "30–60g", "Med"),
-            Triple(Color(0xFFFC8181), "> 60g", "High"),
-        ).forEach { (color, _, label) ->
+            Color(0xFF48BB78) to "< 30g",
+            Color(0xFFECC94B) to "30–60g",
+            Color(0xFFFC8181) to "> 60g",
+        ).forEach { (color, label) ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Canvas(Modifier.size(8.dp)) { drawCircle(color) }
+                Canvas(Modifier.size(width = 8.dp, height = 10.dp)) {
+                    drawRect(color.copy(alpha = 0.55f), size = size)
+                }
                 Text(label, fontSize = 10.sp, color = onSurfaceVariant)
             }
         }
+        // BG line swatch
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Canvas(Modifier.size(8.dp)) { drawCircle(Color(0xFFE53E3E)) }
-            Text("BG reading", fontSize = 10.sp, color = onSurfaceVariant)
+            Canvas(Modifier.size(width = 14.dp, height = 3.dp)) {
+                drawLine(Color(0xFFE53E3E), Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = size.height)
+            }
+            Text("BG", fontSize = 10.sp, color = onSurfaceVariant)
+        }
+        // Target band swatch
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(Modifier.size(width = 10.dp, height = 10.dp)) {
+                drawRect(Color(0xFF48BB78).copy(alpha = 0.15f), size = size)
+            }
+            Text("3.9–7.8", fontSize = 10.sp, color = onSurfaceVariant)
         }
     }
 }
