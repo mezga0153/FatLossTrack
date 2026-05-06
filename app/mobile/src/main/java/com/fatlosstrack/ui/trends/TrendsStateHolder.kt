@@ -17,7 +17,7 @@ import javax.inject.Inject
 @Stable
 class TrendsStateHolder @Inject constructor(
     private val dailyLogDao: DailyLogDao,
-    private val mealDao: MealDao,
+    val mealDao: MealDao,
     private val weightDao: WeightDao,
     private val bloodGlucoseDao: BloodGlucoseDao,
     private val _preferencesManager: PreferencesManager,

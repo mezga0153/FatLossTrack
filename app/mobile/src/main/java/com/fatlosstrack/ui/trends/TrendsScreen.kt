@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fatlosstrack.R
+import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.ui.components.ChartSeries
 import com.fatlosstrack.ui.components.InfoCard
@@ -32,6 +33,9 @@ import com.fatlosstrack.ui.components.alignedPearson
 import com.fatlosstrack.ui.components.correlationLabel
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
+import com.fatlosstrack.ui.log.LogSheetHost
+import com.fatlosstrack.ui.log.mealTypeLabel
+import com.fatlosstrack.ui.log.rememberLogSheetState
 import com.fatlosstrack.ui.theme.*
 import java.time.Instant
 import java.time.LocalDate
@@ -57,6 +61,7 @@ fun TrendsScreen(
     state: TrendsStateHolder,
 ) {
     val context = LocalContext.current
+    val sheetState = rememberLogSheetState()
     var selectedRange by remember { mutableStateOf("1M") }
     val ranges = listOf("7D", "1M", "All", "Custom")
 
@@ -846,11 +851,70 @@ fun TrendsScreen(
                 Spacer(Modifier.height(4.dp))
                 BloodGlucoseMealLegend()
                 Spacer(Modifier.height(8.dp))
+                var bgSelectedMeal by remember { mutableStateOf<MealEntry?>(null) }
                 BloodGlucoseChart(
                     readings = bgReadings,
                     meals = meals,
+                    selectedMeal = bgSelectedMeal,
+                    onMealSelected = { bgSelectedMeal = it },
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                 )
+                // Selected meal row — outside chart, same style as DayCard
+                if (bgSelectedMeal != null) {
+                    val meal = bgSelectedMeal!!
+                    val timeFmt = remember { DateTimeFormatter.ofPattern("HH:mm") }
+                    Spacer(Modifier.height(8.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Surface)
+                            .clickable { sheetState.selectedMeal = meal }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (meal.mealType != null) {
+                                Text(
+                                    mealTypeLabel(meal.mealType),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Accent,
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("·", style = MaterialTheme.typography.labelSmall, color = OnSurfaceVariant)
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(
+                                meal.description.take(40) + if (meal.description.length > 40) "…" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnSurface,
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                meal.displayTime.atZone(ZoneId.systemDefault()).format(timeFmt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnSurfaceVariant,
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${meal.totalKcal} kcal",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Secondary,
+                            )
+                            if (meal.totalProteinG > 0) Text("P ${meal.totalProteinG}g", style = MaterialTheme.typography.labelSmall, color = Primary)
+                            if (meal.totalCarbsG > 0) Text("C ${meal.totalCarbsG}g", style = MaterialTheme.typography.labelSmall, color = Tertiary)
+                            if (meal.totalFatG > 0) Text("F ${meal.totalFatG}g", style = MaterialTheme.typography.labelSmall, color = Accent)
+                        }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1084,6 +1148,16 @@ fun TrendsScreen(
         Spacer(Modifier.height(80.dp))
         } // end scrollable Column
     } // end outer Column
+
+    LogSheetHost(
+        state = sheetState,
+        logsByDate = emptyMap(),
+        mealDao = state.mealDao,
+        dailyLogDao = state.dailyLogDaoForLeanMass,
+        daySummaryGenerator = null,
+        openAiService = null,
+        logTag = "TrendsScreen",
+    )
 }
 
 private fun xAxisLabel(date: LocalDate, use7dDayNames: Boolean): String {

@@ -44,18 +44,19 @@ private const val BG_VERY_HIGH = 10.0 // TIR upper boundary
  * - Carb bars rise from the bottom; height ∝ grams of carbs.
  *   Color: green < 30g, amber 30–60g, red > 60g.
  * - BG readings drawn as a line on top; dots only for sparse data.
- * - Tap a bar to see meal details in a tooltip.
+ * - Tap a bar to highlight it; caller owns [selectedMeal]/[onMealSelected] state.
  */
 @Composable
 fun BloodGlucoseChart(
     readings: List<BloodGlucoseEntry>,
     meals: List<MealEntry>,
+    selectedMeal: MealEntry? = null,
+    onMealSelected: (MealEntry?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (readings.isEmpty()) return
 
     val timeFmt = remember { DateTimeFormatter.ofPattern("HH:mm") }
-    var selectedMeal by remember { mutableStateOf<MealEntry?>(null) }
 
     // Time axis
     val epochSecs = readings.map { it.timestamp.epochSecond.toDouble() }
@@ -115,12 +116,12 @@ fun BloodGlucoseChart(
                         val hit = mealsInRange.minByOrNull { meal ->
                             abs(tap.x - toX(meal.displayTime.epochSecond.toDouble()))
                         }
-                        selectedMeal = if (hit != null) {
+                        onMealSelected(if (hit != null) {
                             val mx = toX(hit.displayTime.epochSecond.toDouble())
                             val barH = (hit.totalCarbsG.toFloat() / maxCarbs * chartH).coerceAtLeast(6f)
                             val barTop = chartBottom - barH
                             if (abs(tap.x - mx) <= barHalfW + 8f && tap.y in (barTop - 8f)..chartBottom) hit else null
-                        } else null
+                        } else null)
                     }
                 },
         ) {
@@ -237,32 +238,6 @@ fun BloodGlucoseChart(
             }
         }
 
-        // ── Tooltip for selected meal ────────────────────────────────────────────
-        selectedMeal?.let { meal ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                Surface(
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 4.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = CardSurface,
-                    tonalElevation = 4.dp,
-                ) {
-                    Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Text(meal.description.take(32), style = MaterialTheme.typography.labelSmall, color = OnSurface)
-                        Text(
-                            "${meal.totalCarbsG}g carbs · ${meal.totalKcal} kcal",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Tertiary,
-                        )
-                        Text(
-                            meal.displayTime.atZone(ZoneId.systemDefault())
-                                .format(DateTimeFormatter.ofPattern("HH:mm, d MMM")),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = OnSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
