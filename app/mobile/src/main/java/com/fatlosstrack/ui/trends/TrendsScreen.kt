@@ -794,14 +794,21 @@ fun TrendsScreen(
                         val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                         // Index meals by their effective timestamp for join
                         val mealsByTime = meals.sortedBy { it.displayTime }
-                        // Build combined rows: each BG reading, with nearest meal within ±2h in adjacent columns
-                        val bgRows = bgReadings.map { r ->
-                            val rTime = r.timestamp
-                            val nearest = mealsByTime.minByOrNull { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond)
-                            }?.takeIf { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - rTime.epochSecond) <= 7200
+                        // Assign each meal to its single nearest BG reading (within ±2h).
+                        // If two meals compete for the same BG reading, the closer one wins.
+                        // This ensures each meal appears exactly once in the export.
+                        val bgIdxToMeal: Map<Int, MealEntry> = mealsByTime
+                            .mapNotNull { meal ->
+                                val i = bgReadings.indices.minByOrNull { idx ->
+                                    kotlin.math.abs(bgReadings[idx].timestamp.epochSecond - meal.displayTime.epochSecond)
+                                } ?: return@mapNotNull null
+                                val dist = kotlin.math.abs(bgReadings[i].timestamp.epochSecond - meal.displayTime.epochSecond)
+                                if (dist <= 7200) Triple(i, dist, meal) else null
                             }
+                            .groupBy { it.first }
+                            .mapValues { (_, candidates) -> candidates.minBy { it.second }.third }
+                        val bgRows = bgReadings.mapIndexed { i, r ->
+                            val nearest = bgIdxToMeal[i]
                             listOf(
                                 r.timestamp.atZone(ZoneId.systemDefault()).format(dateFmt),
                                 "%.2f".format(r.valueMmolL),
@@ -813,13 +820,7 @@ fun TrendsScreen(
                             )
                         }
                         // Also add any meals that had no BG reading nearby
-                        val pairedMealIds = bgReadings.mapNotNull { r ->
-                            mealsByTime.minByOrNull { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond)
-                            }?.takeIf { m ->
-                                kotlin.math.abs(m.displayTime.epochSecond - r.timestamp.epochSecond) <= 7200
-                            }?.id
-                        }.toSet()
+                        val pairedMealIds = bgIdxToMeal.values.map { it.id }.toSet()
                         val mealOnlyRows = mealsByTime
                             .filter { it.id !in pairedMealIds }
                             .map { m ->
