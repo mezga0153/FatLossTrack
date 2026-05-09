@@ -130,6 +130,31 @@ class HealthConnectManager @Inject constructor(
 
     // ── Read helpers ──
 
+    /**
+     * Reads ALL records for a request, transparently paging through HC's 1000-record page limit.
+     * Returns an empty list if the client is unavailable.
+     */
+    private suspend fun <T : Record> readAllRecords(request: ReadRecordsRequest<T>): List<T> {
+        val c = client ?: return emptyList()
+        val all = mutableListOf<T>()
+        var pageToken: String? = null
+        do {
+            val page = c.readRecords(
+                ReadRecordsRequest(
+                    recordType = request.recordType,
+                    timeRangeFilter = request.timeRangeFilter,
+                    dataOriginFilter = request.dataOriginFilter,
+                    ascendingOrder = request.ascendingOrder,
+                    pageSize = request.pageSize,
+                    pageToken = pageToken,
+                )
+            )
+            all.addAll(page.records)
+            pageToken = page.pageToken
+        } while (pageToken != null)
+        return all
+    }
+
     private fun dayRange(date: LocalDate): TimeRangeFilter {
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant()
@@ -145,13 +170,12 @@ class HealthConnectManager @Inject constructor(
     suspend fun getWeight(date: LocalDate, referenceWeightKg: Double? = null): Double? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = WeightRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val records = response.records
             val result = when {
                 records.isEmpty() -> null
                 records.size == 1 || referenceWeightKg == null -> records.last().weight.inKilograms
@@ -199,17 +223,17 @@ class HealthConnectManager @Inject constructor(
             // Sleep ending on this date — look from prior day 6 PM to today noon
             val start = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
             val end = date.atTime(14, 0).atZone(zone).toInstant()
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = SleepSessionRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(start, end),
                 )
             )
-            val result = if (response.records.isEmpty()) {
+            val result = if (records.isEmpty()) {
                 null
             } else {
                 // Prefer sleep stages (actual sleep) over session duration (time in bed)
-                val sleepStages = response.records.flatMap { it.stages }
+                val sleepStages = records.flatMap { it.stages }
                 val actualSleepMs = if (sleepStages.isNotEmpty()) {
                     // Sum only stages that represent actual sleep (not awake/out of bed)
                     sleepStages.filter { stage ->
@@ -221,15 +245,15 @@ class HealthConnectManager @Inject constructor(
                     }
                 } else {
                     // No stages available — fall back to session duration
-                    response.records.sumOf { record ->
+                    records.sumOf { record ->
                         java.time.Duration.between(record.startTime, record.endTime).toMillis()
                     }
                 }
                 val hours = actualSleepMs / 3_600_000.0
                 if (hours > 0) String.format(java.util.Locale.US, "%.1f", hours).toDouble() else null
             }
-            val stageCount = response.records.sumOf { it.stages.size }
-            appLogger.hc("  $date sleep: ${response.records.size} sessions, $stageCount stages → ${result?.let { "${it}h" } ?: "null"}")
+            val stageCount = records.sumOf { it.stages.size }
+            appLogger.hc("  $date sleep: ${records.size} sessions, $stageCount stages → ${result?.let { "${it}h" } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getSleepHours failed", e)
@@ -244,26 +268,26 @@ class HealthConnectManager @Inject constructor(
         val c = client ?: return null
         return try {
             // Try dedicated RestingHeartRateRecord first (written by watches)
-            val restingResponse = c.readRecords(
+            val restingRecords = readAllRecords(
                 ReadRecordsRequest(
                     recordType = RestingHeartRateRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            if (restingResponse.records.isNotEmpty()) {
-                val avg = restingResponse.records.map { it.beatsPerMinute }.average().toInt()
-                appLogger.hc("  $date hr: ${restingResponse.records.size} resting records → $avg bpm")
+            if (restingRecords.isNotEmpty()) {
+                val avg = restingRecords.map { it.beatsPerMinute }.average().toInt()
+                appLogger.hc("  $date hr: ${restingRecords.size} resting records → $avg bpm")
                 return avg
             }
 
             // Fallback: use raw HR samples, take median of bottom quartile
-            val response = c.readRecords(
+            val hrRecords = readAllRecords(
                 ReadRecordsRequest(
                     recordType = HeartRateRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val allSamples = response.records.flatMap { it.samples }
+            val allSamples = hrRecords.flatMap { it.samples }
             val result = if (allSamples.isEmpty()) {
                 null
             } else {
@@ -272,7 +296,7 @@ class HealthConnectManager @Inject constructor(
                 val quartile = sorted.take(maxOf(1, sorted.size / 4))
                 quartile[quartile.size / 2].toInt()
             }
-            appLogger.hc("  $date hr: ${response.records.size} records, ${allSamples.size} samples → ${result?.let { "$it bpm (fallback)" } ?: "null"}")
+            appLogger.hc("  $date hr: ${hrRecords.size} records, ${allSamples.size} samples → ${result?.let { "$it bpm (fallback)" } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getRestingHr failed", e)
@@ -286,29 +310,29 @@ class HealthConnectManager @Inject constructor(
     suspend fun getExercises(date: LocalDate): String? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = ExerciseSessionRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            if (response.records.isEmpty()) {
+            if (records.isEmpty()) {
                 appLogger.hc("  $date exercises: 0 sessions")
                 return null
             }
 
             // Also get active calories for the day
-            val calResponse = c.readRecords(
+            val calRecords = readAllRecords(
                 ReadRecordsRequest(
                     recordType = ActiveCaloriesBurnedRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val totalActiveCal = calResponse.records.sumOf {
+            val totalActiveCal = calRecords.sumOf {
                 it.energy.inKilocalories
             }.toInt()
 
-            val exercises = response.records.map { session ->
+            val exercises = records.map { session ->
                 val durationMin = java.time.Duration.between(
                     session.startTime, session.endTime
                 ).toMinutes().toInt()
@@ -323,7 +347,7 @@ class HealthConnectManager @Inject constructor(
             } else {
                 "[${exercises.joinToString(",")}]"
             }
-            appLogger.hc("  $date exercises: ${response.records.size} sessions, ${totalActiveCal} active kcal")
+            appLogger.hc("  $date exercises: ${records.size} sessions, ${totalActiveCal} active kcal")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getExercises failed", e)
@@ -337,14 +361,14 @@ class HealthConnectManager @Inject constructor(
     suspend fun getBodyFatPct(date: LocalDate): Double? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = BodyFatRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.percentage?.value
-            appLogger.hc("  $date body-fat: ${response.records.size} records → ${result?.let { "%.1f%%".format(it) } ?: "null"}")
+            val result = records.lastOrNull()?.percentage?.value
+            appLogger.hc("  $date body-fat: ${records.size} records → ${result?.let { "%.1f%%".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getBodyFatPct failed", e)
@@ -357,14 +381,14 @@ class HealthConnectManager @Inject constructor(
     suspend fun getBodyWaterKg(date: LocalDate): Double? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = BodyWaterMassRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.mass?.inKilograms
-            appLogger.hc("  $date body-water: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            val result = records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date body-water: ${records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getBodyWaterKg failed", e)
@@ -377,14 +401,14 @@ class HealthConnectManager @Inject constructor(
     suspend fun getLeanBodyMassKg(date: LocalDate): Double? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = LeanBodyMassRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.mass?.inKilograms
-            appLogger.hc("  $date lean-mass: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            val result = records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date lean-mass: ${records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getLeanBodyMassKg failed", e)
@@ -397,14 +421,14 @@ class HealthConnectManager @Inject constructor(
     suspend fun getBoneMassKg(date: LocalDate): Double? {
         val c = client ?: return null
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = BoneMassRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.mass?.inKilograms
-            appLogger.hc("  $date bone-mass: ${response.records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
+            val result = records.lastOrNull()?.mass?.inKilograms
+            appLogger.hc("  $date bone-mass: ${records.size} records → ${result?.let { "%.1f kg".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getBoneMassKg failed", e)
@@ -421,14 +445,14 @@ class HealthConnectManager @Inject constructor(
             return null
         }
         return try {
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = BloodGlucoseRecord::class,
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = response.records.lastOrNull()?.level?.inMillimolesPerLiter
-            appLogger.hc("  $date blood-sugar: ${response.records.size} records → ${result?.let { "%.1f mmol/L".format(it) } ?: "null"}")
+            val result = records.lastOrNull()?.level?.inMillimolesPerLiter
+            appLogger.hc("  $date blood-sugar: ${records.size} records → ${result?.let { "%.1f mmol/L".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
             Log.e(TAG, "getBloodSugar failed", e)
@@ -447,14 +471,14 @@ class HealthConnectManager @Inject constructor(
         return try {
             val from = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant()
             val to = toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
-            val response = c.readRecords(
+            val records = readAllRecords(
                 ReadRecordsRequest(
                     recordType = BloodGlucoseRecord::class,
                     timeRangeFilter = TimeRangeFilter.between(from, to),
                 )
             )
-            appLogger.hc("  $fromDate–$toDate blood-glucose readings: ${response.records.size} records")
-            response.records.map { record ->
+            appLogger.hc("  $fromDate–$toDate blood-glucose readings: ${records.size} records")
+            records.map { record ->
                 com.fatlosstrack.data.local.db.BloodGlucoseEntry(
                     timestamp = record.time,
                     valueMmolL = record.level.inMillimolesPerLiter,
