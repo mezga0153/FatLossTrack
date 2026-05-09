@@ -451,7 +451,9 @@ class HealthConnectManager @Inject constructor(
                     timeRangeFilter = dayRange(date),
                 )
             )
-            val result = records.lastOrNull()?.level?.inMillimolesPerLiter
+            val result = if (records.isEmpty()) null
+                else records.map { it.level.inMillimolesPerLiter }.average()
+                    .let { String.format(java.util.Locale.US, "%.1f", it).toDouble() }
             appLogger.hc("  $date blood-sugar: ${records.size} records → ${result?.let { "%.1f mmol/L".format(it) } ?: "null"}")
             result
         } catch (e: Exception) {
