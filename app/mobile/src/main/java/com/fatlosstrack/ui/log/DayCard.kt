@@ -107,8 +107,8 @@ internal fun DayCard(
 
             if (meals.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
-                // Sort: breakfast → brunch → lunch → dinner, snacks between, null-type at end
-                val sortedMeals = meals.sortedWith(compareByDescending(nullsFirst()) { it.mealType?.ordinal })
+                // Sort by timestamp descending (most recent first)
+                val sortedMeals = meals.sortedByDescending { it.displayTime }
                 val dayTotalKcal = meals.sumOf { it.totalKcal }
                 val dayTotalProtein = meals.sumOf { it.totalProteinG }
                 val dayTotalCarbs = meals.sumOf { it.totalCarbsG }
