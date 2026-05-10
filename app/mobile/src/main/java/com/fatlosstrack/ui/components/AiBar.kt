@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
@@ -74,11 +73,6 @@ fun AiBar(
     val iconGradient = remember {
         Brush.linearGradient(listOf(Color(0xFF7B5FFF), Color(0xFFCDA0FF)))
     }
-    val suggestions = listOf(
-        stringResource(R.string.ai_suggestion_weight),
-        stringResource(R.string.ai_suggestion_food),
-    )
-
     Column(modifier = modifier) {
         // Response card (above the bar)
         AnimatedVisibility(
@@ -237,34 +231,6 @@ fun AiBar(
                     maxLines = 5,
                     textStyle = MaterialTheme.typography.bodyLarge,
                 )
-                // Quick-tap suggestion chips — fade out once the user starts typing
-                AnimatedVisibility(
-                    visible = text.isEmpty(),
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically(),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        suggestions.forEach { suggestion ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(accentColor.copy(alpha = 0.15f))
-                                    .clickable { text = suggestion }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                            ) {
-                                Text(
-                                    suggestion,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = accentColor,
-                                    fontSize = 11.sp,
-                                )
-                            }
-                        }
-                    }
-                }
             }
 
             Spacer(Modifier.width(8.dp))
