@@ -50,6 +50,7 @@ import com.fatlosstrack.ui.settings.SetProfileScreen
 import com.fatlosstrack.ui.settings.SettingsScreen
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.settings.AiUsageScreen
+import com.fatlosstrack.ui.settings.BackupManagerScreen
 import com.fatlosstrack.ui.settings.BookmarksScreen
 import com.fatlosstrack.ui.settings.ModelSelectorScreen
 import com.fatlosstrack.ui.trends.TrendsScreen
@@ -124,6 +125,7 @@ fun FatLossTrackNavGraph(
             currentRoute == "set_profile_onboarding" ||
             currentRoute == "set_goal_onboarding" ||
             currentRoute == "log_viewer" ||
+            currentRoute == "backup_manager" ||
             currentRoute == "ai_usage" ||
             currentRoute == "model_selector" ||
             currentRoute == "bookmarks"
@@ -223,6 +225,7 @@ fun FatLossTrackNavGraph(
                         onViewModelSelector = { navController.navigate("model_selector") },
                         onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
                         onManageBookmarks = { navController.navigate("bookmarks") },
+                        onManageBackups = { navController.navigate("backup_manager") },
                         onToneChanged = {
                             val today = java.time.LocalDate.now()
                             homeStateHolder.daySummaryGenerator.launchForDates(
@@ -280,6 +283,14 @@ fun FatLossTrackNavGraph(
                 composable("bookmarks") {
                     BookmarksScreen(
                         bookmarkedMealDao = bookmarkedMealDao,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Backup Manager
+                composable("backup_manager") {
+                    BackupManagerScreen(
+                        autoBackupManager = settingsStateHolder.autoBackupManager,
                         onBack = { navController.popBackStack() },
                     )
                 }

@@ -224,6 +224,13 @@
     <string name="backup_local">Device storage</string>
     <string name="backup_save_to_device">Export zip</string>
     <string name="backup_load_from_device">Import zip</string>
+    <string name="backup_manager_title">Backups</string>
+    <string name="backup_manager_info">Auto-backups are saved to Documents/FatLossTrack/ on every app open and after each meal. Keeps the last 7 days.</string>
+    <string name="backup_import">Import backup</string>
+    <string name="backup_import_message">This will replace all current data with the imported backup. The app will restart afterwards.</string>
+    <string name="backup_delete_title">Delete backup?</string>
+    <string name="backup_delete_message">Delete backup from %s?</string>
+    <string name="backup_manage">Manage backups</string>
     <string name="settings_section_ai">AI</string>
     <string name="ai_api_key_label">OpenAI API Key</string>
     <string name="ai_api_key_desc">Used for meal analysis, chat, and coaching. Your key is stored on-device only.</string>

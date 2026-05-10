@@ -73,6 +73,7 @@ fun SettingsScreen(
     onViewModelSelector: (() -> Unit)? = null,
     onViewWelcome: (() -> Unit)? = null,
     onManageBookmarks: (() -> Unit)? = null,
+    onManageBackups: (() -> Unit)? = null,
     onToneChanged: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -756,6 +757,11 @@ fun SettingsScreen(
                     enabled = !isWorking2,
                 ) {
                     Text(stringResource(R.string.backup_load_from_device), color = Primary)
+                }
+                if (onManageBackups != null) {
+                    OutlinedButton(onClick = onManageBackups) {
+                        Text(stringResource(R.string.backup_manage), color = Primary)
+                    }
                 }
             }
 
