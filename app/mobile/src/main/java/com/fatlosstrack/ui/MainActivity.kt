@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.*
+import com.fatlosstrack.data.backup.AutoBackupManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
@@ -25,6 +26,9 @@ import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
 import com.fatlosstrack.ui.theme.purpleDarkColors
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -89,9 +93,15 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var bookmarkedMealDao: BookmarkedMealDao
 
+    @Inject
+    lateinit var autoBackupManager: AutoBackupManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
+        CoroutineScope(Dispatchers.IO).launch {
+            autoBackupManager.runBackup()
+        }
         enableEdgeToEdge()
         setContent {
             val themePresetName by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")
