@@ -21,6 +21,7 @@ import com.fatlosstrack.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -169,7 +170,8 @@ class AnalysisResultStateHolder @Inject constructor(
                     "Image analysis: mode=$modeStr, photos=${bitmaps.size}" +
                         if (correction != null) ", correction" else "",
                 )
-                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction, userComment.takeIf { it.isNotBlank() })
+                val recentMealsContext = buildRecentMealsContext()
+                val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction, userComment.takeIf { it.isNotBlank() }, recentMealsContext)
 
                 apiResult.fold(
                     onSuccess = { raw ->
@@ -196,6 +198,17 @@ class AnalysisResultStateHolder @Inject constructor(
                 errorMessage = e.message ?: "Unexpected error"
                 analyzing = false
             }
+        }
+    }
+
+    private suspend fun buildRecentMealsContext(): String? {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+        val meals = mealDao.getMealsForDateRange(yesterday, today).first()
+        if (meals.isEmpty()) return null
+        return meals.joinToString("\n") { m ->
+            val day = if (m.date == today) "Today" else "Yesterday"
+            "$day: ${m.description} (${m.totalKcal} kcal, P ${m.totalProteinG}g C ${m.totalCarbsG}g F ${m.totalFatG}g)"
         }
     }
 

@@ -271,14 +271,25 @@ class OpenAiService @Inject constructor(
     /**
      * Parse a natural-language meal description into structured JSON.
      * Returns the raw JSON string from AI with day_offset, items, etc.
+     * [recentMealsContext] is an optional pre-built summary of meals already logged
+     * today and yesterday, injected as additional context.
      */
-    suspend fun parseTextMeal(userMessage: String): Result<String> {
+    suspend fun parseTextMeal(userMessage: String, recentMealsContext: String? = null): Result<String> {
         appLogger.ai("Text meal parse: ${userMessage.take(80)}")
         val now = java.time.LocalDateTime.now()
         val dayOfWeek = now.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
         val dateContext = "Today is $dayOfWeek, ${now.toLocalDate()}. Current time is ${now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.\n\n"
         val tone = prefs.coachTone.first()
-        val prompt = dateContext + TEXT_MEAL_LOG_PROMPT + toneCoachNoteInstruction(tone)
+        val prompt = buildString {
+            append(dateContext)
+            if (!recentMealsContext.isNullOrBlank()) {
+                append("Meals already logged (for context — do NOT re-add these):\n")
+                append(recentMealsContext)
+                append("\n\n")
+            }
+            append(TEXT_MEAL_LOG_PROMPT)
+            append(toneCoachNoteInstruction(tone))
+        }
         return chat(userMessage, prompt, feature = "meal_text")
     }
 
@@ -288,6 +299,7 @@ class OpenAiService @Inject constructor(
         mode: String, // "log" or "suggest"
         correction: String? = null,
         userComment: String? = null,
+        recentMealsContext: String? = null,
     ): Result<String> = runCatching {
         appLogger.ai("Vision analysis: ${photos.size} photos, mode=$mode${if (correction != null) ", correction" else ""}${if (userComment != null) ", note" else ""}")
         val apiKey = prefs.openAiApiKey.first()
@@ -300,6 +312,10 @@ class OpenAiService @Inject constructor(
         val prompt = buildString {
             append(basePrompt)
             append(toneCoachNoteInstruction(tone))
+            if (!recentMealsContext.isNullOrBlank()) {
+                append("\n\nMeals already logged today and yesterday (for context — do NOT re-add these):\n")
+                append(recentMealsContext)
+            }
             if (!userComment.isNullOrBlank()) {
                 append("\n\nUser note: $userComment")
             }

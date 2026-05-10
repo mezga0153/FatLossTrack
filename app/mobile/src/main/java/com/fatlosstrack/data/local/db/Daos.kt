@@ -40,6 +40,9 @@ interface MealDao {
     @Query("SELECT * FROM meal_entries WHERE date = :date ORDER BY createdAt ASC")
     fun getMealsForDate(date: LocalDate): Flow<List<MealEntry>>
 
+    @Query("SELECT * FROM meal_entries WHERE date >= :from AND date <= :to ORDER BY date ASC, createdAt ASC")
+    fun getMealsForDateRange(from: LocalDate, to: LocalDate): Flow<List<MealEntry>>
+
     @Query("SELECT * FROM meal_entries WHERE date >= :since ORDER BY date DESC, createdAt DESC")
     fun getMealsSince(since: LocalDate): Flow<List<MealEntry>>
 

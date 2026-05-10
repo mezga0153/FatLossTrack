@@ -14,6 +14,7 @@ import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -39,6 +40,19 @@ class AiBarStateHolder @Inject constructor(
         private set
     var mealLogged: Boolean by mutableStateOf(false)
         private set
+
+    private suspend fun buildRecentMealsContext(): String? {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+        val meals = mealDao.getMealsForDateRange(yesterday, today).first()
+        if (meals.isEmpty()) return null
+        return meals
+            .sortedWith(compareBy({ it.date }, { it.id }))
+            .joinToString("\n") { m ->
+                val day = if (m.date == today) "Today" else "Yesterday"
+                "$day: ${m.description} (${m.totalKcal} kcal, P ${m.totalProteinG}g C ${m.totalCarbsG}g F ${m.totalFatG}g)"
+            }
+    }
 
     fun dismiss() {
         aiResponse = null
@@ -68,7 +82,8 @@ class AiBarStateHolder @Inject constructor(
 
         appScope.launch {
             AppLogger.instance?.ai("AiBar: text query — ${query.take(60)}")
-            val mealResult = openAiService.parseTextMeal(query)
+            val recentMealsContext = buildRecentMealsContext()
+            val mealResult = openAiService.parseTextMeal(query, recentMealsContext)
             mealResult.fold(
                 onSuccess = { raw ->
                     val parsed = tryParseMealJson(raw)
