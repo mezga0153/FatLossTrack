@@ -432,7 +432,9 @@
     <string name="ai_thinking">Thinking…</string>
     <string name="ai_meal_logged">Meal logged</string>
     <string name="ai_coach">Coach</string>
-    <string name="ai_bar_placeholder">Ask anything…</string>
+    <string name="ai_bar_placeholder">Ask AI about your day…</string>
+    <string name="ai_suggestion_weight">Why is my weight up?</string>
+    <string name="ai_suggestion_food">Analyze today\'s food</string>
     <string name="error_something_went_wrong">Something went wrong</string>
 
     <!-- ChatScreen -->

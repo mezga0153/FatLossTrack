@@ -3,6 +3,7 @@ package com.fatlosstrack.ui.components
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,11 +19,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
-import androidx.compose.ui.res.stringResource
 import java.time.LocalDate
 
 /**
@@ -41,7 +46,38 @@ fun AiBar(
 ) {
     var text by remember { mutableStateOf("") }
     val pillShape = RoundedCornerShape(28.dp)
+    val iconShape = RoundedCornerShape(14.dp)
     val errorFallback = stringResource(R.string.error_something_went_wrong)
+
+    // Capture @Composable colors for use in non-composable modifier lambdas
+    val accentColor = Accent
+    val primaryColor = Primary
+    val aiBarBgColor = AiBarBg
+
+    val rainbowBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFFCDA0FF),
+                Color(0xFF9B8AFF),
+                Color(0xFF6C9CFF),
+                Color(0xFF59D8E0),
+                Color(0xFF59D8A0),
+                Color(0xFFB8E048),
+                Color(0xFFFFD060),
+                Color(0xFFFF9A3C),
+                Color(0xFFFF6B6B),
+                Color(0xFFFF6BC6),
+                Color(0xFFCDA0FF),
+            )
+        )
+    }
+    val iconGradient = remember {
+        Brush.linearGradient(listOf(Color(0xFF7B5FFF), Color(0xFFCDA0FF)))
+    }
+    val suggestions = listOf(
+        stringResource(R.string.ai_suggestion_weight),
+        stringResource(R.string.ai_suggestion_food),
+    )
 
     Column(modifier = modifier) {
         // Response card (above the bar)
@@ -67,7 +103,7 @@ fun AiBar(
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Primary,
+                                color = primaryColor,
                                 strokeWidth = 2.dp,
                             )
                             Spacer(Modifier.width(12.dp))
@@ -111,7 +147,7 @@ fun AiBar(
                                     Text(
                                         stringResource(R.string.ai_coach),
                                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = Accent,
+                                        color = accentColor,
                                     )
                                 }
                                 Spacer(Modifier.height(4.dp))
@@ -143,71 +179,119 @@ fun AiBar(
             }
         }
 
-        // Input bar
+        // Input pill
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = pillShape,
+                    clip = false,
+                    ambientColor = accentColor.copy(alpha = 0.45f),
+                    spotColor = primaryColor.copy(alpha = 0.35f),
+                )
                 .clip(pillShape)
-                .border(width = 1.5.dp, color = Accent.copy(alpha = 0.3f), shape = pillShape)
-                .background(AiBarBg)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .background(aiBarBgColor)
+                .border(width = 2.dp, brush = rainbowBrush, shape = pillShape)
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = Primary,
-                modifier = Modifier.size(18.dp).padding(start = 6.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-            TextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text(stringResource(R.string.ai_bar_placeholder), style = MaterialTheme.typography.bodyMedium) },
-                modifier = Modifier.weight(1f),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = AiBarBg,
-                    unfocusedContainerColor = AiBarBg,
-                    focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                ),
-                singleLine = false,
-                maxLines = 5,
-                textStyle = MaterialTheme.typography.bodyLarge,
-            )
-            // Send button (shows when text is entered)
-            if (text.isNotBlank()) {
-                IconButton(
-                    onClick = {
-                        val query = text.trim()
-                        text = ""
-                        state.submit(query, errorFallback, onTextMealAnalyzed, onChatOpen)
+            // Left: AI sparkle icon in gradient rounded square
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(iconShape)
+                    .background(iconGradient),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Center: text field + suggestion chips
+            Column(modifier = Modifier.weight(1f)) {
+                TextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = {
+                        Text(
+                            stringResource(R.string.ai_bar_placeholder),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     },
-                    enabled = !state.isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    singleLine = false,
+                    maxLines = 5,
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                )
+                // Quick-tap suggestion chips — fade out once the user starts typing
+                AnimatedVisibility(
+                    visible = text.isEmpty(),
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
                 ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = stringResource(R.string.cd_send),
-                        tint = Primary,
-                    )
-                }
-            } else {
-                IconButton(onClick = onCameraClick) {
-                    Box {
-                        Icon(
-                            Icons.Default.CameraAlt,
-                            contentDescription = stringResource(R.string.cd_camera),
-                            tint = Accent.copy(alpha = 0.7f),
-                        )
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(12.dp).align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp),
-                        )
+                    Row(
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        suggestions.forEach { suggestion ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(accentColor.copy(alpha = 0.15f))
+                                    .clickable { text = suggestion }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                            ) {
+                                Text(
+                                    suggestion,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = accentColor,
+                                    fontSize = 11.sp,
+                                )
+                            }
+                        }
                     }
                 }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Right: camera or send in gradient rounded square
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(iconShape)
+                    .background(iconGradient)
+                    .clickable(enabled = !state.isLoading) {
+                        if (text.isNotBlank()) {
+                            val query = text.trim()
+                            text = ""
+                            state.submit(query, errorFallback, onTextMealAnalyzed, onChatOpen)
+                        } else {
+                            onCameraClick()
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (text.isNotBlank()) Icons.AutoMirrored.Filled.Send else Icons.Default.CameraAlt,
+                    contentDescription = if (text.isNotBlank()) stringResource(R.string.cd_send) else stringResource(R.string.cd_camera),
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
     }
