@@ -39,6 +39,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_GOAL_TYPE = stringPreferencesKey("goal_type") // "weight_loss" | "diabetes"
         private val KEY_MAX_CARBS_PER_MEAL = intPreferencesKey("max_carbs_per_meal") // grams
         private val KEY_MAX_CARBS_PER_DAY = intPreferencesKey("max_carbs_per_day") // grams
+        private val KEY_USE_METRIC = androidx.datastore.preferences.core.booleanPreferencesKey("use_metric")
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -114,6 +115,11 @@ class PreferencesManager @Inject constructor(
     /** Max carbs per day (grams) for diabetes mode. Default 150g. */
     val maxCarbsPerDay: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[KEY_MAX_CARBS_PER_DAY] ?: 150
+    }
+
+    /** true = metric (kg, cm, mmol/L) — default; false = imperial (lbs, ft/in, mg/dL) */
+    val useMetric: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_USE_METRIC] ?: true
     }
 
     suspend fun setOpenAiApiKey(key: String) {
@@ -204,6 +210,12 @@ class PreferencesManager @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[KEY_MAX_CARBS_PER_MEAL] = maxCarbsPerMeal
             prefs[KEY_MAX_CARBS_PER_DAY] = maxCarbsPerDay
+        }
+    }
+
+    suspend fun setUseMetric(metric: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_USE_METRIC] = metric
         }
     }
 }

@@ -38,6 +38,16 @@ class OpenAiService @Inject constructor(
         return if (goalType == "diabetes") DIABETES_SYSTEM_PROMPT else SYSTEM_PROMPT
     }
 
+    /**
+     * Override unit instructions based on the user's metric/imperial preference.
+     * The base prompts default to metric; this injects an imperial override when needed.
+     */
+    private suspend fun unitsSuffix(): String {
+        val metric = prefs.useMetric.first()
+        return if (metric) ""
+        else "\n\nIMPORTANT: The user uses imperial measurements. Use lbs (not kg), ft and inches (not cm), mg/dL (not mmol/L), miles (not km), fl oz (not ml). Convert all values accordingly. Weight entries and goals are in lbs."
+    }
+
     /** Check if API key is configured */
     suspend fun hasApiKey(): Boolean = prefs.openAiApiKey.first().isNotBlank()
 
@@ -80,13 +90,14 @@ class OpenAiService @Inject constructor(
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
+        val unitSuffix = unitsSuffix()
 
         val body = buildJsonObject {
             put("model", model)
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "system")
-                    put("content", systemPrompt + langSuffix)
+                    put("content", systemPrompt + unitSuffix + langSuffix)
                 }
                 addJsonObject {
                     put("role", "user")
@@ -130,8 +141,9 @@ class OpenAiService @Inject constructor(
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
+        val unitSuffix = unitsSuffix()
 
-        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + langSuffix
+        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + unitSuffix + langSuffix
 
         val body = buildJsonObject {
             put("model", model)
@@ -185,8 +197,9 @@ class OpenAiService @Inject constructor(
         require(apiKey.isNotBlank()) { "OpenAI API key not set. Go to Settings → AI to configure." }
         val model = prefs.openAiModel.first()
         val langSuffix = languageSuffix()
+        val unitSuffix = unitsSuffix()
 
-        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + langSuffix
+        val systemContent = systemPromptForGoalType() + "\n\n" + contextBlock + unitSuffix + langSuffix
 
         val body = buildJsonObject {
             put("model", model)
@@ -280,6 +293,7 @@ class OpenAiService @Inject constructor(
         val dayOfWeek = now.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
         val dateContext = "Today is $dayOfWeek, ${now.toLocalDate()}. Current time is ${now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.\n\n"
         val tone = prefs.coachTone.first()
+        val unitSuffix = unitsSuffix()
         val prompt = buildString {
             append(dateContext)
             if (!recentMealsContext.isNullOrBlank()) {
@@ -288,6 +302,7 @@ class OpenAiService @Inject constructor(
                 append("\n\n")
             }
             append(TEXT_MEAL_LOG_PROMPT)
+            append(unitSuffix)
             append(toneCoachNoteInstruction(tone))
         }
         return chat(userMessage, prompt, feature = "meal_text")
@@ -309,8 +324,10 @@ class OpenAiService @Inject constructor(
 
         val tone = prefs.coachTone.first()
         val basePrompt = if (mode == "log") MEAL_LOG_PROMPT else MEAL_SUGGEST_PROMPT
+        val unitSuffix = unitsSuffix()
         val prompt = buildString {
             append(basePrompt)
+            append(unitSuffix)
             append(toneCoachNoteInstruction(tone))
             if (!recentMealsContext.isNullOrBlank()) {
                 append("\n\nMeals already logged today and yesterday (for context — do NOT re-add these):\n")

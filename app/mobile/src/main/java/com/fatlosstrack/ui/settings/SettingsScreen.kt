@@ -198,6 +198,7 @@ fun SettingsScreen(
     // AI settings
     val storedApiKey by preferencesManager.openAiApiKey.collectAsState(initial = "")
     val storedModel by preferencesManager.openAiModel.collectAsState(initial = "gpt-5.4-mini")
+    val savedUseMetric by preferencesManager.useMetric.collectAsState(initial = true)
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
@@ -438,6 +439,34 @@ fun SettingsScreen(
                             },
                     )
                 }
+            }
+        }
+
+        // -- Units --
+        SettingsSection("Units") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text("Measurement system", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        if (savedUseMetric) "Metric (kg, cm, mmol/L)" else "Imperial (lbs, ft/in, mg/dL)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = savedUseMetric,
+                    onCheckedChange = { scope.launch { preferencesManager.setUseMetric(it) } },
+                    thumbContent = {
+                        Text(
+                            if (savedUseMetric) "kg" else "lb",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                )
             }
         }
 
