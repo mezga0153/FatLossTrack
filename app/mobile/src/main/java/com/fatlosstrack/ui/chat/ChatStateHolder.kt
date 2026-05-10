@@ -117,6 +117,7 @@ class ChatStateHolder @Inject constructor(
                 )
                 AppLogger.instance?.meal("Logged from chat: $description — $kcal kcal")
                 daySummaryGenerator.launchForDate(today, "Chat:mealLogged")
+                com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
             } catch (e: Exception) {
                 AppLogger.instance?.error("Chat", "Failed to log meal from chat: ${e.message}")
             }
@@ -129,6 +130,7 @@ class ChatStateHolder @Inject constructor(
             mealDao.insert(entry)
             AppLogger.instance?.meal("Logged from chat review: ${entry.description.take(50)} — ${entry.totalKcal} kcal")
             daySummaryGenerator.launchForDate(entry.date, "Chat:mealReviewed")
+            com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
         }
     }
 
@@ -175,6 +177,7 @@ class ChatStateHolder @Inject constructor(
                     "${analysisResult.totalCalories} kcal, date=$date",
             )
             daySummaryGenerator.launchForDate(date, "Chat:mealAnalysisLogged")
+            com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
         }
     }
 

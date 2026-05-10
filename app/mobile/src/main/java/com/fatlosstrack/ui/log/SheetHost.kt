@@ -161,6 +161,7 @@ fun LogSheetHost(
                 onSave = { newMeal ->
                     scope.launch {
                         mealDao.insert(newMeal)
+                        com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
                         AppLogger.instance?.meal("Added: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, ${newMeal.totalProteinG}g P, ${newMeal.totalCarbsG}g C, ${newMeal.totalFatG}g F, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
                         launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "$logTag:mealAdd")
                         addMealSheetState.hide()

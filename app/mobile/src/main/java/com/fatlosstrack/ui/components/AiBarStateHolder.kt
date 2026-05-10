@@ -118,6 +118,7 @@ class AiBarStateHolder @Inject constructor(
                             ),
                         )
                         daySummaryGenerator.launchForDate(targetDate, "AiBar:textMealLogged")
+                        com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
                         isLoading = false
                         mealLogged = true
                         aiResponse = "${parsed.description} — ${parsed.totalCalories} kcal" +

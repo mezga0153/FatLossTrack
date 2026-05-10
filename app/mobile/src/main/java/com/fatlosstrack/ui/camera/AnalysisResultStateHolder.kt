@@ -316,6 +316,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     "${analysisResult.totalCalories} kcal, cat=$category, type=$mealType, date=$effectiveDate",
             )
             daySummaryGenerator.launchForDate(effectiveDate, "AnalysisResult:cameraMealLogged")
+            com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
             cleanup()
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 onComplete()

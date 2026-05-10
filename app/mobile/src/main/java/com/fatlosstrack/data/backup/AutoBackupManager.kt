@@ -35,6 +35,14 @@ class AutoBackupManager @Inject constructor(
         private const val PREFIX = "backup_"
         private const val EXTENSION = ".zip"
         private const val MAX_BACKUPS = 7
+
+        /** Global instance set after DI, for use from composables without injection */
+        var instance: AutoBackupManager? = null
+            private set
+    }
+
+    init {
+        instance = this
     }
 
     private val dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -48,9 +56,6 @@ class AutoBackupManager @Inject constructor(
 
             val today = LocalDate.now().format(dateFormat)
             val backupFile = File(backupDir, "$PREFIX$today$EXTENSION")
-
-            // Skip if today's backup already exists
-            if (backupFile.exists()) return@withContext
 
             // Checkpoint the WAL so all data is in the main DB file
             database.openHelper.writableDatabase
