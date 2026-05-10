@@ -288,6 +288,8 @@ launchSummary(date, dailyLogDao, daySummaryGenerator)  // from LogHelpers.kt
 8. **Text meal weekday resolution**: AI prompt needs current date context to resolve "last Friday" etc.
 9. **Summary generation blocks UI**: Always do async with placeholder, never on main thread
 10. **`DayCard` and helpers in `ui/log/`** are `internal`, not `private` — shared with `HomeScreen`
+11. **NEVER run `adb uninstall`** — it permanently deletes ALL user data (Room DB, DataStore preferences, API keys, meal history, goals). To reinstall, ALWAYS use `adb install -r` (replace) which preserves app data. If the app crashes after install, do a clean build (`rm -rf app/mobile/build && ./gradlew :mobile:assembleDebug --no-build-cache`) and `adb install -r` again. Never uninstall.
+12. **Gradle build cache can produce corrupt APKs** — if `mergeProjectDexDebug` says `FROM-CACHE` and the app crashes with `ClassNotFoundException`, clear the cache: `rm -rf ~/.gradle/caches/build-cache-* app/mobile/build app/build app/.gradle` and rebuild with `--no-build-cache`.
 
 ---
 
