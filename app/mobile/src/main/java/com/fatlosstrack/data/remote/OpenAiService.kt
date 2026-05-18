@@ -40,12 +40,18 @@ class OpenAiService @Inject constructor(
 
     /**
      * Override unit instructions based on the user's metric/imperial preference.
-     * The base prompts default to metric; this injects an imperial override when needed.
+     * For metric users, actively reinforce metric to prevent AI defaulting to US units.
      */
     private suspend fun unitsSuffix(): String {
         val metric = prefs.useMetric.first()
-        return if (metric) ""
-        else "\n\nIMPORTANT: The user uses imperial measurements. Use lbs (not kg), ft and inches (not cm), mg/dL (not mmol/L), miles (not km), fl oz (not ml). Convert all values accordingly. Weight entries and goals are in lbs."
+        return if (metric)
+            "\n\nCRITICAL — UNITS: You MUST use metric units exclusively throughout your entire response. " +
+            "Weight: kg (never lbs or oz). Distance: km (never miles). Height: cm (never feet/inches). " +
+            "Volume: ml (never fl oz or cups). Blood glucose: mmol/L (never mg/dL). " +
+            "Food portions: grams (g) or ml — NEVER cups, oz, fl oz, or tablespoons. " +
+            "If you catch yourself about to write a US unit, stop and convert to metric first."
+        else
+            "\n\nIMPORTANT: The user uses imperial measurements. Use lbs (not kg), ft and inches (not cm), mg/dL (not mmol/L), miles (not km), fl oz (not ml). Convert all values accordingly. Weight entries and goals are in lbs."
     }
 
     /** Check if API key is configured */
@@ -497,7 +503,8 @@ Place each [MEAL]...[/MEAL] block on its own line. The block must be valid JSON.
 private const val VISION_SYSTEM_PROMPT = """You are a nutrition analysis assistant for FatLoss Track.
 Your ONLY job is to analyze meal photos and return structured JSON.
 Do NOT use markdown. Do NOT add explanatory text outside the JSON.
-Respond with ONLY valid JSON — no code fences, no commentary."""
+Respond with ONLY valid JSON — no code fences, no commentary.
+CRITICAL — UNITS: Use metric units exclusively. All weights/portions in grams (g) or ml — NEVER cups, oz, fl oz, or tablespoons. Calories in kcal. Blood glucose in mmol/L (never mg/dL). Never use lbs, oz, fl oz, cups, or any US/imperial units."""
 
 private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond with ONLY this JSON (no markdown, no code fences, no extra text):
 {
@@ -507,7 +514,7 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond with 
   "items": [
     {
       "name": "Item name",
-      "portion": "Estimated portion size",
+      "portion": "Estimated portion in grams or ml (e.g. 150g, 200ml) — never cups or oz",
       "calories": 0,
       "protein_g": 0,
       "fat_g": 0,
@@ -522,6 +529,7 @@ private const val MEAL_LOG_PROMPT = """Analyze this meal photo(s). Respond with 
 }
 For "source", determine if the meal is: "home" (home-cooked), "restaurant" (dine-in/takeout from a restaurant), or "fast_food" (fast food chain). Look at plating, packaging, and food style to decide.
 For "meal_type", infer from the food and current time of day: "breakfast", "lunch", "dinner", or "snack".
+All portion sizes MUST be in grams (g) or millilitres (ml). Never use cups, oz, fl oz, tablespoons, or any US/imperial units.
 Be specific with portions. Err on the side of slightly overestimating calories."""
 
 private const val MEAL_SUGGEST_PROMPT = """Look at the available ingredients in this photo(s) and suggest a meal.
@@ -532,7 +540,7 @@ Respond with ONLY this JSON (no markdown, no code fences, no extra text):
   "items": [
     {
       "name": "Dish component",
-      "portion": "Recommended portion",
+      "portion": "Recommended portion in grams or ml (e.g. 150g, 200ml) — never cups or oz",
       "calories": 0,
       "protein_g": 0,
       "fat_g": 0,
@@ -545,10 +553,13 @@ Respond with ONLY this JSON (no markdown, no code fences, no extra text):
   "total_fat_g": 0,
   "coach_note": "Why this meal is good for fat loss and how to prepare it quickly"
 }
+All portion sizes MUST be in grams (g) or millilitres (ml). Never use cups, oz, fl oz, tablespoons, or any US/imperial units.
 Prioritize high-protein, moderate-calorie meals."""
 
 private const val TEXT_MEAL_LOG_PROMPT = """You are a calorie-tracking assistant inside FatLoss Track.
 The user will describe what they ate in natural language. They may mention timing like "this morning", "yesterday evening", "for lunch", etc.
+
+CRITICAL — UNITS: All portion sizes MUST be in grams (g) or millilitres (ml). Never use cups, oz, fl oz, tablespoons, or any US/imperial units. Calories in kcal.
 
 First decide: is this a meal log or a general question?
 
@@ -600,6 +611,8 @@ Estimate portions generously. Err on the side of slightly overestimating calorie
 private const val AI_MEAL_EDIT_PROMPT = """You are FatLoss Track's meal correction assistant.
 The user will provide an existing meal entry (as JSON) and a correction comment describing what's wrong.
 Apply the correction to the meal and respond with ONLY the corrected JSON (no markdown fences, no extra text).
+
+CRITICAL — UNITS: All portion sizes MUST be in grams (g) or millilitres (ml). Never use cups, oz, fl oz, tablespoons, or any US/imperial units. Calories in kcal.
 
 Use this exact JSON format:
 {

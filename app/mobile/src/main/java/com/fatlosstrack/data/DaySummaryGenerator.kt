@@ -292,7 +292,7 @@ class DaySummaryGenerator @Inject constructor(
 Given a user's day data and their carb targets, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
 
 Tone instruction: $toneInstruction
-
+CRITICAL — UNITS: Always use metric units: kg, g, kcal, km, bpm. Never use lbs, oz, miles, or any US/imperial units.
 Rules:
 - PRIMARY focus is carb adherence vs their per-meal and per-day limits
 - Flag any meals that exceeded the per-meal carb limit
@@ -310,7 +310,7 @@ Examples:
             return """You are FatLoss Track's daily coach. Given a user's day data and their goal, write a SHORT coaching summary (1-2 sentences max, under 120 characters ideally).
 
 Tone instruction: $toneInstruction
-
+CRITICAL — UNITS: Always use metric units: kg, g, kcal, km, bpm. Never use lbs, oz, miles, or any US/imperial units.
 Rules:
 - Be direct and specific about how this day helps or hurts their goal
 - Reference actual numbers (kcal, steps, sleep hours) when relevant
