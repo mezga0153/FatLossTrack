@@ -192,6 +192,14 @@ fun FatLossTrackNavGraph(
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
                         },
+                        onStatClick = { metric ->
+                            trendsStateHolder.setSelectedMetric(metric)
+                            navController.navigate(Tab.Trends.route) {
+                                popUpTo(Tab.Home.route) { saveState = true }
+                                restoreState = true
+                                launchSingleTop = true
+                            }
+                        },
                     )
                 }
                 composable(Tab.Trends.route) {
@@ -204,6 +212,14 @@ fun FatLossTrackNavGraph(
                         state = logStateHolder,
                         onCameraForDate = { date ->
                             navController.navigate("capture/log?targetDate=$date")
+                        },
+                        onStatClick = { metric ->
+                            trendsStateHolder.setSelectedMetric(metric)
+                            navController.navigate(Tab.Trends.route) {
+                                popUpTo(Tab.Log.route) { saveState = true }
+                                restoreState = true
+                                launchSingleTop = true
+                            }
                         },
                     )
                 }

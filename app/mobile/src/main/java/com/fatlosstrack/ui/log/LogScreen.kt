@@ -18,6 +18,7 @@ import com.fatlosstrack.R
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
+import com.fatlosstrack.ui.trends.TrendMetric
 import java.time.LocalDate
 
 // ── Main Screen ──
@@ -27,6 +28,7 @@ import java.time.LocalDate
 fun LogScreen(
     state: LogStateHolder,
     onCameraForDate: (LocalDate) -> Unit = {},
+    onStatClick: ((TrendMetric) -> Unit)? = null,
 ) {
     val startDateStr by state.startDate.collectAsState(initial = null)
     val startDate = startDateStr?.let {
@@ -128,6 +130,7 @@ fun LogScreen(
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = date },
                 onCameraClick = { onCameraForDate(date) },
+                onStatClick = onStatClick,
             )
         }
 

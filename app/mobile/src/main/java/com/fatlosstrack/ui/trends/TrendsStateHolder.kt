@@ -1,6 +1,7 @@
 package com.fatlosstrack.ui.trends
 
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateOf
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.BloodGlucoseDao
@@ -12,6 +13,11 @@ import com.fatlosstrack.data.remote.OpenAiService
 import java.time.Instant
 import java.time.LocalDate
 import javax.inject.Inject
+
+enum class TrendMetric {
+    WEIGHT, STEPS, SLEEP, HEART_RATE, CALORIES, MACROS,
+    BODY_FAT, LEAN_MASS, BODY_WATER, BONE_MASS, BLOOD_SUGAR
+}
 
 /**
  * Read-only state holder for [TrendsScreen].
@@ -33,6 +39,17 @@ class TrendsStateHolder @Inject constructor(
     val weeklyRate get() = _preferencesManager.weeklyRate
     val startWeight get() = _preferencesManager.startWeight
     val preferencesManager get() = _preferencesManager
+
+    // ── Transient UI state for navigating to specific metrics ──
+    val selectedMetric = mutableStateOf<TrendMetric?>(null)
+
+    fun setSelectedMetric(metric: TrendMetric) {
+        selectedMetric.value = metric
+    }
+
+    fun clearSelectedMetric() {
+        selectedMetric.value = null
+    }
 
     // ── DAO Flow accessors ──
     fun logsSince(since: LocalDate) = dailyLogDao.getLogsSince(since)

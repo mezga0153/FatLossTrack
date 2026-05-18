@@ -22,6 +22,7 @@ import com.fatlosstrack.data.local.db.DailyLog
 import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.ui.theme.*
+import com.fatlosstrack.ui.trends.TrendMetric
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -42,6 +43,7 @@ internal fun DayCard(
     onMealClick: (MealEntry) -> Unit,
     onAddMeal: () -> Unit,
     onCameraClick: (() -> Unit)? = null,
+    onStatClick: ((TrendMetric) -> Unit)? = null,
 ) {
     val dateLabel = when (date) {
         LocalDate.now() -> stringResource(R.string.day_today)
@@ -70,10 +72,10 @@ internal fun DayCard(
 
             // Stats chips
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                StatChip(Icons.Default.Scale, log?.weightKg?.let { "%.1f kg".format(it) }, stringResource(R.string.stat_weight))
-                StatChip(Icons.AutoMirrored.Filled.DirectionsWalk, log?.steps?.let { "%,d".format(it) }, stringResource(R.string.stat_steps))
-                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { formatSleepDuration(it) }, stringResource(R.string.stat_sleep))
-                StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, stringResource(R.string.stat_heart_rate))
+                StatChip(Icons.Default.Scale, log?.weightKg?.let { "%.1f kg".format(it) }, stringResource(R.string.stat_weight), TrendMetric.WEIGHT, onStatClick)
+                StatChip(Icons.AutoMirrored.Filled.DirectionsWalk, log?.steps?.let { "%,d".format(it) }, stringResource(R.string.stat_steps), TrendMetric.STEPS, onStatClick)
+                StatChip(Icons.Default.Bedtime, log?.sleepHours?.let { formatSleepDuration(it) }, stringResource(R.string.stat_sleep), TrendMetric.SLEEP, onStatClick)
+                StatChip(Icons.Default.FavoriteBorder, log?.restingHr?.let { "$it bpm" }, stringResource(R.string.stat_heart_rate), TrendMetric.HEART_RATE, onStatClick)
             }
 
             // Body composition chips (only shown when scale data is present)
@@ -81,11 +83,11 @@ internal fun DayCard(
             if (hasBodyComp && log != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    log.bodyFatPct?.let { StatChip(Icons.Default.Percent, "%.1f%%".format(it), "Fat") }
-                    log.leanBodyMassKg?.let { StatChip(Icons.Default.FitnessCenter, "%.1f kg".format(it), "Lean") }
-                    log.bodyWaterKg?.let { StatChip(Icons.Default.WaterDrop, "%.1f kg".format(it), "Water") }
-                    log.boneMassKg?.let { StatChip(Icons.Default.Straighten, "%.2f kg".format(it), "Bone") }
-                    log.bloodSugarMmol?.let { StatChip(Icons.Default.Bloodtype, "%.1f mmol/L".format(it), "BG") }
+                    log.bodyFatPct?.let { StatChip(Icons.Default.Percent, "%.1f%%".format(it), "Fat", TrendMetric.BODY_FAT, onStatClick) }
+                    log.leanBodyMassKg?.let { StatChip(Icons.Default.FitnessCenter, "%.1f kg".format(it), "Lean", TrendMetric.LEAN_MASS, onStatClick) }
+                    log.bodyWaterKg?.let { StatChip(Icons.Default.WaterDrop, "%.1f kg".format(it), "Water", TrendMetric.BODY_WATER, onStatClick) }
+                    log.boneMassKg?.let { StatChip(Icons.Default.Straighten, "%.2f kg".format(it), "Bone", TrendMetric.BONE_MASS, onStatClick) }
+                    log.bloodSugarMmol?.let { StatChip(Icons.Default.Bloodtype, "%.1f mmol/L".format(it), "BG", TrendMetric.BLOOD_SUGAR, onStatClick) }
                 }
             }
 
@@ -307,9 +309,24 @@ internal fun DayCard(
 }
 
 @Composable
-internal fun RowScope.StatChip(icon: ImageVector, value: String?, label: String) {
+internal fun RowScope.StatChip(
+    icon: ImageVector,
+    value: String?,
+    label: String,
+    metric: TrendMetric? = null,
+    onStatClick: ((TrendMetric) -> Unit)? = null
+) {
+    val clickModifier = if (metric != null && onStatClick != null) {
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onStatClick(metric) }
+    } else {
+        Modifier.weight(1f)
+    }
+    
     Column(
-        modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(Surface).padding(vertical = 6.dp),
+        modifier = clickModifier.background(Surface).padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = label, tint = if (value != null) Primary else OnSurfaceVariant.copy(alpha = 0.3f), modifier = Modifier.size(14.dp))
