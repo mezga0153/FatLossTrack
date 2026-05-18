@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -37,6 +38,11 @@ fun SimpleLineChart(
     refLineLabel: String? = null,
     /** Per-point (index, min, max) band drawn behind the line when in weekly-avg mode. */
     bandData: List<Triple<Int, Double, Double>>? = null,
+    /** Green shaded band marking the "normal" or "healthy" range. */
+    normalRange: Pair<Double, Double>? = null,
+    /** Red dashed threshold line marking the "bad" boundary. */
+    badLineValue: Double? = null,
+    badLineLabel: String? = null,
 ) {
     if (data.size < 2) return
 
@@ -160,6 +166,60 @@ fun SimpleLineChart(
                         y + 3.5f * d,
                         labelPaint,
                     )
+                }
+            }
+
+            // Normal range green band
+            if (normalRange != null) {
+                val bandHi = normalRange.second.coerceAtMost(maxVal)
+                val bandLo = normalRange.first.coerceAtLeast(minVal)
+                if (bandHi > bandLo) {
+                    drawRect(
+                        color = Color(0xFF48BB78).copy(alpha = 0.08f),
+                        topLeft = Offset(padLeft, yFor(bandHi)),
+                        size = Size(chartWidth, yFor(bandLo) - yFor(bandHi)),
+                    )
+                }
+            }
+
+            // Bad threshold red dashed line
+            if (badLineValue != null) {
+                val ry = yFor(badLineValue)
+                if (ry in padTop..(padTop + chartHeight)) {
+                    drawLine(
+                        color = Color(0xFFFF6B6B).copy(alpha = 0.45f),
+                        start = Offset(padLeft, ry),
+                        end = Offset(padLeft + chartWidth, ry),
+                        strokeWidth = 1.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+                    )
+                    if (badLineLabel != null) {
+                        val badPaint = android.graphics.Paint().apply {
+                            this.color = android.graphics.Color.argb(200, 255, 107, 107)
+                            textSize = 9 * d
+                            isAntiAlias = true
+                            typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        }
+                        val bgPaint = android.graphics.Paint().apply {
+                            this.color = android.graphics.Color.argb(
+                                (refBadgeBg.alpha * 255).toInt(),
+                                (refBadgeBg.red * 255).toInt(),
+                                (refBadgeBg.green * 255).toInt(),
+                                (refBadgeBg.blue * 255).toInt(),
+                            )
+                            isAntiAlias = true
+                        }
+                        val tw = badPaint.measureText(badLineLabel)
+                        val px = 4 * d
+                        val badgeH = 14 * d
+                        val badgeX = padLeft + chartWidth - tw - px * 2
+                        val badgeY = ry - badgeH - 1 * d
+                        val rect = android.graphics.RectF(badgeX, badgeY, badgeX + tw + px * 2, badgeY + badgeH)
+                        drawContext.canvas.nativeCanvas.apply {
+                            drawRoundRect(rect, 3 * d, 3 * d, bgPaint)
+                            drawText(badLineLabel, badgeX + px, badgeY + badgeH - 3.5f * d, badPaint)
+                        }
+                    }
                 }
             }
 
