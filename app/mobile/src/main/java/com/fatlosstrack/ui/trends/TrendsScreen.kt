@@ -7,11 +7,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,10 +72,32 @@ fun TrendsScreen(
     var selectedRange by remember { mutableStateOf("1M") }
     val ranges = listOf("7D", "1M", "All", "Custom")
 
+    // Handle selected metric from navigation (e.g., clicked stat chip)
+    val selectedMetric by remember { state.selectedMetric }
+    // Set range to 1M when arriving from a stat chip
+    LaunchedEffect(selectedMetric) {
+        if (selectedMetric != null) selectedRange = "1M"
+    }
+
     // Custom date range state
     var customFrom by remember { mutableStateOf<LocalDate?>(null) }
     var customTo by remember { mutableStateOf<LocalDate?>(null) }
     var showDateRangePicker by remember { mutableStateOf(false) }
+
+    // Map TrendMetric to series IDs for auto-selection
+    val metricToSeriesId = mapOf(
+        TrendMetric.WEIGHT to "weight",
+        TrendMetric.STEPS to "steps",
+        TrendMetric.SLEEP to "sleep",
+        TrendMetric.HEART_RATE to "resting_hr",
+        TrendMetric.CALORIES to "kcal",
+        TrendMetric.BODY_FAT to "bodyfat",
+        TrendMetric.LEAN_MASS to "lean",
+        TrendMetric.BODY_WATER to "water",
+        TrendMetric.BONE_MASS to "bone",
+        TrendMetric.BLOOD_SUGAR to "bloodsugar",
+    )
+    val autoSelectSeriesId = selectedMetric?.let { metricToSeriesId[it] }
 
     val since = when (selectedRange) {
         "7D" -> LocalDate.now().minusDays(6L)
@@ -113,6 +142,7 @@ fun TrendsScreen(
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
+    val sex by state.preferencesManager.sex.collectAsState(initial = null)
     val latestLeanMassKg = rememberLatestLeanMassKg(state.dailyLogDaoForLeanMass)
 
     // Weight data — merge DailyLog weights + WeightEntry
@@ -198,6 +228,13 @@ fun TrendsScreen(
         logs.filter { it.bloodSugarMmol != null }
             .sortedBy { it.date }
             .map { it.date to it.bloodSugarMmol!! }
+    }
+
+    // Resting heart rate data
+    val restingHrData = remember(logs) {
+        logs.filter { it.restingHr != null }
+            .sortedBy { it.date }
+            .map { it.date to it.restingHr!!.toDouble() }
     }
 
     // ── Compare Metrics state ────────────────────────────────────────────────
@@ -315,10 +352,32 @@ fun TrendsScreen(
         }
 
         // ── Scrollable chart content ──
+        val scrollState = rememberScrollState()
+        val chartOffsets = remember { androidx.compose.runtime.mutableStateMapOf<TrendMetric, Int>() }
+        val coroutineScope = rememberCoroutineScope()
+
+        // Scroll to the right chart once layout is measured, then clear the metric
+        LaunchedEffect(autoSelectSeriesId) {
+            if (autoSelectSeriesId != null) {
+                // Capture metric before clearSelectedMetric can null it
+                val metric = state.selectedMetric.value
+                if (metric != null) {
+                    // Wait specifically for this chart's offset (up to 1s; may not exist if no data)
+                    val offset = withTimeoutOrNull(1000L) {
+                        snapshotFlow { chartOffsets[metric] }
+                            .filter { it != null && it > 0 }
+                            .first()
+                    } ?: 0
+                    if (offset > 0) scrollState.animateScrollTo(offset)
+                }
+                state.clearSelectedMetric()
+            }
+        }
+
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -333,6 +392,7 @@ fun TrendsScreen(
         val compareSeriesOptions = remember(
             weightData, bodyFatData, leanMassData, kcalByDay, sleepData, stepsData, bodyWaterData, bloodSugarData,
             comparePrimary, compareSecondary, compareTertiary, compareAccent,
+            restingHrData, boneMassData,
         ) {
             buildList {
                 if (weightData.size >= 2) add(AvailableSeries("weight", "Weight", comparePrimary, "kg", weightData))
@@ -343,6 +403,8 @@ fun TrendsScreen(
                 if (stepsData.size >= 2) add(AvailableSeries("steps", "Steps", androidx.compose.ui.graphics.Color(0xFF38B2AC), "k", stepsData.map { (d, v) -> d to v / 1000.0 }))
                 if (bodyWaterData.size >= 2) add(AvailableSeries("water", "Body Water", comparePrimary.copy(alpha = 0.65f), "kg", bodyWaterData))
                 if (bloodSugarData.size >= 2) add(AvailableSeries("bloodsugar", "Blood Sugar", androidx.compose.ui.graphics.Color(0xFFE53E3E), "mmol/L", bloodSugarData))
+                if (restingHrData.size >= 2) add(AvailableSeries("resting_hr", "Resting HR", androidx.compose.ui.graphics.Color(0xFFED8936), "bpm", restingHrData))
+                if (boneMassData.size >= 2) add(AvailableSeries("bone", "Bone Mass", androidx.compose.ui.graphics.Color(0xFFB7B7B7), "kg", boneMassData))
             }
         }
 
@@ -350,6 +412,16 @@ fun TrendsScreen(
         LaunchedEffect(compareSeriesOptions) {
             val validIds = compareSeriesOptions.map { it.id }.toSet()
             selectedSeriesIds = selectedSeriesIds.intersect(validIds)
+        }
+
+        // Auto-select series when user clicks a stat chip from home/log
+        LaunchedEffect(autoSelectSeriesId, compareSeriesOptions) {
+            if (autoSelectSeriesId != null) {
+                val availableIds = compareSeriesOptions.map { it.id }.toSet()
+                if (autoSelectSeriesId in availableIds) {
+                    selectedSeriesIds = setOf(autoSelectSeriesId)
+                }
+            }
         }
 
         val selectedChartSeries = remember(selectedSeriesIds, compareSeriesOptions, lagBySeriesId, avgWindow) {
@@ -402,7 +474,10 @@ fun TrendsScreen(
         }
 
         if (compareSeriesOptions.isNotEmpty()) {
-            InfoCard(label = "Compare Metrics", icon = Icons.Default.CompareArrows) {
+            InfoCard(
+                label = "Compare Metrics",
+                icon = Icons.Default.CompareArrows,
+            ) {
                 // Series picker chips
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -577,6 +652,7 @@ fun TrendsScreen(
             InfoCard(
                 label = stringResource(R.string.trends_weight),
                 icon = Icons.Default.Scale,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.WEIGHT] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -654,6 +730,7 @@ fun TrendsScreen(
             InfoCard(
                 label = "Body Fat %",
                 icon = Icons.Default.Percent,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.BODY_FAT] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -672,6 +749,8 @@ fun TrendsScreen(
                     "${d.dayOfMonth}. $m"
                 }
                 val xLabels = wa?.xAxisLabels ?: smoothedBf.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                val bfNormal = if (sex == "male") 10.0 to 20.0 else if (sex == "female") 18.0 to 28.0 else 10.0 to 25.0
+                val bfBad = if (sex == "male") 25.0 else if (sex == "female") 33.0 else 30.0
                 SimpleLineChart(
                     data = wa?.data ?: smoothedBf.mapIndexed { i, (_, v) -> i to v },
                     color = Tertiary,
@@ -679,6 +758,9 @@ fun TrendsScreen(
                     xAxisLabels = xLabels,
                     unit = "%",
                     bandData = wa?.bandData,
+                    normalRange = bfNormal,
+                    badLineValue = bfBad,
+                    badLineLabel = "%.0f%%".format(bfBad),
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -699,6 +781,7 @@ fun TrendsScreen(
             InfoCard(
                 label = "Lean Mass",
                 icon = Icons.Default.FitnessCenter,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.LEAN_MASS] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -744,6 +827,7 @@ fun TrendsScreen(
             InfoCard(
                 label = "Body Water",
                 icon = Icons.Default.WaterDrop,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.BODY_WATER] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -784,11 +868,76 @@ fun TrendsScreen(
             }
         }
 
+        // ── Bone Mass Trend ──
+        if (boneMassData.size >= 2) {
+            InfoCard(
+                label = "Bone Mass",
+                icon = Icons.Default.Straighten,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.BONE_MASS] = it.positionInParent().y.toInt() },
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Bone Mass",
+                            listOf("Date", "Bone Mass (kg)"),
+                            boneMassData.map { (d, v) -> listOf(d.toString(), "%.2f".format(v)) },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
+                val smoothed = if (avgWindow == 3) rollingAvg(boneMassData, 3) else boneMassData
+                val wa = if (avgWindow == 7) weeklyOf(smoothed, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothed.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = wa?.xAxisLabels ?: smoothed.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                SimpleLineChart(
+                    data = wa?.data ?: smoothed.mapIndexed { i, (_, v) -> i to v },
+                    color = androidx.compose.ui.graphics.Color(0xFFB7B7B7),
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    unit = "kg",
+                    bandData = wa?.bandData,
+                    modifier = Modifier.height(120.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    StatColumn("Avg", "%.2f kg".format(boneMassData.map { it.second }.average()))
+                    val delta = boneMassData.last().second - boneMassData.first().second
+                    StatColumn("Change", "%+.2f kg".format(delta), if (delta >= 0) Secondary else Tertiary)
+                    StatColumn("Latest", "%.2f kg".format(boneMassData.last().second))
+                }
+            }
+        }
+
         // ── Blood Glucose Analysis ──
         if (bgReadings.isNotEmpty()) {
+            // ── Daily BG navigation: compute distinct days with readings ──
+            val bgDays = remember(bgReadings) {
+                bgReadings.map { it.timestamp.atZone(ZoneId.systemDefault()).toLocalDate() }
+                    .distinct()
+                    .sorted()
+            }
+            var bgDayIndex by remember(bgDays) { mutableStateOf(bgDays.lastIndex) }
+            val bgCurrentDay = bgDays.getOrNull(bgDayIndex) ?: LocalDate.now()
+            val bgDayStart = remember(bgCurrentDay) { bgCurrentDay.atStartOfDay(ZoneId.systemDefault()).toInstant() }
+            val bgDayEnd = remember(bgCurrentDay) { bgCurrentDay.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant() }
+            val bgDayReadings = remember(bgReadings, bgDayStart, bgDayEnd) {
+                bgReadings.filter { it.timestamp >= bgDayStart && it.timestamp < bgDayEnd }
+            }
+            val bgDayMeals = remember(meals, bgCurrentDay) {
+                meals.filter { it.date == bgCurrentDay }
+            }
+            val bgDayFmt = remember { DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()) }
+
             InfoCard(
                 label = stringResource(R.string.trends_blood_sugar),
                 icon = Icons.Default.Bloodtype,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.BLOOD_SUGAR] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
@@ -844,18 +993,45 @@ fun TrendsScreen(
                     }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
                 },
             ) {
+                // ── Day navigation row ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = { if (bgDayIndex > 0) bgDayIndex-- },
+                        enabled = bgDayIndex > 0,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Previous day", tint = if (bgDayIndex > 0) OnSurface else OnSurfaceVariant.copy(alpha = 0.3f))
+                    }
+                    Text(
+                        bgCurrentDay.format(bgDayFmt),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = OnSurface,
+                    )
+                    IconButton(
+                        onClick = { if (bgDayIndex < bgDays.lastIndex) bgDayIndex++ },
+                        enabled = bgDayIndex < bgDays.lastIndex,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Next day", tint = if (bgDayIndex < bgDays.lastIndex) OnSurface else OnSurfaceVariant.copy(alpha = 0.3f))
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    "${bgReadings.size} readings · %.1f–%.1f mmol/L".format(bgReadings.minOf { it.valueMmolL }, bgReadings.maxOf { it.valueMmolL }),
+                    "${bgDayReadings.size} readings" + if (bgDayReadings.size >= 2) " · %.1f–%.1f mmol/L".format(bgDayReadings.minOf { it.valueMmolL }, bgDayReadings.maxOf { it.valueMmolL }) else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariant,
                 )
                 Spacer(Modifier.height(4.dp))
                 BloodGlucoseMealLegend()
                 Spacer(Modifier.height(8.dp))
-                var bgSelectedMeal by remember { mutableStateOf<MealEntry?>(null) }
+                var bgSelectedMeal by remember(bgCurrentDay) { mutableStateOf<MealEntry?>(null) }
                 BloodGlucoseChart(
-                    readings = bgReadings,
-                    meals = meals,
+                    readings = bgDayReadings,
+                    meals = bgDayMeals,
                     selectedMeal = bgSelectedMeal,
                     onMealSelected = { bgSelectedMeal = it },
                     modifier = Modifier.fillMaxWidth().height(200.dp),
@@ -921,10 +1097,12 @@ fun TrendsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    StatColumn("Avg", "%.1f mmol/L".format(bgReadings.map { it.valueMmolL }.average()))
-                    StatColumn("Min", "%.1f".format(bgReadings.minOf { it.valueMmolL }), Secondary)
-                    StatColumn("Max", "%.1f".format(bgReadings.maxOf { it.valueMmolL }), Tertiary)
-                    StatColumn("Readings", "${bgReadings.size}")
+                    if (bgDayReadings.isNotEmpty()) {
+                        StatColumn("Avg", "%.1f mmol/L".format(bgDayReadings.map { it.valueMmolL }.average()))
+                        StatColumn("Min", "%.1f".format(bgDayReadings.minOf { it.valueMmolL }), Secondary)
+                        StatColumn("Max", "%.1f".format(bgDayReadings.maxOf { it.valueMmolL }), Tertiary)
+                        StatColumn("Readings", "${bgDayReadings.size}")
+                    }
                 }
             }
         }
@@ -934,6 +1112,7 @@ fun TrendsScreen(
             InfoCard(
                 label = stringResource(R.string.trends_calories),
                 icon = Icons.Default.LocalFireDepartment,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.CALORIES] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -962,6 +1141,9 @@ fun TrendsScreen(
                     refLineValue = dailyTargetKcal?.toDouble(),
                     refLineColor = Secondary,
                     refLineLabel = dailyTargetKcal?.let { "$it kcal" },
+                    normalRange = dailyTargetKcal?.let { (it - 200.0) to (it + 200.0) },
+                    badLineValue = dailyTargetKcal?.let { it + 500.0 },
+                    badLineLabel = dailyTargetKcal?.let { "+500 kcal" },
                     bandData = wa?.bandData,
                     modifier = Modifier.height(140.dp),
                 )
@@ -979,9 +1161,13 @@ fun TrendsScreen(
 
         // ── Macros Trend ──
         if (macrosByDay.size >= 2) {
+            var showProtein by remember { mutableStateOf(true) }
+            var showCarbs by remember { mutableStateOf(true) }
+            var showFat by remember { mutableStateOf(true) }
             InfoCard(
                 label = stringResource(R.string.trends_macros),
                 icon = Icons.Default.DonutSmall,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.MACROS] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -1001,14 +1187,62 @@ fun TrendsScreen(
                 val targets = dailyTargetKcal?.let {
                     com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalWeight, actualLeanMassKg = latestLeanMassKg)
                 }
-                MacroBarChart(
-                    data = macrosByDay.map { it.second },
-                    macroTargets = targets,
-                    dateLabels = labels,
-                    xAxisLabels = xLabels,
-                    colors = Triple(Primary, Tertiary, Accent),
-                    modifier = Modifier.height(140.dp),
-                )
+                if (selectedRange == "7D") {
+                    MacroBarChart(
+                        data = macrosByDay.map { it.second },
+                        macroTargets = targets,
+                        dateLabels = labels,
+                        xAxisLabels = xLabels,
+                        colors = Triple(Primary, Tertiary, Accent),
+                        modifier = Modifier.height(140.dp),
+                    )
+                } else {
+                    // Toggle chips
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    ) {
+                        listOf(
+                            Triple("P", Primary, showProtein) to { showProtein = !showProtein },
+                            Triple("C", Tertiary, showCarbs) to { showCarbs = !showCarbs },
+                            Triple("F", Accent, showFat) to { showFat = !showFat },
+                        ).forEach { (chip, toggle) ->
+                            val (label, color, active) = chip
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (active) color.copy(alpha = 0.18f) else CardSurface)
+                                    .clickable { toggle() }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(if (active) color else OnSurfaceVariant.copy(alpha = 0.3f)),
+                                    )
+                                    Text(label, style = MaterialTheme.typography.labelMedium, color = if (active) color else OnSurfaceVariant.copy(alpha = 0.4f))
+                                }
+                            }
+                        }
+                    }
+                    val activeSeries = buildList {
+                        if (showProtein) add(ChartSeries("Protein", Primary, "g", macrosByDay.map { (d, m) -> d to m.first.toDouble() }))
+                        if (showCarbs) add(ChartSeries("Carbs", Tertiary, "g", macrosByDay.map { (d, m) -> d to m.second.toDouble() }))
+                        if (showFat) add(ChartSeries("Fat", Accent, "g", macrosByDay.map { (d, m) -> d to m.third.toDouble() }))
+                    }
+                    if (activeSeries.isNotEmpty()) {
+                        MultiSeriesLineChart(
+                            series = activeSeries,
+                            modifier = Modifier.height(140.dp),
+                        )
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1029,6 +1263,7 @@ fun TrendsScreen(
             InfoCard(
                 label = stringResource(R.string.trends_sleep),
                 icon = Icons.Default.Bedtime,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.SLEEP] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -1054,6 +1289,9 @@ fun TrendsScreen(
                     xAxisLabels = xLabels,
                     unit = "h",
                     bandData = wa?.bandData,
+                    normalRange = 7.0 to 9.0,
+                    badLineValue = 6.0,
+                    badLineLabel = "6h",
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -1074,6 +1312,7 @@ fun TrendsScreen(
             InfoCard(
                 label = stringResource(R.string.trends_steps),
                 icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.STEPS] = it.positionInParent().y.toInt() },
                 action = {
                     IconButton(onClick = {
                         OdtExporter.share(
@@ -1100,6 +1339,9 @@ fun TrendsScreen(
                     xAxisLabels = xLabels,
                     unit = "steps",
                     bandData = wa?.bandData,
+                    normalRange = 7_500.0 to 12_000.0,
+                    badLineValue = 5_000.0,
+                    badLineLabel = "5k",
                     modifier = Modifier.height(120.dp),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -1110,6 +1352,57 @@ fun TrendsScreen(
                     if (avgSteps != null) StatColumn(stringResource(R.string.trends_avg), stringResource(R.string.format_steps_k_day, avgSteps / 1000))
                     val totalSteps = stepsData.sumOf { it.second }
                     StatColumn(stringResource(R.string.trends_total), "${totalSteps / 1000}k")
+                }
+            }
+        }
+
+        // ── Resting Heart Rate Trend ──
+        if (restingHrData.size >= 2) {
+            InfoCard(
+                label = "Resting Heart Rate",
+                icon = Icons.Default.FavoriteBorder,
+                modifier = Modifier.onGloballyPositioned { chartOffsets[TrendMetric.HEART_RATE] = it.positionInParent().y.toInt() },
+                action = {
+                    IconButton(onClick = {
+                        OdtExporter.share(
+                            context, "Resting HR",
+                            listOf("Date", "Resting HR (bpm)"),
+                            restingHrData.map { (d, v) -> listOf(d.toString(), "${v.toInt()}") },
+                        )
+                    }) { Icon(Icons.Default.Share, contentDescription = "Export", modifier = Modifier.size(16.dp), tint = OnSurfaceVariant) }
+                },
+            ) {
+                val smoothed = if (avgWindow == 3) rollingAvg(restingHrData, 3) else restingHrData
+                val wa = if (avgWindow == 7) weeklyOf(smoothed, selectedRange == "7D") else null
+                val labels = wa?.dateLabels ?: smoothed.map { (d, _) ->
+                    val m = d.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                        .removeSuffix(".").lowercase().replaceFirstChar { it.uppercase() }
+                    "${d.dayOfMonth}. $m"
+                }
+                val xLabels = wa?.xAxisLabels ?: smoothed.map { (d, _) -> xAxisLabel(d, selectedRange == "7D") }
+                SimpleLineChart(
+                    data = wa?.data ?: smoothed.mapIndexed { i, (_, v) -> i to v },
+                    color = androidx.compose.ui.graphics.Color(0xFFED8936),
+                    dateLabels = labels,
+                    xAxisLabels = xLabels,
+                    unit = "bpm",
+                    bandData = wa?.bandData,
+                    normalRange = 60.0 to 100.0,
+                    badLineValue = 100.0,
+                    badLineLabel = "100 bpm",
+                    modifier = Modifier.height(120.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    val avgHr = restingHrData.map { it.second }.average().toInt()
+                    StatColumn("Avg", "$avgHr bpm")
+                    val minHr = restingHrData.minOf { it.second }.toInt()
+                    val maxHr = restingHrData.maxOf { it.second }.toInt()
+                    StatColumn("Range", "$minHr–$maxHr bpm")
+                    StatColumn("Latest", "${restingHrData.last().second.toInt()} bpm")
                 }
             }
         }

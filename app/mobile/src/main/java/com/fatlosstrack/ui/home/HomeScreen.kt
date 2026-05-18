@@ -25,11 +25,14 @@ import com.fatlosstrack.R
 import com.fatlosstrack.ui.components.InfoCard
 import com.fatlosstrack.ui.components.SimpleLineChart
 import com.fatlosstrack.ui.components.MacroBarChart
+import com.fatlosstrack.ui.components.MultiSeriesLineChart
+import com.fatlosstrack.ui.components.ChartSeries
 import com.fatlosstrack.ui.components.TrendChart
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.log.*
 import com.fatlosstrack.ui.theme.*
+import com.fatlosstrack.ui.trends.TrendMetric
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -67,6 +70,7 @@ private fun xAxisLabelFor(date: LocalDate, use7dDayNames: Boolean): String {
 fun HomeScreen(
     state: HomeStateHolder,
     onCameraForDate: (LocalDate) -> Unit = {},
+    onStatClick: ((TrendMetric) -> Unit)? = null,
 ) {
     val goalWeight by state.goalWeight.collectAsState(initial = null)
     val startWeight by state.startWeight.collectAsState(initial = null)
@@ -514,6 +518,9 @@ fun HomeScreen(
                                     refLineValue = dailyTargetKcal?.toDouble(),
                                     refLineColor = Secondary,
                                     refLineLabel = dailyTargetKcal?.let { "$it kcal" },
+                                    normalRange = dailyTargetKcal?.let { (it - 200.0) to (it + 200.0) },
+                                    badLineValue = dailyTargetKcal?.let { it + 500.0 },
+                                    badLineLabel = dailyTargetKcal?.let { "+500 kcal" },
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
@@ -523,14 +530,25 @@ fun HomeScreen(
                                 val targets = dailyTargetKcal?.let {
                                     com.fatlosstrack.domain.TdeeCalculator.macroTargets(it, goalBodyWeightKg = goalW, actualLeanMassKg = latestLeanMassKg)
                                 }
-                                MacroBarChart(
-                                    data = filteredMacros.map { (_, m) -> m },
-                                    macroTargets = targets,
-                                    dateLabels = labels,
-                                    xAxisLabels = xLabels,
-                                    colors = Triple(Primary, Tertiary, Accent),
-                                    modifier = Modifier.fillMaxWidth().height(130.dp),
-                                )
+                                if (is7d) {
+                                    MacroBarChart(
+                                        data = filteredMacros.map { (_, m) -> m },
+                                        macroTargets = targets,
+                                        dateLabels = labels,
+                                        xAxisLabels = xLabels,
+                                        colors = Triple(Primary, Tertiary, Accent),
+                                        modifier = Modifier.fillMaxWidth().height(130.dp),
+                                    )
+                                } else {
+                                    MultiSeriesLineChart(
+                                        series = listOf(
+                                            ChartSeries("Protein", Primary, "g", filteredMacros.map { (d, m) -> d to m.first.toDouble() }),
+                                            ChartSeries("Carbs", Tertiary, "g", filteredMacros.map { (d, m) -> d to m.second.toDouble() }),
+                                            ChartSeries("Fat", Accent, "g", filteredMacros.map { (d, m) -> d to m.third.toDouble() }),
+                                        ),
+                                        modifier = Modifier.fillMaxWidth().height(130.dp),
+                                    )
+                                }
                             }
                             "sleep" -> {
                                 val labels = filteredSleep.map { (d, _) -> dateLabelFor(d) }
@@ -541,6 +559,9 @@ fun HomeScreen(
                                     dateLabels = labels,
                                     xAxisLabels = xLabels,
                                     unit = "h",
+                                    normalRange = 7.0 to 9.0,
+                                    badLineValue = 6.0,
+                                    badLineLabel = "6h",
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
@@ -553,6 +574,9 @@ fun HomeScreen(
                                     dateLabels = labels,
                                     xAxisLabels = xLabels,
                                     unit = "steps",
+                                    normalRange = 7_500.0 to 12_000.0,
+                                    badLineValue = 5_000.0,
+                                    badLineLabel = "5k",
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
@@ -565,6 +589,9 @@ fun HomeScreen(
                                     dateLabels = labels,
                                     xAxisLabels = xLabels,
                                     unit = "mmol/L",
+                                    normalRange = 3.9 to 7.8,
+                                    badLineValue = 10.0,
+                                    badLineLabel = "10 mmol/L",
                                     modifier = Modifier.fillMaxWidth().height(130.dp),
                                 )
                             }
@@ -640,6 +667,7 @@ fun HomeScreen(
             onMealClick = { selectedMeal = it },
             onAddMeal = { addMealForDate = today },
             onCameraClick = { onCameraForDate(today) },
+            onStatClick = onStatClick,
 )
 
         // ── Yesterday Card ──
@@ -655,6 +683,7 @@ fun HomeScreen(
                 onMealClick = { selectedMeal = it },
                 onAddMeal = { addMealForDate = yesterday },
                 onCameraClick = { onCameraForDate(yesterday) },
+                onStatClick = onStatClick,
             )
         }
 
