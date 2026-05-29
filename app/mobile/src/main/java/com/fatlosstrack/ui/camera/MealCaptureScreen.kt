@@ -140,6 +140,7 @@ fun MealCaptureScreen(
 
     // Bind camera when permission granted
     val previewView = remember { PreviewView(context) }
+    var cameraBindError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(hasCameraPermission) {
         if (!hasCameraPermission) return@LaunchedEffect
         try {
@@ -154,8 +155,10 @@ fun MealCaptureScreen(
                 preview,
                 imageCapture,
             )
+            cameraBindError = null
         } catch (e: Exception) {
             Log.e("MealCapture", "Camera bind failed", e)
+            cameraBindError = e.message ?: "Camera initialisation failed"
         }
     }
 
@@ -164,7 +167,38 @@ fun MealCaptureScreen(
             .fillMaxSize()
             .background(Color(0xFF050508)),
     ) {
-        if (hasCameraPermission) {
+        if (cameraBindError != null) {
+            // Camera hardware error — show message instead of a silent black screen
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        tint = OnSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(64.dp),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Camera unavailable",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = OnSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        cameraBindError ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedButton(onClick = onBack) {
+                        Text("Go back", color = Primary)
+                    }
+                }
+            }
+        } else if (hasCameraPermission) {
             // ── Camera Preview ──
             AndroidView(
                 factory = { previewView },
