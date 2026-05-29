@@ -442,8 +442,13 @@ class OpenAiService @Inject constructor(
         } else {
             bitmap
         }
-        scaled.compress(Bitmap.CompressFormat.JPEG, 80, stream)
-        return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+        try {
+            scaled.compress(Bitmap.CompressFormat.JPEG, 80, stream)
+            return Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+        } finally {
+            // Recycle only the temporary scaled copy, not the caller's original bitmap
+            if (scaled !== bitmap) scaled.recycle()
+        }
     }
 }
 
