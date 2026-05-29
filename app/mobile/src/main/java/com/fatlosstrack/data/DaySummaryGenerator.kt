@@ -35,7 +35,7 @@ class DaySummaryGenerator @Inject constructor(
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     /** Maps date → hash of the data that was used to generate its current summary. */
-    private val dataHashCache = mutableMapOf<LocalDate, String>()
+    private val dataHashCache = java.util.concurrent.ConcurrentHashMap<LocalDate, String>()
 
     /**
      * Build a hash of the actual input data (no timestamps, no AI output).
