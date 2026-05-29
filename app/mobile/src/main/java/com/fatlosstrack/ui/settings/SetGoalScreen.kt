@@ -67,23 +67,21 @@ fun SetGoalScreen(
     var startDate by remember { mutableStateOf(LocalDate.now()) }
     var maxCarbsPerMeal by remember { mutableStateOf("45") }
     var maxCarbsPerDay by remember { mutableStateOf("150") }
-    var initialized by remember { mutableStateOf(false) }
 
-    // Seed fields once from saved values — wait until rate is loaded (non-null) to avoid race
-    LaunchedEffect(savedStartWeight, savedGoalWeight, savedRate, savedGuidance, savedStartDate, savedGoalType, savedMaxCarbsPerMeal, savedMaxCarbsPerDay) {
-        if (!initialized && savedRate != null) {
-            goalType = savedGoalType
-            startWeight = savedStartWeight?.let { "%.1f".format(it) } ?: ""
-            goalWeight = savedGoalWeight?.let { "%.1f".format(it) } ?: ""
-            weeklyRate = "%.2f".format(savedRate).trimEnd('0').trimEnd('.')
-            aiGuidance = savedGuidance ?: ""
-            startDate = savedStartDate?.let {
-                try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
-            } ?: LocalDate.now()
-            maxCarbsPerMeal = savedMaxCarbsPerMeal.toString()
-            maxCarbsPerDay = savedMaxCarbsPerDay.toString()
-            initialized = true
-        }
+    // Seed fields once — read all prefs atomically so carb fields are not
+    // left at their in-memory defaults when rate arrives but carbs haven't yet.
+    LaunchedEffect(Unit) {
+        val rate = preferencesManager.weeklyRate.first()
+        goalType = preferencesManager.goalType.first()
+        startWeight = preferencesManager.startWeight.first()?.let { "%.1f".format(it) } ?: ""
+        goalWeight = preferencesManager.goalWeight.first()?.let { "%.1f".format(it) } ?: ""
+        weeklyRate = "%.2f".format(rate).trimEnd('0').trimEnd('.')
+        aiGuidance = preferencesManager.aiGuidance.first() ?: ""
+        startDate = preferencesManager.startDate.first()?.let {
+            try { LocalDate.parse(it) } catch (_: Exception) { LocalDate.now() }
+        } ?: LocalDate.now()
+        maxCarbsPerMeal = preferencesManager.maxCarbsPerMeal.first().toString()
+        maxCarbsPerDay = preferencesManager.maxCarbsPerDay.first().toString()
     }
 
     // Date picker state

@@ -58,19 +58,14 @@ fun SetProfileScreen(
     var age by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") }
     var activityLevel by remember { mutableStateOf("light") }
-    var initialized by remember { mutableStateOf(false) }
 
-    // Seed fields once from saved values
-    LaunchedEffect(savedHeight, savedAge, savedSex, savedActivityLevel) {
-        if (!initialized) {
-            heightCm = savedHeight?.toString() ?: ""
-            age = savedAge?.toString() ?: ""
-            sex = savedSex ?: ""
-            activityLevel = savedActivityLevel
-            if (savedHeight != null || savedAge != null || savedSex != null) {
-                initialized = true
-            }
-        }
+    // Seed fields once — read all prefs atomically so no field is left blank
+    // because a different flow happened to emit first.
+    LaunchedEffect(Unit) {
+        heightCm = preferencesManager.heightCm.first()?.toString() ?: ""
+        age = preferencesManager.age.first()?.toString() ?: ""
+        sex = preferencesManager.sex.first() ?: ""
+        activityLevel = preferencesManager.activityLevel.first()
     }
 
     Column(
