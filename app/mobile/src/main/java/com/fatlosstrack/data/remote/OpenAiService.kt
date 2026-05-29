@@ -122,7 +122,7 @@ class OpenAiService @Inject constructor(
         if (response.status != HttpStatusCode.OK) {
             val errorBody = response.bodyAsText()
             appLogger.error("AI", "Chat API error ${response.status}: ${errorBody.take(200)}")
-            error("OpenAI API error ${response.status}: $errorBody")
+            error("OpenAI API error ${response.status}: ${errorBody.take(200)}")
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
@@ -177,7 +177,7 @@ class OpenAiService @Inject constructor(
         if (response.status != HttpStatusCode.OK) {
             val errorBody = response.bodyAsText()
             appLogger.error("AI", "Chat API error ${response.status}: ${errorBody.take(200)}")
-            error("OpenAI API error ${response.status}: $errorBody")
+            error("OpenAI API error ${response.status}: ${errorBody.take(200)}")
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
@@ -256,7 +256,7 @@ class OpenAiService @Inject constructor(
             if (response.status != HttpStatusCode.OK) {
                 val errorBody = response.bodyAsText()
                 appLogger.error("AI", "Stream API error ${response.status}: ${errorBody.take(200)}")
-                error("OpenAI API error ${response.status}: $errorBody")
+                error("OpenAI API error ${response.status}: ${errorBody.take(200)}")
             }
 
             val channel = response.bodyAsChannel()
@@ -390,7 +390,7 @@ class OpenAiService @Inject constructor(
         if (response.status != HttpStatusCode.OK) {
             val errorBody = response.bodyAsText()
             appLogger.error("AI", "Vision API error ${response.status}: ${errorBody.take(200)}")
-            error("OpenAI API error ${response.status}: $errorBody")
+            error("OpenAI API error ${response.status}: ${errorBody.take(200)}")
         }
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
