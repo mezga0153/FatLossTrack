@@ -337,16 +337,23 @@ class HealthConnectManager @Inject constructor(
                     session.startTime, session.endTime
                 ).toMinutes().toInt()
                 val name = exerciseTypeName(session.exerciseType)
-                """{"name":"$name","durationMin":$durationMin,"kcal":0}"""
+                // Use JSONObject to safely escape name (may contain quotes/backslashes)
+                org.json.JSONObject()
+                    .put("name", name)
+                    .put("durationMin", durationMin)
+                    .put("kcal", 0)
+                    .toString()
             }
 
             // If we have just one exercise and active cals, assign cals to it
-            val result = if (exercises.size == 1 && totalActiveCal > 0) {
-                val single = exercises[0].replace("\"kcal\":0", "\"kcal\":$totalActiveCal")
-                "[$single]"
+            val exercisesWithCal = if (exercises.size == 1 && totalActiveCal > 0) {
+                val obj = org.json.JSONObject(exercises[0])
+                obj.put("kcal", totalActiveCal)
+                listOf(obj.toString())
             } else {
-                "[${exercises.joinToString(",")}]"
+                exercises
             }
+            val result = "[${exercisesWithCal.joinToString(",")}]"
             appLogger.hc("  $date exercises: ${records.size} sessions, ${totalActiveCal} active kcal")
             result
         } catch (e: Exception) {
