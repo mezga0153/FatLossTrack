@@ -159,6 +159,7 @@ class PreferencesManager @Inject constructor(
     }
 
     suspend fun setHeightCm(height: Int) {
+        require(height in 50..300) { "Height must be between 50 and 300 cm, got $height" }
         context.dataStore.edit { prefs ->
             prefs[KEY_HEIGHT_CM] = height
         }
@@ -177,12 +178,16 @@ class PreferencesManager @Inject constructor(
     }
 
     suspend fun setAge(age: Int) {
+        require(age in 1..120) { "Age must be between 1 and 120, got $age" }
         context.dataStore.edit { prefs ->
             prefs[KEY_AGE] = age
         }
     }
 
     suspend fun setActivityLevel(level: String) {
+        require(level in setOf("sedentary", "light", "moderate", "active")) {
+            "Unknown activity level: $level"
+        }
         context.dataStore.edit { prefs ->
             prefs[KEY_ACTIVITY_LEVEL] = level
         }
@@ -201,6 +206,7 @@ class PreferencesManager @Inject constructor(
     }
 
     suspend fun setGoalType(type: String) {
+        require(type in setOf("weight_loss", "diabetes")) { "Unknown goal type: $type" }
         context.dataStore.edit { prefs ->
             prefs[KEY_GOAL_TYPE] = type
         }
