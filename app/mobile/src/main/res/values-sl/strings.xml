@@ -475,4 +475,41 @@
     <string name="setup_tip_chat_desc">Odpri zavihek Klepet in vprašaj o svoji prehrani, napredku ali dobi ideje za obroke iz tega, kar imaš v hladilniku.</string>
     <string name="setup_tip_chat_example">"Sem na pravi poti ta teden?"</string>
     <string name="setup_done">Gremo!</string>
+
+    <!-- TDEE breakdown -->
+    <string name="tdee_breakdown_title">Ocena kalorij</string>
+    <string name="tdee_bmr">Bazalni metabolizem (BMR)</string>
+    <string name="tdee_multiplier">Faktor aktivnosti</string>
+    <string name="tdee_maintenance">Vzdrževanje (TDEE)</string>
+    <string name="tdee_deficit">Tedenski kalorični primanjkljaj</string>
+    <string name="tdee_daily_target">Dnevni cilj</string>
+
+    <!-- Backup manager -->
+    <string name="backup_manager_title">Varnostne kopije</string>
+    <string name="backup_manager_info">Samodejne varnostne kopije se shranjujejo v Documents/FatLossTrack/ ob vsakem odprtju aplikacije in po vsakem obroku. Hrani zadnjih 7 dni.</string>
+    <string name="backup_import">Uvozi varnostno kopijo</string>
+    <string name="backup_import_message">S tem boš zamenjal/a vse trenutne podatke z uvoženo varnostno kopijo. Aplikacija se bo nato znova zagnala.</string>
+    <string name="backup_delete_title">Izbriši varnostno kopijo?</string>
+    <string name="backup_delete_message">Izbriši varnostno kopijo iz %s?</string>
+    <string name="backup_manage">Upravljaj varnostne kopije</string>
+
+    <!-- Meal bookmarks -->
+    <string name="section_bookmarks">Iz zaznamkov</string>
+    <string name="button_bookmark">Zaznamek</string>
+    <string name="button_bookmark_save">Shrani</string>
+    <string name="bookmark_dialog_title">Shrani zaznamek</string>
+    <string name="bookmark_name_label">Ime</string>
+    <string name="bookmarks_manage_button">Zaznamki obrokov</string>
+    <string name="bookmarks_screen_title">Zaznamki obrokov</string>
+    <string name="bookmarks_empty">Še ni zaznamkov</string>
+    <string name="bookmarks_empty_hint">Dolgo pritisni na obrok in tapni \'Zaznamek\', da ga shraniš</string>
+    <string name="bookmark_rename_title">Preimenuj zaznamek</string>
+
+    <!-- Log viewer -->
+    <string name="log_viewer_files_heading">Datoteke dnevnika (zadnjih 7 dni)</string>
+    <string name="log_viewer_no_files">(ni datotek dnevnika)</string>
+    <string name="log_viewer_retention">Starejši dnevniki se samodejno izbrišejo po 7 dneh.</string>
+
+    <!-- Capture -->
+    <string name="capture_comment_hint">Dodaj opombo za AI (neobvezno)</string>
 </resources>
