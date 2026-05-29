@@ -180,7 +180,9 @@ fun LogViewerScreen(
 
             // Scroll to bottom on first load
             LaunchedEffect(logText) {
-                vScroll.animateScrollTo(vScroll.maxValue)
+                if (vScroll.maxValue > 0) {
+                    vScroll.animateScrollTo(vScroll.maxValue)
+                }
             }
 
             Box(
