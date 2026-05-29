@@ -127,8 +127,7 @@ class OpenAiService @Inject constructor(
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         recordUsage(json, feature)
-        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
-            .jsonObject["content"]!!.jsonPrimitive.content
+        val content = extractContent(json)
         appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
         content
     }
@@ -183,8 +182,7 @@ class OpenAiService @Inject constructor(
 
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         recordUsage(json, "chat")
-        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
-            .jsonObject["content"]!!.jsonPrimitive.content
+        val content = extractContent(json)
         appLogger.ai("Chat response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
         content
     }
@@ -395,9 +393,8 @@ class OpenAiService @Inject constructor(
         val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         val visionFeature = if (mode == "log") "meal_photo" else "meal_suggest"
         recordUsage(json, visionFeature)
-        val content = json["choices"]!!.jsonArray[0].jsonObject["message"]!!
-            .jsonObject["content"]!!.jsonPrimitive.content
-        appLogger.ai("Vision response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "\u2026" else ""}")
+        val content = extractContent(json)
+        appLogger.ai("Vision response (${content.length} chars): ${content.take(120)}${if (content.length > 120) "…" else ""}")
         content
     }
 
@@ -416,6 +413,17 @@ class OpenAiService @Inject constructor(
             feature = "meal_edit",
         )
     }
+
+    /**
+     * Safely extracts the text content from an OpenAI chat-completions response.
+     * Throws a descriptive error if the response shape is unexpected (e.g. error objects).
+     */
+    private fun extractContent(json: JsonObject): String =
+        json["choices"]?.jsonArray?.getOrNull(0)
+            ?.jsonObject?.get("message")
+            ?.jsonObject?.get("content")
+            ?.jsonPrimitive?.content
+            ?: error("Unexpected OpenAI response shape: ${json.toString().take(300)}")
 
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val stream = ByteArrayOutputStream()
