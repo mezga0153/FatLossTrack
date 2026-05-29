@@ -90,7 +90,9 @@ object TdeeCalculator {
             val proteinKcal = proteinG * 4
             val remaining = (dailyTargetKcal - proteinKcal).coerceAtLeast(0)
             val carbsG = (remaining * 0.55 / 4).toInt()
-            val fatG = (remaining * 0.45 / 9).toInt()
+            // Assign fat from the true remaining kcal after protein + carbs to avoid
+            // truncation error leaving macros short of the calorie target.
+            val fatG = ((remaining - carbsG * 4) / 9.0).toInt()
             return Triple(proteinG, carbsG, fatG)
         }
         val proteinKcal = dailyTargetKcal * 0.30
