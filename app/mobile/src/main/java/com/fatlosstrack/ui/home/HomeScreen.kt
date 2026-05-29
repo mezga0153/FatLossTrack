@@ -146,8 +146,8 @@ fun HomeScreen(
     }
 
     // Stats — exclude today (shown separately as DayCard)
-    val pastLogs = logs.filter { it.date != today }
-    val pastMeals = meals.filter { it.date != today }
+    val pastLogs = remember(logs, today) { logs.filter { it.date != today } }
+    val pastMeals = remember(meals, today) { meals.filter { it.date != today } }
     val totalMeals = pastMeals.size
     val totalKcal = pastMeals.sumOf { it.totalKcal }
     val totalProtein = pastMeals.sumOf { it.totalProteinG }
