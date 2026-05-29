@@ -279,7 +279,10 @@ class OpenAiService @Inject constructor(
                     if (usage != null) {
                         recordUsage(chunk, "chat")
                     }
-                } catch (_: Exception) { /* skip malformed chunks */ }
+                } catch (e: Exception) {
+                    // Malformed SSE chunk — log so streaming bugs are diagnosable
+                    appLogger.error("AI", "Malformed SSE chunk (skipped): ${data.take(120)} — ${e.message}")
+                }
             }
             appLogger.ai("Stream complete (${sb.length} chars): ${sb.take(120)}${if (sb.length > 120) "…" else ""}")
         }
