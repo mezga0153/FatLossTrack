@@ -16,6 +16,7 @@ object CapturedPhotoStore {
     var version = mutableIntStateOf(0)
         private set
 
+    @Synchronized
     fun store(photos: List<Uri>, comment: String = "") {
         _photos.clear()
         _photos.addAll(photos)
@@ -24,16 +25,20 @@ object CapturedPhotoStore {
     }
 
     /** Returns photos without clearing — allows re-analysis. */
+    @Synchronized
     fun consume(): List<Uri> = _photos.toList()
 
     /** Returns the user comment without clearing it. */
+    @Synchronized
     fun peekComment(): String = _comment
 
     /** Explicitly clear when done (e.g. after logging or discarding). */
+    @Synchronized
     fun clear() {
         _photos.clear()
         _comment = ""
     }
 
+    @Synchronized
     fun peek(): List<Uri> = _photos.toList()
 }

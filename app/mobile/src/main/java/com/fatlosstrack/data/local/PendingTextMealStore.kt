@@ -13,17 +13,20 @@ object PendingTextMealStore {
     var targetDate: LocalDate? = null
         private set
 
+    @Synchronized
     fun store(json: String, date: LocalDate) {
         rawJson = json
         targetDate = date
     }
 
+    @Synchronized
     fun consume(): Pair<String, LocalDate>? {
         val json = rawJson ?: return null
         val date = targetDate ?: LocalDate.now()
         return json to date
     }
 
+    @Synchronized
     fun clear() {
         rawJson = null
         targetDate = null
