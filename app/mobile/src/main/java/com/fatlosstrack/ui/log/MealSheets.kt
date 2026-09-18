@@ -96,7 +96,6 @@ fun AddMealSheet(
                 @OptIn(ExperimentalLayoutApi::class)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     bookmarks.forEach { bm ->
                         FilterChip(
