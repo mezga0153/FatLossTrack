@@ -46,7 +46,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.concurrent.futures.await
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.ui.theme.*
