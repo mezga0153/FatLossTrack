@@ -29,8 +29,9 @@ export async function authPlugin(app) {
 
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
-      reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid Authorization header.' });
-      return;
+      // `return reply` — in an async hook, reply.send() alone does not halt the
+      // lifecycle and the route handler would still run.
+      return reply.code(401).send({ error: 'unauthorized', message: 'Missing or invalid Authorization header.' });
     }
 
     const token = authHeader.slice(7);
@@ -41,7 +42,14 @@ export async function authPlugin(app) {
       request.uid = decoded.uid;
     } catch (err) {
       request.log.warn({ err }, 'Auth token verification failed');
-      reply.code(401).send({ error: 'unauthorized', message: 'Invalid or expired token.' });
+      return reply.code(401).send({ error: 'unauthorized', message: 'Invalid or expired token.' });
     }
   });
 }
+
+// Fastify encapsulates anything registered with app.register(): hooks added
+// inside a plugin apply only to routes in that plugin's own scope. The AI and
+// health routes are registered as siblings, so without this the onRequest hook
+// below never ran for them at all. skip-override is what fastify-plugin sets;
+// doing it by hand avoids taking on the dependency.
+authPlugin[Symbol.for('skip-override')] = true;
