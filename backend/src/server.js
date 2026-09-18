@@ -1,10 +1,13 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import { authPlugin } from './plugins/auth.js';
 import { aiRoutes } from './routes/ai.js';
 import { healthRoutes } from './routes/health.js';
+
+// quiet: dotenv 17+ prints a plain-text banner that would break the JSON log stream
+dotenv.config({ quiet: true });
 
 const app = Fastify({ logger: true });
 
