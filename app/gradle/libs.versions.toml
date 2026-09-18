@@ -8,7 +8,7 @@ room = "2.8.5"
 ktor = "3.6.0"
 work = "2.11.2"
 camerax = "1.6.2"
-health-connect = "1.2.0-alpha02"
+health-connect = "1.2.0-alpha06"
 mpandroidchart = "v3.1.0"
 navigation = "2.10.1"
 lifecycle = "2.11.0"
@@ -17,12 +17,12 @@ appcompat = "1.8.0"
 activity-compose = "1.13.0"
 hilt-navigation-compose = "1.4.0"
 datastore = "1.2.1"
-coil = "2.7.0"
-markdown-renderer = "0.39.2"
+coil = "3.6.3"
+markdown-renderer = "0.45.0"
 credentials = "1.6.0"
-firebase-bom = "33.7.0"
+firebase-bom = "34.19.0"
 google-id = "1.2.1"
-play-services-auth = "21.3.0"
+play-services-auth = "21.6.0"
 
 [libraries]
 # Compose BOM
@@ -85,14 +85,14 @@ mpandroidchart = { group = "com.github.PhilJay", name = "MPAndroidChart", versio
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 # Coil (image loading)
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 
 # Markdown renderer
 markdown-renderer = { group = "com.mikepenz", name = "multiplatform-markdown-renderer-m3", version.ref = "markdown-renderer" }
 
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
-firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" }
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 
 # Credential Manager (Google Sign-In)
 credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
