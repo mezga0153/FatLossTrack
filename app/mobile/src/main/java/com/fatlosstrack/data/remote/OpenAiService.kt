@@ -30,6 +30,37 @@ class OpenAiService @Inject constructor(
 ) {
     companion object {
         private const val API_URL = "https://api.openai.com/v1/chat/completions"
+
+        /**
+         * Output budget per request. Reasoning models bill their thinking as output
+         * tokens and spend them from this same budget, so it is generous enough that
+         * reasoning cannot crowd out the answer itself.
+         */
+        private const val MAX_COMPLETION_TOKENS = 8000
+
+        /**
+         * Reasoning budget for calls that return structured JSON (meal parsing, vision).
+         * These are extraction tasks, not hard problems — "low" keeps them fast and
+         * cheap. Never "none": gpt-6-astra rejects it with HTTP 400.
+         */
+        private const val STRUCTURED_REASONING_EFFORT = "low"
+
+        /** Model families that accept `reasoning_effort`; the others 400 on it. */
+        private val REASONING_MODEL_PREFIXES = listOf("gpt-5", "gpt-6", "o1", "o3", "o4")
+    }
+
+    /** Whether [model] accepts the `reasoning_effort` parameter. */
+    private fun supportsReasoning(model: String): Boolean =
+        REASONING_MODEL_PREFIXES.any { model.startsWith(it) }
+
+    /**
+     * Adds `reasoning_effort` when the selected model supports it. Sending it to a
+     * non-reasoning model (gpt-4o, gpt-4.1) is rejected with HTTP 400.
+     */
+    private fun JsonObjectBuilder.putReasoningEffort(model: String, effort: String?) {
+        if (effort != null && supportsReasoning(model)) {
+            put("reasoning_effort", effort)
+        }
     }
 
     /** Returns the appropriate system prompt for the user's goal type */
@@ -90,6 +121,7 @@ class OpenAiService @Inject constructor(
         userMessage: String,
         systemPrompt: String = SYSTEM_PROMPT,
         feature: String = "chat",
+        reasoningEffort: String? = null,
     ): Result<String> = runCatching {
         appLogger.ai("Chat request: ${userMessage.take(80)}${if (userMessage.length > 80) "…" else ""}")
         val apiKey = prefs.openAiApiKey.first()
@@ -110,7 +142,8 @@ class OpenAiService @Inject constructor(
                     put("content", userMessage)
                 }
             }
-            put("max_completion_tokens", 4096)
+            put("max_completion_tokens", MAX_COMPLETION_TOKENS)
+            putReasoningEffort(model, reasoningEffort)
         }
 
         val response = client.post(API_URL) {
@@ -165,7 +198,7 @@ class OpenAiService @Inject constructor(
                     }
                 }
             }
-            put("max_completion_tokens", 4096)
+            put("max_completion_tokens", MAX_COMPLETION_TOKENS)
         }
 
         val response = client.post(API_URL) {
@@ -243,7 +276,7 @@ class OpenAiService @Inject constructor(
                     }
                 }
             }
-            put("max_completion_tokens", 4096)
+            put("max_completion_tokens", MAX_COMPLETION_TOKENS)
         }
 
         val statement = client.preparePost(API_URL) {
@@ -273,6 +306,14 @@ class OpenAiService @Inject constructor(
                     if (delta != null) {
                         sb.append(delta)
                         emit(delta)
+                    }
+                    if (chunk["choices"]?.jsonArray?.getOrNull(0)?.jsonObject
+                            ?.get("finish_reason")?.jsonPrimitive?.contentOrNull == "length"
+                    ) {
+                        appLogger.error(
+                            "AI",
+                            "Stream truncated at $MAX_COMPLETION_TOKENS tokens after ${sb.length} chars",
+                        )
                     }
                     // Record usage from final chunk (has usage field when stream_options.include_usage=true)
                     val usage = chunk["usage"]?.jsonObject
@@ -312,7 +353,12 @@ class OpenAiService @Inject constructor(
             append(unitSuffix)
             append(toneCoachNoteInstruction(tone))
         }
-        return chat(userMessage, prompt, feature = "meal_text")
+        return chat(
+            userMessage,
+            prompt,
+            feature = "meal_text",
+            reasoningEffort = STRUCTURED_REASONING_EFFORT,
+        )
     }
 
     /** Vision-based meal analysis — sends photos + prompt to GPT-5.2 */
@@ -378,7 +424,8 @@ class OpenAiService @Inject constructor(
                     put("content", contentArray)
                 }
             }
-            put("max_completion_tokens", 4096)
+            put("max_completion_tokens", MAX_COMPLETION_TOKENS)
+            putReasoningEffort(model, STRUCTURED_REASONING_EFFORT)
         }
 
         val response = client.post(API_URL) {
@@ -414,19 +461,40 @@ class OpenAiService @Inject constructor(
             userMessage = "Here is my current meal entry:\n$mealJson\n\nCorrection: $userCorrection",
             systemPrompt = AI_MEAL_EDIT_PROMPT,
             feature = "meal_edit",
+            reasoningEffort = STRUCTURED_REASONING_EFFORT,
         )
     }
 
     /**
      * Safely extracts the text content from an OpenAI chat-completions response.
-     * Throws a descriptive error if the response shape is unexpected (e.g. error objects).
+     * Throws a descriptive error if the response shape is unexpected (e.g. error objects),
+     * or if the model ran out of budget before finishing — on reasoning models the
+     * thinking is billed as output tokens, so a truncated reply can come back empty.
      */
-    private fun extractContent(json: JsonObject): String =
-        json["choices"]?.jsonArray?.getOrNull(0)
-            ?.jsonObject?.get("message")
-            ?.jsonObject?.get("content")
-            ?.jsonPrimitive?.content
+    private fun extractContent(json: JsonObject): String {
+        val choice = json["choices"]?.jsonArray?.getOrNull(0)?.jsonObject
             ?: error("Unexpected OpenAI response shape: ${json.toString().take(300)}")
+
+        val content = choice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
+
+        if (choice["finish_reason"]?.jsonPrimitive?.contentOrNull == "length") {
+            val reasoningTokens = json["usage"]?.jsonObject
+                ?.get("completion_tokens_details")?.jsonObject
+                ?.get("reasoning_tokens")?.jsonPrimitive?.intOrNull ?: 0
+            appLogger.error(
+                "AI",
+                "Response truncated at $MAX_COMPLETION_TOKENS tokens " +
+                    "($reasoningTokens spent on reasoning, ${content?.length ?: 0} chars returned)",
+            )
+            error(
+                "The AI ran out of room before finishing its answer. " +
+                    "Try a shorter question, or pick a lighter model in Settings → AI.",
+            )
+        }
+
+        return content
+            ?: error("Unexpected OpenAI response shape: ${json.toString().take(300)}")
+    }
 
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val stream = ByteArrayOutputStream()

@@ -41,36 +41,52 @@ import java.time.temporal.ChronoUnit
 
 /**
  * Estimated cost per 1M tokens by model family.
- * Prices as of early 2026 — update when pricing changes.
+ * Prices as of 2026-09-18 — update when pricing changes.
+ * Older models are kept so historical usage rows still cost correctly.
  */
 private data class ModelPricing(val inputPer1M: Double, val outputPer1M: Double)
 
 private val MODEL_PRICING = mapOf(
-    "gpt-5.4" to ModelPricing(3.50, 28.0),
-    "gpt-5.4-mini" to ModelPricing(0.50, 4.0),
-    "gpt-5.4-nano" to ModelPricing(0.10, 0.80),
-    "gpt-5.4-pro" to ModelPricing(35.0, 280.0),
-    "gpt-5.2" to ModelPricing(1.75, 14.0),
+    "gpt-6-astra" to ModelPricing(10.0, 50.0),
+    "gpt-5.6-sol" to ModelPricing(4.0, 20.0),
+    "gpt-5.6-terra" to ModelPricing(2.0, 12.0),
+    "gpt-5.6-luna" to ModelPricing(0.20, 1.20),
+    "gpt-5.6" to ModelPricing(4.0, 20.0),
+    "gpt-5.5-pro" to ModelPricing(30.0, 180.0),
+    "gpt-5.5" to ModelPricing(5.0, 30.0),
+    "gpt-5.4-mini" to ModelPricing(0.75, 4.50),
+    "gpt-5.4-nano" to ModelPricing(0.20, 1.25),
+    "gpt-5.4-pro" to ModelPricing(30.0, 180.0),
+    "gpt-5.4" to ModelPricing(2.50, 15.0),
+    "gpt-5.3-codex" to ModelPricing(1.75, 14.0),
     "gpt-5.2-codex" to ModelPricing(1.75, 14.0),
     "gpt-5.2-pro" to ModelPricing(21.0, 168.0),
+    "gpt-5.2" to ModelPricing(1.75, 14.0),
     "gpt-5.1" to ModelPricing(1.25, 10.0),
-    "gpt-5" to ModelPricing(1.25, 10.0),
     "gpt-5-mini" to ModelPricing(0.25, 2.0),
     "gpt-5-nano" to ModelPricing(0.05, 0.40),
-    "gpt-4.1" to ModelPricing(2.0, 8.0),
+    "gpt-5-pro" to ModelPricing(15.0, 120.0),
+    "gpt-5" to ModelPricing(1.25, 10.0),
     "gpt-4.1-mini" to ModelPricing(0.40, 1.60),
     "gpt-4.1-nano" to ModelPricing(0.10, 0.40),
-    "gpt-4o" to ModelPricing(2.50, 10.0),
+    "gpt-4.1" to ModelPricing(2.0, 8.0),
     "gpt-4o-mini" to ModelPricing(0.15, 0.60),
-    "o3" to ModelPricing(2.0, 8.0),
+    "gpt-4o" to ModelPricing(2.50, 10.0),
     "o4-mini" to ModelPricing(1.10, 4.40),
+    "o3-mini" to ModelPricing(1.10, 4.40),
+    "o3-pro" to ModelPricing(20.0, 80.0),
+    "o3" to ModelPricing(2.0, 8.0),
 )
 
 private val FALLBACK_PRICING = ModelPricing(2.0, 8.0)
 
 private fun estimateCost(model: String, promptTokens: Long, completionTokens: Long): Double {
-    val pricing = MODEL_PRICING.entries
-        .firstOrNull { model.startsWith(it.key) }?.value
+    // Exact id first, then the longest matching prefix, so "gpt-5.4-mini" is not
+    // priced as "gpt-5.4".
+    val pricing = MODEL_PRICING[model]
+        ?: MODEL_PRICING.entries
+            .filter { model.startsWith(it.key) }
+            .maxByOrNull { it.key.length }?.value
         ?: FALLBACK_PRICING
     return (promptTokens * pricing.inputPer1M + completionTokens * pricing.outputPer1M) / 1_000_000.0
 }
