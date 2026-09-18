@@ -1,7 +1,6 @@
 package com.fatlosstrack.ui.log
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -94,10 +93,12 @@ fun AddMealSheet(
         if (bookmarks.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.section_bookmarks), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
-                androidx.compose.foundation.lazy.LazyRow(
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(bookmarks) { bm ->
+                    bookmarks.forEach { bm ->
                         FilterChip(
                             selected = false,
                             onClick = {
