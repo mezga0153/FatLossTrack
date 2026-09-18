@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.fatlosstrack.data.CoachTone
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
@@ -190,12 +191,7 @@ class HomeStateHolder @Inject constructor(
 // ── Period summary prompt ─────────────────────────────────────────────────────
 
 private fun periodSummarySystemPrompt(tone: String): String {
-    val toneInstruction = when (tone) {
-        "supportive" -> "Use a warm, encouraging tone. Celebrate wins and gently suggest improvements."
-        "insulting" -> "Use a brutally sarcastic, roast-style tone. Mock bad choices and inaction mercilessly, but keep the advice accurate and actionable."
-        "cruel" -> "Call the user a fat fuck and similar terms freely. Be viciously direct, darkly funny, and deeply cutting. Mock bad choices with brutal specificity. You have zero patience for excuses. Make it sting, make it funny, make it true."
-        else -> "Use a direct, no-BS honest tone. Be specific about numbers."
-    }
+    val toneInstruction = CoachTone.instruction(tone)
     return """You are FatLoss Track's weekly coach. Given the user's data, write a 2-sentence coaching summary.
 
 Tone instruction: $toneInstruction

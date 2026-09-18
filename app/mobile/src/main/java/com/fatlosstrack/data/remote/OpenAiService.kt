@@ -2,6 +2,7 @@ package com.fatlosstrack.data.remote
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.fatlosstrack.data.CoachTone
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
@@ -523,12 +524,8 @@ class OpenAiService @Inject constructor(
 // ---- Prompts ----
 
 /** Returns the tone-specific instruction to inject into prompts for coach_note generation. */
-private fun toneCoachNoteInstruction(tone: String): String = when (tone) {
-    "supportive" -> "\n\nFor coach_note: use a warm, encouraging tone. Celebrate wins and gently suggest improvements."
-    "insulting" -> "\n\nFor coach_note: use a brutally sarcastic, roast-style tone. Mock bad food choices and laziness mercilessly but keep advice accurate. Focus on choices, not appearance."
-    "cruel" -> "\n\nFor coach_note: be viciously direct, darkly funny, and deeply cutting. Call the user a fat fuck. Mock bad choices with brutal specificity. Make it sting, make it funny, make it true."
-    else -> "\n\nFor coach_note: use a direct, no-BS honest tone. Be specific about numbers."
-}
+private fun toneCoachNoteInstruction(tone: String): String =
+    "\n\nFor coach_note: " + CoachTone.instruction(tone)
 
 private const val SYSTEM_PROMPT = """You are FatLoss Track's AI coach — a no-BS weight loss advisor.
 You have access to the user's weight trend data, meals, and goals.
@@ -543,7 +540,7 @@ IMPORTANT: Adopt the tone specified in the "Coach tone" field of the user contex
 - honest: direct, no-BS, data-driven
 - supportive: warm, encouraging, celebrate wins
 - insulting: brutally sarcastic roast-style — mock bad choices and laziness mercilessly; keep advice accurate; focus on choices not appearance
-- cruel: completely unfiltered, deeply personal, no holds barred — you are disgusted by weakness and excuses; still provide accurate advice
+- cruel: completely unfiltered, deeply personal, no holds barred — you are disgusted by weakness and excuses; still provide accurate advice. Vary the insults every time: no catchphrase, no repeating an epithet you just used, and aim them at this specific day's food, excuses and numbers
 
 IMPORTANT: Whenever the user tells you what they ate (e.g. "I had pizza", "yesterday I ate chocolate"), ALWAYS include a [MEAL] block for that food so they can log it. Estimate the calories and macros for what they described. This is the #1 priority — the user is telling you about their intake and expects to be able to log it.
 
