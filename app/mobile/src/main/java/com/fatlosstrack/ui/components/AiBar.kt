@@ -1,5 +1,7 @@
 package com.fatlosstrack.ui.components
 
+import android.view.WindowManager
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -44,6 +47,7 @@ fun AiBar(
     onChatOpen: ((String) -> Unit)? = null,
 ) {
     var text by remember { mutableStateOf("") }
+    var focused by remember { mutableStateOf(false) }
     val pillShape = RoundedCornerShape(28.dp)
     val iconShape = RoundedCornerShape(14.dp)
     val errorFallback = stringResource(R.string.error_something_went_wrong)
@@ -73,7 +77,26 @@ fun AiBar(
     val iconGradient = remember {
         Brush.linearGradient(listOf(Color(0xFF7B5FFF), Color(0xFFCDA0FF)))
     }
-    Column(modifier = modifier) {
+    // The window pans for the keyboard by default, and that pan is recomputed on every
+    // keystroke as the cursor moves, which makes the bar jump. While the bar is focused,
+    // switch to adjustResize (no pan under edge-to-edge) and lift the bar with imePadding.
+    // Other screens' text fields keep the default pan behavior.
+    val window = LocalActivity.current?.window
+    val originalSoftInputMode = remember(window) { window?.attributes?.softInputMode }
+    fun setResizeMode(resize: Boolean) {
+        val original = originalSoftInputMode ?: return
+        window?.setSoftInputMode(
+            if (resize) {
+                (original and WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST.inv()) or
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            } else original
+        )
+    }
+    DisposableEffect(window) {
+        onDispose { setResizeMode(false) }
+    }
+
+    Column(modifier = modifier.then(if (focused) Modifier.imePadding() else Modifier)) {
         // Response card (above the bar)
         AnimatedVisibility(
             visible = state.aiResponse != null || state.aiError != null || state.isLoading,
@@ -220,7 +243,14 @@ fun AiBar(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged {
+                            if (it.isFocused != focused) {
+                                focused = it.isFocused
+                                setResizeMode(it.isFocused)
+                            }
+                        },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,

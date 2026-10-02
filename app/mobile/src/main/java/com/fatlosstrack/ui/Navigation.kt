@@ -181,7 +181,12 @@ fun FatLossTrackNavGraph(
             }
         },
     ) { innerPadding ->
-        Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+        Box(
+            Modifier
+                .padding(bottom = innerPadding.calculateBottomPadding())
+                // Bottom bar already lifts content; AiBar's imePadding only adds the excess
+                .consumeWindowInsets(PaddingValues(bottom = innerPadding.calculateBottomPadding()))
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = Tab.Home.route,
