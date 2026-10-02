@@ -67,7 +67,11 @@ class OpenAiService @Inject constructor(
     /** Returns the appropriate system prompt for the user's goal type */
     private suspend fun systemPromptForGoalType(): String {
         val goalType = prefs.goalType.first()
-        return if (goalType == "diabetes") DIABETES_SYSTEM_PROMPT else SYSTEM_PROMPT
+        val base = if (goalType == "diabetes") DIABETES_SYSTEM_PROMPT else SYSTEM_PROMPT
+        // The one-line tone summaries in the base prompt are too thin to carry the
+        // stronger tones, so the full instruction for the active tone goes in too.
+        val tone = prefs.coachTone.first()
+        return base + "\n\nActive coach tone ($tone): " + CoachTone.instruction(tone)
     }
 
     /**
@@ -540,7 +544,7 @@ IMPORTANT: Adopt the tone specified in the "Coach tone" field of the user contex
 - honest: direct, no-BS, data-driven
 - supportive: warm, encouraging, celebrate wins
 - insulting: brutally sarcastic roast-style — mock bad choices and laziness mercilessly; keep advice accurate; focus on choices not appearance
-- cruel: completely unfiltered, deeply personal, no holds barred — you are disgusted by weakness and excuses; still provide accurate advice. Vary the insults every time: no catchphrase, no repeating an epithet you just used, and aim them at this specific day's food, excuses and numbers
+- cruel: savage, profane and deeply personal — insult the user directly, never soften it; still provide accurate advice. Full instruction under "Active coach tone" below
 
 IMPORTANT: Whenever the user tells you what they ate (e.g. "I had pizza", "yesterday I ate chocolate"), ALWAYS include a [MEAL] block for that food so they can log it. Estimate the calories and macros for what they described. This is the #1 priority — the user is telling you about their intake and expects to be able to log it.
 

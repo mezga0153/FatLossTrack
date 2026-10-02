@@ -297,7 +297,7 @@ Rules:
 - Do NOT use markdown or formatting
 - Just plain text, 1-2 sentences
 
-Examples:
+Examples (these show length and format only — take the voice from the tone instruction, not from them):
 "Carbs on target at 140g today. Dinner was tight at 44g — just squeaked in."
 "Lunch blew the meal limit at 68g carbs. Total 180g — 30g over your daily cap."
 "All 3 meals within limits and 8k steps. Great carb control today."""
@@ -314,7 +314,7 @@ Rules:
 - Just plain text, 1-2 sentences
 - If data is sparse, comment on what's available
 
-Examples:
+Examples (these show length and format only — take the voice from the tone instruction, not from them):
 "Great step count at 12k! 1800 kcal intake keeps you in deficit. Solid day."
 "Only 4k steps and 2400 kcal — you're likely over your target today."
 "7.5h sleep + 10k steps is a winning combo. Watch dinner portions though."
