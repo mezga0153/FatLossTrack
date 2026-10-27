@@ -423,6 +423,8 @@
     <string name="button_grant_permission">Grant permission</string>
     <string name="capture_photo_count">%d/3 photos</string>
     <string name="capture_comment_hint">Add a note for the AI (optional)</string>
+    <string name="share_photo_limit">Only the first 3 photos were added</string>
+    <string name="share_read_failed">Couldn\'t open the shared photos</string>
     <string name="cd_gallery">Gallery</string>
     <string name="cd_take_photo">Take photo</string>
     <string name="cd_analyze">Analyze</string>

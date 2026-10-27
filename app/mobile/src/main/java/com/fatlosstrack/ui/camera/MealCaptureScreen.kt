@@ -63,12 +63,14 @@ enum class CaptureMode(val titleRes: Int, val subtitleRes: Int) {
  * Full-screen camera capture with real CameraX preview.
  * Captures up to 3 photos, shows thumbnails in a bottom strip.
  * Tap thumbnail to view full-screen, X to remove.
+ * [initialPhotos] preloads the strip, e.g. with photos shared from another app.
  */
 @Composable
 fun MealCaptureScreen(
     mode: CaptureMode,
     onAnalyze: (mode: CaptureMode, photoCount: Int) -> Unit,
     onBack: () -> Unit,
+    initialPhotos: List<Uri> = emptyList(),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -90,7 +92,7 @@ fun MealCaptureScreen(
     }
 
     // Photos state
-    val capturedPhotos = remember { mutableStateListOf<Uri>() }
+    val capturedPhotos = remember { mutableStateListOf<Uri>().apply { addAll(initialPhotos.take(3)) } }
     var viewingIndex by remember { mutableIntStateOf(-1) }
     var userComment by remember { mutableStateOf("") }
 
