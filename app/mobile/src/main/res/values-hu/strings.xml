@@ -182,6 +182,10 @@
     <string name="hc_sync_now">Szinkronizálás most</string>
     <string name="hc_permissions_granted">Engedélyek megadva — koppints a Szinkronizálás most gombra</string>
     <string name="hc_sync_started">Szinkronizálás elindítva</string>
+    <string name="hc_write_meals_title">Étkezések írása a Health Connectbe</string>
+    <string name="hc_write_meals_description">A naplózott étkezéseket táplálkozási bejegyzésként menti (kalória, fehérje, szénhidrát, zsír), így az olyan alkalmazások is látják, mint a Fit és a Samsung Health.</string>
+    <string name="hc_write_meals_backfill_started">A meglévő étkezések írása a Health Connectbe…</string>
+    <string name="hc_write_meals_denied">A táplálkozási adatok írásához szükséges engedély nincs megadva</string>
     <string name="settings_section_language">Nyelv</string>
     <string name="settings_section_theme">Téma</string>
     <string name="theme_dark">Sötét</string>

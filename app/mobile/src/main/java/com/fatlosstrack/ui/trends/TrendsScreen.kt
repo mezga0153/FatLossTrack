@@ -1451,6 +1451,7 @@ fun TrendsScreen(
         daySummaryGenerator = state.daySummaryGenerator,
         openAiService = state.openAiService,
         bookmarkedMealDao = state.bookmarkedMealDao,
+        mealHealthWriter = state.mealHealthWriter,
         logTag = "TrendsScreen",
     )
 }

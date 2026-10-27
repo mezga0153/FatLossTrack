@@ -9,6 +9,8 @@ import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.fatlosstrack.data.local.AppLogger
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -16,7 +18,8 @@ import javax.inject.Singleton
 
 /**
  * Wraps Health Connect client. Reads weight, steps, sleep, resting HR,
- * exercise sessions, and active calories for a given date range.
+ * exercise sessions, and active calories for a given date range,
+ * and writes logged meals as nutrition records.
  */
 @Singleton
 class HealthConnectManager @Inject constructor(
@@ -25,6 +28,9 @@ class HealthConnectManager @Inject constructor(
 ) {
     companion object {
         private const val TAG = "HealthConnect"
+
+        /** Optional: only needed when the user turns on "Write meals to Health Connect". */
+        val WRITE_NUTRITION_PERMISSION = HealthPermission.getWritePermission(NutritionRecord::class)
 
         val PERMISSIONS = setOf(
             HealthPermission.getReadPermission(WeightRecord::class),
@@ -39,6 +45,7 @@ class HealthConnectManager @Inject constructor(
             HealthPermission.getReadPermission(LeanBodyMassRecord::class),
             HealthPermission.getReadPermission(BoneMassRecord::class),
             HealthPermission.getReadPermission(BloodGlucoseRecord::class),
+            WRITE_NUTRITION_PERMISSION,
         )
 
         // Core permissions required for sync to run.
@@ -124,6 +131,17 @@ class HealthConnectManager @Inject constructor(
         cachedBgPermission = null
     }
 
+    /** Whether the WRITE_NUTRITION permission is currently granted. Not cached — the user can revoke it in HC at any time. */
+    suspend fun hasNutritionWritePermission(): Boolean {
+        val c = client ?: return false
+        return try {
+            WRITE_NUTRITION_PERMISSION in c.permissionController.getGrantedPermissions()
+        } catch (e: Exception) {
+            Log.e(TAG, "hasNutritionWritePermission failed", e)
+            false
+        }
+    }
+
     /** Check if a set of granted permissions (from launcher callback) covers core permissions. */
     fun hasCorePermissionsGranted(granted: Set<String>): Boolean =
         granted.containsAll(CORE_PERMISSIONS)
@@ -132,6 +150,7 @@ class HealthConnectManager @Inject constructor(
 
     /**
      * Reads ALL records for a request, transparently paging through HC's 1000-record page limit.
+     * Records written by this app are dropped so our own data (e.g. meal nutrition) never loops back in.
      * Returns an empty list if the client is unavailable.
      */
     private suspend fun <T : Record> readAllRecords(request: ReadRecordsRequest<T>): List<T> {
@@ -149,10 +168,37 @@ class HealthConnectManager @Inject constructor(
                     pageToken = pageToken,
                 )
             )
-            all.addAll(page.records)
+            all.addAll(page.records.filter { it.metadata.dataOrigin.packageName != context.packageName })
             pageToken = page.pageToken
         } while (pageToken != null)
         return all
+    }
+
+    // ── Write helpers (nutrition) ──
+
+    /**
+     * Inserts [records], updating any existing record with the same clientRecordId
+     * (HC upserts when the new clientRecordVersion is higher). Returns the HC record ids
+     * in input order. Throws on failure — callers decide how to log it.
+     */
+    suspend fun upsertNutrition(records: List<NutritionRecord>): List<String> {
+        val c = client ?: throw IllegalStateException("Health Connect not available")
+        return c.insertRecords(records).recordIdsList
+    }
+
+    /** Deletes nutrition records written by this app, by HC record id and/or clientRecordId. */
+    suspend fun deleteNutrition(recordIds: List<String>, clientRecordIds: List<String>) {
+        val c = client ?: throw IllegalStateException("Health Connect not available")
+        c.deleteRecords(NutritionRecord::class, recordIds, clientRecordIds)
+    }
+
+    /** Deletes every nutrition record this app has written (HC only deletes the caller's own data). */
+    suspend fun deleteAllOwnNutrition() {
+        val c = client ?: throw IllegalStateException("Health Connect not available")
+        c.deleteRecords(
+            NutritionRecord::class,
+            TimeRangeFilter.between(Instant.EPOCH, Instant.now().plus(Duration.ofDays(3650))),
+        )
     }
 
     private fun dayRange(date: LocalDate): TimeRangeFilter {

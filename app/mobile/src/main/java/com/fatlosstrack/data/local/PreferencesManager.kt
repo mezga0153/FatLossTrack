@@ -40,6 +40,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_MAX_CARBS_PER_MEAL = intPreferencesKey("max_carbs_per_meal") // grams
         private val KEY_MAX_CARBS_PER_DAY = intPreferencesKey("max_carbs_per_day") // grams
         private val KEY_USE_METRIC = androidx.datastore.preferences.core.booleanPreferencesKey("use_metric")
+        private val KEY_HC_WRITE_MEALS = androidx.datastore.preferences.core.booleanPreferencesKey("hc_write_meals")
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -120,6 +121,11 @@ class PreferencesManager @Inject constructor(
     /** true = metric (kg, cm, mmol/L) — default; false = imperial (lbs, ft/in, mg/dL) */
     val useMetric: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_USE_METRIC] ?: true
+    }
+
+    /** Write logged meals to Health Connect as nutrition records. Off by default (opt-in). */
+    val hcWriteMeals: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_HC_WRITE_MEALS] ?: false
     }
 
     suspend fun setOpenAiApiKey(key: String) {
@@ -222,6 +228,12 @@ class PreferencesManager @Inject constructor(
     suspend fun setUseMetric(metric: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_USE_METRIC] = metric
+        }
+    }
+
+    suspend fun setHcWriteMeals(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_HC_WRITE_MEALS] = enabled
         }
     }
 }

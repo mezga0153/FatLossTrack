@@ -5,6 +5,7 @@ import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.backup.AutoBackupManager
 import com.fatlosstrack.data.backup.DriveBackupManager
 import com.fatlosstrack.data.health.HealthConnectManager
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.DailyLogDao
 import kotlinx.coroutines.flow.Flow
@@ -24,12 +25,19 @@ class SettingsStateHolder @Inject constructor(
     private val _driveBackupManager: DriveBackupManager,
     private val _autoBackupManager: AutoBackupManager,
     private val _dailyLogDao: DailyLogDao,
+    private val _mealHealthWriter: MealHealthConnectWriter,
 ) {
     val authManager get() = _authManager
     val preferencesManager get() = _preferencesManager
     val healthConnectManager get() = _healthConnectManager
     val driveBackupManager get() = _driveBackupManager
     val autoBackupManager get() = _autoBackupManager
+
+    /** Turn writing meals to Health Connect on/off. Turning it on backfills all existing meals. */
+    suspend fun setHcWriteMeals(enabled: Boolean) {
+        _preferencesManager.setHcWriteMeals(enabled)
+        if (enabled) _mealHealthWriter.launchBackfill("settingsToggle")
+    }
 
     /** Most recent lean body mass (kg) from Health Connect, or null if not synced. */
     val latestLeanMassKg: Flow<Double?> = _dailyLogDao.getAllLogs().map { logs ->

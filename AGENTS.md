@@ -11,7 +11,7 @@ Guide for AI agents working on this codebase.
 | Language | Kotlin 2.3.21 (AGP built-in Kotlin) |
 | UI | Jetpack Compose + Material 3 (BOM 2026.09.00) |
 | DI | Hilt 2.60.1 |
-| DB | Room 2.8.5, version **18** |
+| DB | Room 2.8.5, version **19** |
 | HTTP | Ktor 3.6.0 (OkHttp engine) |
 | Health | Health Connect 1.2.0-alpha06 |
 | Camera | CameraX 1.6.2 |
@@ -97,7 +97,8 @@ fatloss_track/
         │   │   └── DriveBackupManager.kt    # DB + prefs ↔ Google Drive appDataFolder
         │   ├── health/
         │   │   ├── HealthConnectManager.kt  # HC client (weight/steps/sleep/HR/exercise/body comp/glucose)
-        │   │   └── HealthConnectSyncService.kt  # HC → Room sync, returns changed dates
+        │   │   ├── HealthConnectSyncService.kt  # HC → Room sync, returns changed dates
+        │   │   └── MealHealthConnectWriter.kt   # Room meals → HC NutritionRecords (optional, Settings toggle)
         │   ├── local/
         │   │   ├── PreferencesManager.kt    # DataStore (goal, profile, API key, model, tone, theme, language, units)
         │   │   ├── AppLogger.kt             # File logger (daily rotation, 7-day retention)
@@ -107,7 +108,7 @@ fatloss_track/
         │   │   └── db/
         │   │       ├── Entities.kt          # 9 Room entities
         │   │       ├── Daos.kt              # 9 DAOs
-        │   │       ├── FatLossDatabase.kt   # DB v18
+        │   │       ├── FatLossDatabase.kt   # DB v19
         │   │       └── Converters.kt        # LocalDate↔String, Instant↔Long
         │   └── remote/
         │       ├── OpenAiService.kt         # Direct OpenAI calls (chat, streaming chat, meal parse/photo/edit)
@@ -175,14 +176,14 @@ fatloss_track/
 
 ---
 
-## Database (Room, v18)
+## Database (Room, v19)
 
 ### Entities
 
 | Table | PK | Key Fields |
 |---|---|---|
 | `weight_entries` | `id` (auto) | `date`, `valueKg`, `source` (MANUAL/HEALTH_CONNECT) |
-| `meal_entries` | `id` (auto) | `date`, `description`, `itemsJson?`, `totalKcal`, `totalProteinG`, `totalCarbsG`, `totalFatG`, `coachNote?`, `category` (HOME/RESTAURANT/FAST_FOOD), `mealType?` (BREAKFAST/BRUNCH/LUNCH/DINNER/SNACK), `hasAlcohol`, `photoUri?`, `note?`, `loggedAt?` (user-set time; `displayTime` falls back to `createdAt`) |
+| `meal_entries` | `id` (auto) | `date`, `description`, `itemsJson?`, `totalKcal`, `totalProteinG`, `totalCarbsG`, `totalFatG`, `coachNote?`, `category` (HOME/RESTAURANT/FAST_FOOD), `mealType?` (BREAKFAST/BRUNCH/LUNCH/DINNER/SNACK), `hasAlcohol`, `photoUri?`, `note?`, `loggedAt?` (user-set time; `displayTime` falls back to `createdAt`), `hcRecordId?` (HC NutritionRecord id; null = not written) |
 | `goals` | `id` (auto) | `targetKg`, `rateKgPerWeek`, `deadline`, `dailyDeficitKcal?` |
 | `daily_logs` | `date` (PK) | `weightKg?`, `steps?`, `sleepHours?`, `restingHr?`, `exercisesJson?`, `notes?`, `offPlan`, `daySummary?`, `synopsis?`, `weightLocked`, `stepsLocked`, `bodyFatPct?`, `bodyWaterKg?`, `leanBodyMassKg?`, `boneMassKg?`, `bloodSugarMmol?` |
 | `insights` | `id` (auto) | `date`, `type` (PATTERN/TRADEOFF), `message`, `dataJson?` |
@@ -209,6 +210,7 @@ Most goal/profile settings live in DataStore (`PreferencesManager`), not in the 
 - **15→16**: `daily_logs.bloodSugarMmol`
 - **16→17**: `meal_entries.loggedAt`
 - **17→18**: `CREATE TABLE blood_glucose_entries`
+- **18→19**: `meal_entries.hcRecordId`
 - Uses `addMigrations()` — **never** use `fallbackToDestructiveMigration()` (it wipes user data)
 - `exportSchema = false`, so there are no schema JSON files to update
 
@@ -309,12 +311,23 @@ is skipped if a hash of the day's input data hasn't changed since the last gener
 
 ## Health Connect
 
-### Permissions (all READ)
-`WEIGHT`, `STEPS`, `SLEEP`, `HEART_RATE`, `RESTING_HEART_RATE`, `EXERCISE`, `ACTIVE_CALORIES_BURNED`,
+### Permissions
+READ: `WEIGHT`, `STEPS`, `SLEEP`, `HEART_RATE`, `RESTING_HEART_RATE`, `EXERCISE`, `ACTIVE_CALORIES_BURNED`,
 `BODY_FAT`, `BODY_WATER_MASS`, `LEAN_BODY_MASS`, `BONE_MASS`, `BLOOD_GLUCOSE`
+WRITE: `NUTRITION` (optional)
 
 The first seven are the core set sync needs; body composition and blood glucose are optional
 (their getters return null when not granted).
+
+### Writing meals (optional)
+
+- Settings toggle "Write meals to Health Connect" (`hc_write_meals` pref, off by default) + `WRITE_NUTRITION`
+- Every meal insert/edit/delete calls `MealHealthConnectWriter.launchUpsert()` / `launchDelete()` — add the
+  call to any new meal mutation site. Fire-and-forget on the app scope; failures are only logged
+- clientRecordId `meal-<roomId>` makes re-writes update the record; the HC id lands in `meal_entries.hcRecordId`
+- Turning the toggle on deletes this app's nutrition records and rewrites all meals (backfill); a backup restore
+  drops a marker file so the next app start does the same. App start also retries meals with `hcRecordId = null`
+- `readAllRecords` drops records whose data origin is this app, so nothing we write is read back
 
 ### Sync behavior
 

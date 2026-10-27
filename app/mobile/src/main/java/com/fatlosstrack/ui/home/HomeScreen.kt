@@ -698,6 +698,7 @@ fun HomeScreen(
         daySummaryGenerator = state.daySummaryGenerator,
         openAiService = state.openAiService,
         bookmarkedMealDao = state.bookmarkedMealDao,
+        mealHealthWriter = state.mealHealthWriter,
         onCameraForDate = onCameraForDate,
         logTag = "HomeScreen",
     )

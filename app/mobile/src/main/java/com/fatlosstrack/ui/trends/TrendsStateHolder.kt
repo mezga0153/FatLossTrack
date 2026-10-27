@@ -3,6 +3,7 @@ package com.fatlosstrack.ui.trends
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.BloodGlucoseDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
@@ -33,6 +34,7 @@ class TrendsStateHolder @Inject constructor(
     val daySummaryGenerator: DaySummaryGenerator,
     val openAiService: OpenAiService,
     val bookmarkedMealDao: BookmarkedMealDao,
+    val mealHealthWriter: MealHealthConnectWriter,
 ) {
     // ── Preference flows ──
     val goalWeight get() = _preferencesManager.goalWeight

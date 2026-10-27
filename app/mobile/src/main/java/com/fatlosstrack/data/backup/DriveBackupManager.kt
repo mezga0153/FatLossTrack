@@ -3,6 +3,7 @@ package com.fatlosstrack.data.backup
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.FatLossDatabase
 import com.google.android.gms.auth.GoogleAuthUtil
@@ -320,6 +321,9 @@ class DriveBackupManager @Inject constructor(
         if (prefsJson != null) {
             importPreferences(JSONObject(prefsJson!!))
         }
+
+        // Restored meals no longer match what was written to Health Connect
+        MealHealthConnectWriter.markFullResyncPending(context)
     }
 
     private suspend fun importPreferences(json: JSONObject) {

@@ -108,12 +108,15 @@ fun SettingsScreen(
     var hcBgPermGranted by remember { mutableStateOf(true) } // assume granted until checked
     var hcSyncing by remember { mutableStateOf(false) }
     var hcLastSyncMsg by remember { mutableStateOf<String?>(null) }
+    val hcWriteMeals by preferencesManager.hcWriteMeals.collectAsState(initial = false)
+    var hcNutritionWriteGranted by remember { mutableStateOf(false) }
 
     // Check permissions on launch
     LaunchedEffect(hcAvailable) {
         if (hcAvailable) {
             hcPermGranted = healthConnectManager.hasAllPermissions()
             hcBgPermGranted = healthConnectManager.hasBloodGlucosePermission()
+            hcNutritionWriteGranted = healthConnectManager.hasNutritionWritePermission()
         }
     }
 
@@ -127,8 +130,22 @@ fun SettingsScreen(
             androidx.health.connect.client.records.BloodGlucoseRecord::class,
         )
         hcBgPermGranted = bgPerm in granted
+        if (HealthConnectManager.WRITE_NUTRITION_PERMISSION in granted) hcNutritionWriteGranted = true
         if (hcPermGranted) {
             hcLastSyncMsg = "Permissions granted — tap Sync now"
+        }
+    }
+
+    // Write-nutrition request from the "Write meals" toggle — turns the toggle on once granted
+    val nutritionPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
+    ) { granted ->
+        hcNutritionWriteGranted = HealthConnectManager.WRITE_NUTRITION_PERMISSION in granted
+        if (hcNutritionWriteGranted) {
+            scope.launch { state.setHcWriteMeals(true) }
+            hcLastSyncMsg = context.getString(R.string.hc_write_meals_backfill_started)
+        } else {
+            hcLastSyncMsg = context.getString(R.string.hc_write_meals_denied)
         }
     }
 
@@ -574,6 +591,45 @@ fun SettingsScreen(
                             Text("Grant blood glucose permission", color = Primary)
                         }
                     }
+
+                // Optional: write logged meals back to HC as nutrition records
+                Spacer(Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f))
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.hc_write_meals_title),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            stringResource(R.string.hc_write_meals_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Switch(
+                        checked = hcWriteMeals && hcNutritionWriteGranted,
+                        onCheckedChange = { enabled ->
+                            when {
+                                !enabled -> scope.launch { state.setHcWriteMeals(false) }
+                                hcNutritionWriteGranted -> {
+                                    scope.launch { state.setHcWriteMeals(true) }
+                                    hcLastSyncMsg = context.getString(R.string.hc_write_meals_backfill_started)
+                                }
+                                else -> nutritionPermissionLauncher.launch(
+                                    setOf(HealthConnectManager.WRITE_NUTRITION_PERMISSION),
+                                )
+                            }
+                        },
+                    )
+                }
 
                 if (hcLastSyncMsg != null) {
                     Spacer(Modifier.height(4.dp))

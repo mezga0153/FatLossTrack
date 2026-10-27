@@ -195,6 +195,10 @@
     <string name="hc_sync_now">Sinhroniziraj</string>
     <string name="hc_permissions_granted">Dovoljenja dodeljena — pritisni Sinhroniziraj</string>
     <string name="hc_sync_started">Sinhronizacija se je začela</string>
+    <string name="hc_write_meals_title">Zapisuj obroke v Health Connect</string>
+    <string name="hc_write_meals_description">Zabeležene obroke shrani kot zapise o prehrani (kalorije, beljakovine, ogljikovi hidrati, maščobe), da jih vidijo tudi aplikacije, kot sta Fit in Samsung Health.</string>
+    <string name="hc_write_meals_backfill_started">Obstoječi obroki se zapisujejo v Health Connect…</string>
+    <string name="hc_write_meals_denied">Dovoljenje za zapisovanje prehrane ni bilo dodeljeno</string>
     <string name="settings_section_language">Jezik</string>
     <string name="settings_section_theme">Tema</string>
     <string name="theme_dark">Temna</string>

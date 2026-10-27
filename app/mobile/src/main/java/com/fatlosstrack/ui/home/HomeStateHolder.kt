@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fatlosstrack.data.CoachTone
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
@@ -72,6 +73,7 @@ class HomeStateHolder @Inject constructor(
     private val _openAiService: OpenAiService,
     private val _daySummaryGenerator: DaySummaryGenerator,
     private val _bookmarkedMealDao: BookmarkedMealDao,
+    private val _mealHealthWriter: MealHealthConnectWriter,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     // ── Preference flows for composable collection ──
@@ -95,6 +97,7 @@ class HomeStateHolder @Inject constructor(
     val daySummaryGenerator get() = _daySummaryGenerator
     val openAiService get() = _openAiService
     val bookmarkedMealDao get() = _bookmarkedMealDao
+    val mealHealthWriter get() = _mealHealthWriter
 
     // ── Period summary state ──
     var periodSummary: String? by mutableStateOf(periodSummaryCache.text)

@@ -3,6 +3,7 @@ package com.fatlosstrack.ui.log
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.db.BookmarkedMeal
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
@@ -38,6 +39,7 @@ fun LogSheetHost(
     daySummaryGenerator: DaySummaryGenerator?,
     openAiService: OpenAiService?,
     bookmarkedMealDao: BookmarkedMealDao? = null,
+    mealHealthWriter: MealHealthConnectWriter? = null,
     onCameraForDate: (LocalDate) -> Unit = {},
     logTag: String = "SheetHost",
 ) {
@@ -101,6 +103,7 @@ fun LogSheetHost(
                 onSave = { updated ->
                     scope.launch {
                         mealDao.update(updated)
+                        mealHealthWriter?.launchUpsert(updated, "$logTag:mealEdit")
                         AppLogger.instance?.meal("Edited: ${updated.description.take(40)} — ${updated.totalKcal} kcal, ${updated.totalProteinG}g P, ${updated.totalCarbsG}g C, ${updated.totalFatG}g F, date=${updated.date}")
                         launchSummary(updated.date, dailyLogDao, daySummaryGenerator, "$logTag:mealEdit")
                         mealSheetState.hide()
@@ -112,6 +115,7 @@ fun LogSheetHost(
                         val meal = state.selectedMeal!!
                         AppLogger.instance?.meal("Deleted: ${meal.description.take(40)} — ${meal.totalKcal} kcal, date=${meal.date}")
                         mealDao.delete(meal)
+                        mealHealthWriter?.launchDelete(meal, "$logTag:mealDelete")
                         launchSummary(meal.date, dailyLogDao, daySummaryGenerator, "$logTag:mealDelete")
                         mealSheetState.hide()
                         state.selectedMeal = null
@@ -160,7 +164,8 @@ fun LogSheetHost(
                 bookmarks = bookmarks,
                 onSave = { newMeal ->
                     scope.launch {
-                        mealDao.insert(newMeal)
+                        val id = mealDao.insert(newMeal)
+                        mealHealthWriter?.launchUpsert(newMeal.copy(id = id), "$logTag:mealAdd")
                         com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
                         AppLogger.instance?.meal("Added: ${newMeal.description.take(40)} — ${newMeal.totalKcal} kcal, ${newMeal.totalProteinG}g P, ${newMeal.totalCarbsG}g C, ${newMeal.totalFatG}g F, cat=${newMeal.category}, type=${newMeal.mealType}, date=${newMeal.date}")
                         launchSummary(newMeal.date, dailyLogDao, daySummaryGenerator, "$logTag:mealAdd")

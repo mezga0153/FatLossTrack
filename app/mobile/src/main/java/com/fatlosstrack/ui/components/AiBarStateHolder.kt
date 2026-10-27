@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fatlosstrack.data.CruelCoachNoteGenerator
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
 import com.fatlosstrack.data.local.db.MealCategory
@@ -32,6 +33,7 @@ class AiBarStateHolder @Inject constructor(
     private val mealDao: MealDao,
     private val daySummaryGenerator: DaySummaryGenerator,
     private val cruelCoachNote: CruelCoachNoteGenerator,
+    private val mealHealthWriter: MealHealthConnectWriter,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     var isLoading: Boolean by mutableStateOf(false)
@@ -103,23 +105,23 @@ class AiBarStateHolder @Inject constructor(
                         // Direct insert fallback
                         val targetDate = LocalDate.now().plusDays(parsed.dayOffset.toLong())
                         AppLogger.instance?.meal("AiBar direct: ${parsed.description.take(40)} — ${parsed.totalCalories} kcal, ${parsed.totalProteinG}g P, ${parsed.totalCarbsG}g C, ${parsed.totalFatG}g F")
-                        mealDao.insert(
-                            MealEntry(
-                                date = targetDate,
-                                description = parsed.description,
-                                itemsJson = parsed.itemsJson,
-                                totalKcal = parsed.totalCalories,
-                                totalProteinG = parsed.totalProteinG,
-                                totalCarbsG = parsed.totalCarbsG,
-                                totalFatG = parsed.totalFatG,
-                                coachNote = parsed.coachNote,
-                                category = parsed.source,
-                                loggedAt = parsed.mealTime?.let {
-                                    java.time.LocalDateTime.of(targetDate, it)
-                                        .atZone(java.time.ZoneId.systemDefault()).toInstant()
-                                },
-                            ),
+                        val meal = MealEntry(
+                            date = targetDate,
+                            description = parsed.description,
+                            itemsJson = parsed.itemsJson,
+                            totalKcal = parsed.totalCalories,
+                            totalProteinG = parsed.totalProteinG,
+                            totalCarbsG = parsed.totalCarbsG,
+                            totalFatG = parsed.totalFatG,
+                            coachNote = parsed.coachNote,
+                            category = parsed.source,
+                            loggedAt = parsed.mealTime?.let {
+                                java.time.LocalDateTime.of(targetDate, it)
+                                    .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                            },
                         )
+                        val id = mealDao.insert(meal)
+                        mealHealthWriter.launchUpsert(meal.copy(id = id), "AiBar:textMealLogged")
                         daySummaryGenerator.launchForDate(targetDate, "AiBar:textMealLogged")
                         com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
                         isLoading = false
