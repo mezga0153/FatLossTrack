@@ -379,6 +379,11 @@ Larger payloads go through in-memory `object` stores instead of nav args:
 `CapturedPhotoStore` (photo URIs + comment), `PendingTextMealStore` (parsed meal JSON + date),
 `PendingChatStore` (initial chat message + images).
 
+Each is backed by a `MutableStateFlow` holding one immutable value. Consume with `take()`, which reads
+and clears atomically. `ChatScreen` collects `CapturedPhotoStore.captured` to attach photos from its
+camera button; the analysis screen reads `captured.value` without clearing so it can re-analyze, and
+clears in `cleanup()`.
+
 ### Localization
 
 - UI strings live in `res/values/strings.xml` with translations in `values-sl` and `values-hu`.

@@ -1,44 +1,34 @@
 package com.fatlosstrack.data.local
 
 import android.net.Uri
-import androidx.compose.runtime.mutableIntStateOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
+
+/** Photos confirmed on the capture screen, plus the optional comment typed there. */
+data class CapturedPhotos(val photos: List<Uri>, val comment: String = "")
 
 /**
- * Simple in-memory store for passing captured photo URIs between
+ * In-memory store for passing captured photo URIs between
  * MealCaptureScreen → AnalysisResultScreen / ChatScreen without serializing through nav args.
- * Cleared after consumption.
+ * Backed by a [StateFlow] so ChatScreen can collect new captures instead of polling.
  */
 object CapturedPhotoStore {
-    private val _photos = mutableListOf<Uri>()
-    private var _comment: String = ""
+    private val _captured = MutableStateFlow<CapturedPhotos?>(null)
 
-    /** Incremented on every [store] call so composables can observe changes. */
-    var version = mutableIntStateOf(0)
-        private set
+    /** The pending capture, or null when there is none. Read without clearing — allows re-analysis. */
+    val captured: StateFlow<CapturedPhotos?> = _captured.asStateFlow()
 
-    @Synchronized
     fun store(photos: List<Uri>, comment: String = "") {
-        _photos.clear()
-        _photos.addAll(photos)
-        _comment = comment
-        version.intValue++
+        _captured.value = CapturedPhotos(photos.toList(), comment)
     }
 
-    /** Returns photos without clearing — allows re-analysis. */
-    @Synchronized
-    fun consume(): List<Uri> = _photos.toList()
-
-    /** Returns the user comment without clearing it. */
-    @Synchronized
-    fun peekComment(): String = _comment
+    /** Returns the pending capture and clears it in one atomic step. */
+    fun take(): CapturedPhotos? = _captured.getAndUpdate { null }
 
     /** Explicitly clear when done (e.g. after logging or discarding). */
-    @Synchronized
     fun clear() {
-        _photos.clear()
-        _comment = ""
+        _captured.value = null
     }
-
-    @Synchronized
-    fun peek(): List<Uri> = _photos.toList()
 }

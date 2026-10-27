@@ -116,7 +116,7 @@ class AnalysisResultStateHolder @Inject constructor(
     fun startTextAnalysis() {
         reset()
         currentMode = CaptureMode.LogMeal
-        val pending = PendingTextMealStore.consume()
+        val pending = PendingTextMealStore.take()
         if (pending != null) {
             val (raw, date) = pending
             effectiveDate = date
@@ -127,7 +127,6 @@ class AnalysisResultStateHolder @Inject constructor(
                 Log.e("Analysis", "Text meal parse failed: $raw", e)
                 errorMessage = "Failed to parse meal data"
             }
-            PendingTextMealStore.clear()
         } else {
             errorMessage = "No meal data available"
         }
@@ -146,7 +145,10 @@ class AnalysisResultStateHolder @Inject constructor(
         appScope.launch {
             try {
                 if (bitmaps.isEmpty()) {
-                    val photoUris = CapturedPhotoStore.consume()
+                    // Read without clearing: photos stay until cleanup() so the screen
+                    // can re-analyze; one snapshot keeps photos and comment consistent.
+                    val capture = CapturedPhotoStore.captured.value
+                    val photoUris = capture?.photos.orEmpty()
                     if (photoUris.isEmpty()) {
                         errorMessage = "No photos to analyze."
                         analyzing = false
@@ -170,7 +172,7 @@ class AnalysisResultStateHolder @Inject constructor(
                         return@launch
                     }
                     bitmaps.addAll(loaded)
-                    userComment = CapturedPhotoStore.peekComment()
+                    userComment = capture?.comment.orEmpty()
                     applyPhotoTakenAt(photoUris)
                 }
 
