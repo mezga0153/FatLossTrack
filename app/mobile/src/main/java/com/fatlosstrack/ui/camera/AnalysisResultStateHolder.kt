@@ -8,6 +8,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.fatlosstrack.data.CruelCoachNoteGenerator
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.CapturedPhotoStore
@@ -68,6 +69,7 @@ class AnalysisResultStateHolder @Inject constructor(
     private val openAiService: OpenAiService,
     private val mealDao: MealDao,
     private val daySummaryGenerator: DaySummaryGenerator,
+    private val cruelCoachNote: CruelCoachNoteGenerator,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
@@ -174,7 +176,10 @@ class AnalysisResultStateHolder @Inject constructor(
                 val apiResult = openAiService.analyzeMeal(bitmaps.toList(), modeStr, correction, userComment.takeIf { it.isNotBlank() }, recentMealsContext)
 
                 apiResult.fold(
-                    onSuccess = { raw ->
+                    onSuccess = { analysisRaw ->
+                        val raw = if (currentMode == CaptureMode.LogMeal) {
+                            cruelCoachNote.applyTo(analysisRaw, effectiveDate, userComment.takeIf { it.isNotBlank() })
+                        } else analysisRaw
                         try {
                             result = parseAnalysisJson(raw)
                             effectiveTime = result?.mealTime
@@ -223,7 +228,11 @@ class AnalysisResultStateHolder @Inject constructor(
                 val mealJson = resultToJson(currentResult)
                 val apiResult = openAiService.editMealWithAi(mealJson, correction)
                 apiResult.fold(
-                    onSuccess = { raw ->
+                    onSuccess = { correctedRaw ->
+                        // The edit prompt has no tone, so re-roast with the correction as the excuse
+                        val raw = if (currentMode == CaptureMode.LogMeal) {
+                            cruelCoachNote.applyTo(correctedRaw, effectiveDate, correction)
+                        } else correctedRaw
                         try {
                             result = parseAnalysisJson(raw)
                         } catch (e: Exception) {
