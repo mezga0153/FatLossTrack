@@ -28,6 +28,9 @@ class PreferencesManager @Inject constructor(
         private val KEY_WEEKLY_RATE = floatPreferencesKey("weekly_rate")
         private val KEY_AI_GUIDANCE = stringPreferencesKey("ai_guidance")
         private val KEY_COACH_TONE = stringPreferencesKey("coach_tone")
+        private val KEY_WEEKLY_RECAP_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("weekly_recap_enabled")
+        private val KEY_WEEKLY_RECAP_DAY = intPreferencesKey("weekly_recap_day") // ISO day of week, 1 = Monday … 7 = Sunday
+        private val KEY_WEEKLY_RECAP_MINUTE = intPreferencesKey("weekly_recap_minute") // minutes after midnight
         private val KEY_HEIGHT_CM = intPreferencesKey("height_cm")
         private val KEY_START_DATE = stringPreferencesKey("start_date") // ISO format yyyy-MM-dd
         private val KEY_LANGUAGE = stringPreferencesKey("language") // "en" or "sl"
@@ -68,6 +71,21 @@ class PreferencesManager @Inject constructor(
 
     val coachTone: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_COACH_TONE] ?: "honest"
+    }
+
+    /** Weekly recap notification — off until the user enables it in Settings. */
+    val weeklyRecapEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_WEEKLY_RECAP_ENABLED] ?: false
+    }
+
+    /** ISO day of week the weekly recap is posted on. Default Sunday. */
+    val weeklyRecapDay: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_WEEKLY_RECAP_DAY] ?: 7
+    }
+
+    /** Time of day (minutes after midnight) the weekly recap is posted at. Default 19:00. */
+    val weeklyRecapMinute: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_WEEKLY_RECAP_MINUTE] ?: (19 * 60)
     }
 
     val heightCm: Flow<Int?> = context.dataStore.data.map { prefs ->
@@ -155,6 +173,21 @@ class PreferencesManager @Inject constructor(
     suspend fun setCoachTone(tone: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_COACH_TONE] = tone
+        }
+    }
+
+    suspend fun setWeeklyRecapEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_WEEKLY_RECAP_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setWeeklyRecapSchedule(isoDayOfWeek: Int, minuteOfDay: Int) {
+        require(isoDayOfWeek in 1..7) { "Day of week must be between 1 and 7, got $isoDayOfWeek" }
+        require(minuteOfDay in 0 until 24 * 60) { "Minute of day must be between 0 and 1439, got $minuteOfDay" }
+        context.dataStore.edit { prefs ->
+            prefs[KEY_WEEKLY_RECAP_DAY] = isoDayOfWeek
+            prefs[KEY_WEEKLY_RECAP_MINUTE] = minuteOfDay
         }
     }
 

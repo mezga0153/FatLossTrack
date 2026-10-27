@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
@@ -14,12 +15,15 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
+import com.fatlosstrack.data.recap.WeeklyRecapNotifier
+import com.fatlosstrack.data.recap.WeeklyRecapScheduler
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.trends.TrendsStateHolder
 import com.fatlosstrack.ui.log.LogStateHolder
 import com.fatlosstrack.ui.settings.SettingsStateHolder
+import com.fatlosstrack.ui.recap.WeeklyRecapStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
 import com.fatlosstrack.ui.theme.ThemePreset
@@ -96,12 +100,28 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var autoBackupManager: AutoBackupManager
 
+    @Inject
+    lateinit var weeklyRecapStateHolder: WeeklyRecapStateHolder
+
+    /** Route opened from a notification tap; cleared once the nav graph has handled it. */
+    private var notificationRoute by mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        WeeklyRecapNotifier.routeFrom(intent)?.let { notificationRoute = it }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
         CoroutineScope(Dispatchers.IO).launch {
             autoBackupManager.runBackup()
         }
+        CoroutineScope(Dispatchers.IO).launch {
+            WeeklyRecapScheduler.ensureScheduled(applicationContext, preferencesManager)
+        }
+        // A recreated activity already handled its launch intent
+        if (savedInstanceState == null) notificationRoute = WeeklyRecapNotifier.routeFrom(intent)
         enableEdgeToEdge()
         setContent {
             val themePresetName by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")
@@ -139,6 +159,9 @@ class MainActivity : AppCompatActivity() {
                         logStateHolder = logStateHolder,
                         settingsStateHolder = settingsStateHolder,
                         bookmarkedMealDao = bookmarkedMealDao,
+                        weeklyRecapStateHolder = weeklyRecapStateHolder,
+                        notificationRoute = notificationRoute,
+                        onNotificationRouteHandled = { notificationRoute = null },
                     )
                 }
             }
