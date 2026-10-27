@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.fatlosstrack.data.CruelCoachNoteGenerator
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
@@ -30,6 +31,7 @@ class AiBarStateHolder @Inject constructor(
     private val openAiService: OpenAiService,
     private val mealDao: MealDao,
     private val daySummaryGenerator: DaySummaryGenerator,
+    private val cruelCoachNote: CruelCoachNoteGenerator,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     var isLoading: Boolean by mutableStateOf(false)
@@ -85,7 +87,8 @@ class AiBarStateHolder @Inject constructor(
             val recentMealsContext = buildRecentMealsContext()
             val mealResult = openAiService.parseTextMeal(query, recentMealsContext)
             mealResult.fold(
-                onSuccess = { raw ->
+                onSuccess = { parsedRaw ->
+                    val raw = cruelCoachNote.applyTo(parsedRaw, userNote = query)
                     val parsed = tryParseMealJson(raw)
                     if (parsed != null && onTextMealAnalyzed != null) {
                         // Meal parsed — store for analysis screen

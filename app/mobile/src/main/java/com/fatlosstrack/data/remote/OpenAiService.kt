@@ -346,7 +346,7 @@ class OpenAiService @Inject constructor(
         val dayOfWeek = now.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
         val dateContext = "Today is $dayOfWeek, ${now.toLocalDate()}. Current time is ${now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))}.\n\n"
         val tone = prefs.coachTone.first()
-        val unitSuffix = unitsSuffix()
+        // No units suffix here: chat() appends it to every system prompt
         val prompt = buildString {
             append(dateContext)
             if (!recentMealsContext.isNullOrBlank()) {
@@ -355,8 +355,7 @@ class OpenAiService @Inject constructor(
                 append("\n\n")
             }
             append(TEXT_MEAL_LOG_PROMPT)
-            append(unitSuffix)
-            append(toneCoachNoteInstruction(tone))
+            append(toneCoachNoteInstruction(parseNoteTone(tone)))
         }
         return chat(
             userMessage,
@@ -386,7 +385,7 @@ class OpenAiService @Inject constructor(
         val prompt = buildString {
             append(basePrompt)
             append(unitSuffix)
-            append(toneCoachNoteInstruction(tone))
+            append(toneCoachNoteInstruction(if (mode == "log") parseNoteTone(tone) else tone))
             if (!recentMealsContext.isNullOrBlank()) {
                 append("\n\nMeals already logged today and yesterday (for context — do NOT re-add these):\n")
                 append(recentMealsContext)
@@ -530,6 +529,14 @@ class OpenAiService @Inject constructor(
 /** Returns the tone-specific instruction to inject into prompts for coach_note generation. */
 private fun toneCoachNoteInstruction(tone: String): String =
     "\n\nFor coach_note: " + CoachTone.instruction(tone)
+
+/**
+ * Tone for the coach_note written while parsing a meal to log. Cruel notes are
+ * rewritten afterwards by CruelCoachNoteGenerator with the user's data, so the
+ * parse writes an honest one: it is the fallback if that call fails, and keeps
+ * the insults out of a prompt the model can dodge by answering is_meal=false.
+ */
+private fun parseNoteTone(tone: String): String = if (tone == "cruel") "honest" else tone
 
 private const val SYSTEM_PROMPT = """You are FatLoss Track's AI coach — a no-BS weight loss advisor.
 You have access to the user's weight trend data, meals, and goals.
