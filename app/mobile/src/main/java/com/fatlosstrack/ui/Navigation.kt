@@ -30,6 +30,7 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
+import com.fatlosstrack.data.reminders.ReminderDeepLink
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.ui.camera.AnalysisResultScreen
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
@@ -113,6 +114,21 @@ fun FatLossTrackNavGraph(
             navController.navigate("onboarding/apikey") {
                 launchSingleTop = true
             }
+        }
+    }
+
+    // Reminder notification tap → Log tab (LogScreen opens the matching sheet).
+    // Waits for the onboarding redirect and API key nudge above so it doesn't fight them.
+    val pendingReminder by ReminderDeepLink.pending.collectAsState()
+    LaunchedEffect(pendingReminder, hasCheckedGoal, goalWeight, hasCheckedKey, dismissedKeyNudge, currentRoute) {
+        if (pendingReminder == null || !hasCheckedGoal || goalWeight == null || !hasCheckedKey) return@LaunchedEffect
+        if (apiKey.isBlank() && !dismissedKeyNudge) return@LaunchedEffect
+        val route = navController.currentDestination?.route
+        if (route == Tab.Log.route || route?.startsWith("onboarding") == true) return@LaunchedEffect
+        navController.navigate(Tab.Log.route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
         }
     }
 

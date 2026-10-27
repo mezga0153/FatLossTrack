@@ -182,6 +182,30 @@
     <string name="activity_light_desc">Light exercise 1–3 days/week</string>
     <string name="activity_moderate_desc">Moderate exercise 3–5 days/week</string>
     <string name="activity_active_desc">Hard exercise 6–7 days/week</string>
+    <!-- Reminders -->
+    <string name="settings_section_reminders">Reminders</string>
+    <string name="reminders_description">Local nudges based on what you\'ve logged. No AI involved.</string>
+    <string name="reminder_meal_gap_label">Meal reminder</string>
+    <string name="reminder_meal_gap_desc">If nothing is logged by this time</string>
+    <string name="reminder_weigh_in_label">Morning weigh-in</string>
+    <string name="reminder_weigh_in_desc">If there\'s no weight for today yet</string>
+    <string name="reminder_budget_label">Evening budget</string>
+    <string name="reminder_budget_desc">What\'s left of today\'s target</string>
+    <string name="reminders_pick_time">Reminder time</string>
+    <string name="reminders_permission_denied">Notifications are blocked. Allow them in system settings to get reminders.</string>
+    <string name="reminders_channel_name">Logging reminders</string>
+    <string name="reminders_channel_desc">Meal, weigh-in and evening budget nudges</string>
+    <string name="notif_meal_gap_title">Nothing logged yet today</string>
+    <string name="notif_meal_gap_text">Tap to add what you\'ve eaten so far.</string>
+    <string name="notif_weigh_in_title">Time to weigh in</string>
+    <string name="notif_weigh_in_text">No weight logged for today yet. Tap to add it.</string>
+    <string name="notif_budget_kcal_left">%1$d kcal left today</string>
+    <string name="notif_budget_kcal_over">%1$d kcal over today\'s target</string>
+    <string name="notif_budget_kcal_eaten">%1$d of %2$d kcal eaten so far.</string>
+    <string name="notif_budget_carbs_left">%1$d g carbs left today</string>
+    <string name="notif_budget_carbs_over">%1$d g carbs over today\'s limit</string>
+    <string name="notif_budget_carbs_eaten">%1$d of %2$d g carbs eaten so far.</string>
+
     <string name="settings_section_coach_tone">Coach tone</string>
     <string name="tone_honest">Honest</string>
     <string name="tone_supportive">Supportive</string>

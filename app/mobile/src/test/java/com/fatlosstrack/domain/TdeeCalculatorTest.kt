@@ -1,6 +1,7 @@
 package com.fatlosstrack.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -130,6 +131,22 @@ class TdeeCalculatorTest {
     fun `dailyTarget above the floor is not clamped`() {
         // 1208 - 0 = 1208 stays as-is
         assertEquals(1208, TdeeCalculator.dailyTarget(50f, 155, 60, "female", "sedentary", 0f))
+    }
+
+    @Test
+    fun `dailyTargetOrNull matches dailyTarget for a complete profile`() {
+        assertEquals(
+            TdeeCalculator.dailyTarget(refWeight, refHeight, refAge, "male", "moderate", 0.5f),
+            TdeeCalculator.dailyTargetOrNull(refWeight, refHeight, refAge, "male", "moderate", 0.5f),
+        )
+    }
+
+    @Test
+    fun `dailyTargetOrNull is null when any profile field is missing`() {
+        assertNull(TdeeCalculator.dailyTargetOrNull(null, refHeight, refAge, "male", "moderate", 0.5f))
+        assertNull(TdeeCalculator.dailyTargetOrNull(refWeight, null, refAge, "male", "moderate", 0.5f))
+        assertNull(TdeeCalculator.dailyTargetOrNull(refWeight, refHeight, null, "male", "moderate", 0.5f))
+        assertNull(TdeeCalculator.dailyTargetOrNull(refWeight, refHeight, refAge, null, "moderate", 0.5f))
     }
 
     // ── Macro targets: lean-mass path ────────────────────────────────────

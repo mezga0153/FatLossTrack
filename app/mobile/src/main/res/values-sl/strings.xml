@@ -175,6 +175,30 @@
     <string name="activity_light_desc">Lahka vadba 1–3 dni/teden</string>
     <string name="activity_moderate_desc">Zmerna vadba 3–5 dni/teden</string>
     <string name="activity_active_desc">Intenzivna vadba 6–7 dni/teden</string>
+    <!-- Reminders -->
+    <string name="settings_section_reminders">Opomniki</string>
+    <string name="reminders_description">Lokalni opomniki glede na tvoje vnose. Brez AI.</string>
+    <string name="reminder_meal_gap_label">Opomnik za obrok</string>
+    <string name="reminder_meal_gap_desc">Če do te ure ni vpisanega nič</string>
+    <string name="reminder_weigh_in_label">Jutranje tehtanje</string>
+    <string name="reminder_weigh_in_desc">Če za danes še ni vpisane teže</string>
+    <string name="reminder_budget_label">Večerni proračun</string>
+    <string name="reminder_budget_desc">Koliko je še ostalo od današnjega cilja</string>
+    <string name="reminders_pick_time">Čas opomnika</string>
+    <string name="reminders_permission_denied">Obvestila so blokirana. Za opomnike jih omogoči v sistemskih nastavitvah.</string>
+    <string name="reminders_channel_name">Opomniki za vnos</string>
+    <string name="reminders_channel_desc">Opomniki za obroke, tehtanje in večerni proračun</string>
+    <string name="notif_meal_gap_title">Danes še ni vpisanega nič</string>
+    <string name="notif_meal_gap_text">Tapni in dodaj, kar si danes že jedel/a.</string>
+    <string name="notif_weigh_in_title">Čas za tehtanje</string>
+    <string name="notif_weigh_in_text">Za danes še ni vpisane teže. Tapni in jo dodaj.</string>
+    <string name="notif_budget_kcal_left">Danes ti ostane še %1$d kcal</string>
+    <string name="notif_budget_kcal_over">%1$d kcal nad današnjim ciljem</string>
+    <string name="notif_budget_kcal_eaten">Doslej %1$d od %2$d kcal.</string>
+    <string name="notif_budget_carbs_left">Danes ti ostane še %1$d g OH</string>
+    <string name="notif_budget_carbs_over">%1$d g OH nad današnjo mejo</string>
+    <string name="notif_budget_carbs_eaten">Doslej %1$d od %2$d g OH.</string>
+
     <string name="settings_section_coach_tone">Ton trenerja</string>
     <string name="tone_honest">Iskren</string>
     <string name="tone_supportive">Podporen</string>

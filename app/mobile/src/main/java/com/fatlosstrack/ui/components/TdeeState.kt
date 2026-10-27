@@ -26,11 +26,7 @@ fun rememberDailyTargetKcal(preferencesManager: PreferencesManager): Int? {
     val activityLevel by preferencesManager.activityLevel.collectAsState(initial = "light")
 
     return remember(sex, age, height, startWeight, weeklyRate, activityLevel) {
-        val s = sex ?: return@remember null
-        val a = age ?: return@remember null
-        val h = height ?: return@remember null
-        val w = startWeight ?: return@remember null
-        TdeeCalculator.dailyTarget(w, h, a, s, activityLevel, weeklyRate)
+        TdeeCalculator.dailyTargetOrNull(startWeight, height, age, sex, activityLevel, weeklyRate)
     }
 }
 
