@@ -38,7 +38,7 @@ fun AnalysisResultScreen(
     state: AnalysisResultStateHolder,
     mode: CaptureMode,
     photoCount: Int,
-    targetDate: java.time.LocalDate = java.time.LocalDate.now(),
+    targetDate: java.time.LocalDate? = null,
     isTextMode: Boolean = false,
     onDone: () -> Unit,
     onLogged: () -> Unit,
