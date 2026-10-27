@@ -1,8 +1,10 @@
 package com.fatlosstrack.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
+import android.widget.Toast
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +14,7 @@ import com.fatlosstrack.data.backup.AutoBackupManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.SharedContentStore
 import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.ui.chat.ChatStateHolder
@@ -21,6 +24,8 @@ import com.fatlosstrack.ui.trends.TrendsStateHolder
 import com.fatlosstrack.ui.log.LogStateHolder
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
+import com.fatlosstrack.R
+import com.fatlosstrack.di.ApplicationScope
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
 import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
@@ -29,6 +34,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -96,9 +102,16 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var autoBackupManager: AutoBackupManager
 
+    @Inject
+    @field:ApplicationScope
+    lateinit var appScope: CoroutineScope
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
+        // Skip recreations and relaunches from Recents, which redeliver an already-handled share
+        val fromHistory = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (savedInstanceState == null && !fromHistory) handleShareIntent(intent)
         CoroutineScope(Dispatchers.IO).launch {
             autoBackupManager.runBackup()
         }
@@ -142,6 +155,30 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    /** Copies shared photos / text off the main thread, then hands them to the nav graph. */
+    private fun handleShareIntent(intent: Intent) {
+        if (!intent.isShareIntent()) return
+        appLogger.user("Share received: type=${intent.type}")
+        appScope.launch {
+            val result = readShareIntent(applicationContext, intent)
+            withContext(Dispatchers.Main) {
+                if (result.droppedPhotos > 0) {
+                    Toast.makeText(applicationContext, R.string.share_photo_limit, Toast.LENGTH_SHORT).show()
+                }
+                if (result.content == null && intent.type?.startsWith("image/") == true) {
+                    Toast.makeText(applicationContext, R.string.share_read_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+            result.content?.let(SharedContentStore::store)
         }
     }
 }

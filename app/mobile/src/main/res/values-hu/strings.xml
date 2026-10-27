@@ -372,6 +372,8 @@
     <string name="camera_permission_required">Kamera engedély szükséges</string>
     <string name="button_grant_permission">Engedély megadása</string>
     <string name="capture_photo_count">%d/3 fotó</string>
+    <string name="share_photo_limit">Csak az első 3 fotó lett hozzáadva</string>
+    <string name="share_read_failed">A megosztott fotókat nem sikerült megnyitni</string>
     <string name="cd_gallery">Galéria</string>
     <string name="cd_take_photo">Fotó készítése</string>
     <string name="cd_analyze">Elemzés</string>

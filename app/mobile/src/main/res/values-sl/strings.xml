@@ -394,6 +394,8 @@
     <string name="camera_permission_required">Potrebno je dovoljenje za kamero</string>
     <string name="button_grant_permission">Dodeli dovoljenje</string>
     <string name="capture_photo_count">%d/3 fotografij</string>
+    <string name="share_photo_limit">Dodane so bile le prve 3 fotografije</string>
+    <string name="share_read_failed">Deljenih fotografij ni bilo mogoče odpreti</string>
     <string name="cd_gallery">Galerija</string>
     <string name="cd_take_photo">Fotografiraj</string>
     <string name="cd_analyze">Analiziraj</string>

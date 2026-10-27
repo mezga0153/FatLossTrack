@@ -28,6 +28,8 @@ import androidx.navigation.navArgument
 import com.fatlosstrack.data.health.HealthConnectSyncService
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.data.local.SharedContent
+import com.fatlosstrack.data.local.SharedContentStore
 import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.remote.OpenAiService
@@ -59,6 +61,9 @@ import com.fatlosstrack.ui.welcome.OnboardingStep
 import com.fatlosstrack.ui.welcome.WelcomeScreen
 
 // ---- Navigation destinations ----
+
+/** Capture entry's SavedStateHandle key for photos shared from another app. */
+private const val SHARED_PHOTOS_KEY = "sharedPhotos"
 
 enum class Tab(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
     Home("home", R.string.tab_home, Icons.Default.Home),
@@ -113,6 +118,56 @@ fun FatLossTrackNavGraph(
             navController.navigate("onboarding/apikey") {
                 launchSingleTop = true
             }
+        }
+    }
+
+    // Shared by the AiBar and shared-text handling below
+    val openTextMealAnalysis: (java.time.LocalDate) -> Unit = {
+        navController.navigate("analysis/text")
+    }
+    val openChatWith: (String) -> Unit = { message ->
+        com.fatlosstrack.data.local.PendingChatStore.store(message)
+        navController.navigate(Tab.Chat.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    // Content shared from another app (see MainActivity). Held until onboarding is done
+    // and the API key nudge has had its turn, then handled once.
+    val pendingShare by SharedContentStore.pending.collectAsState()
+    val shareErrorFallback = stringResource(R.string.error_something_went_wrong)
+    LaunchedEffect(pendingShare, hasCheckedGoal, goalWeight, hasCheckedKey, apiKey, dismissedKeyNudge, currentRoute) {
+        if (pendingShare == null || !hasCheckedGoal || goalWeight == null || !hasCheckedKey) return@LaunchedEffect
+        if (apiKey.isBlank() && !dismissedKeyNudge) return@LaunchedEffect
+        // Read the controller directly — the collected route can lag a navigate() from this frame
+        val route = navController.currentDestination?.route ?: return@LaunchedEffect
+        if (route.startsWith("onboarding") || route.endsWith("_onboarding")) return@LaunchedEffect
+        when (val share = SharedContentStore.take()) {
+            is SharedContent.Photos -> {
+                AppLogger.instance?.user("Share: ${share.uris.size} photo(s) → capture")
+                // No targetDate, so the photos' capture date is used
+                navController.navigate("capture/log")
+                navController.currentBackStackEntry?.savedStateHandle?.set(SHARED_PHOTOS_KEY, ArrayList(share.uris))
+            }
+            is SharedContent.Text -> {
+                AppLogger.instance?.user("Share: text → meal parser")
+                // Show a tab with the AiBar so its loading state is visible while parsing
+                if (route !in setOf(Tab.Home.route, Tab.Trends.route, Tab.Log.route, Tab.Settings.route)) {
+                    navController.navigate(Tab.Home.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+                aiBarStateHolder.submit(share.text, shareErrorFallback, openTextMealAnalysis, openChatWith)
+            }
+            null -> Unit
         }
     }
 
@@ -411,8 +466,12 @@ fun FatLossTrackNavGraph(
                         else -> CaptureMode.LogMeal
                     }
                     val captureContext = androidx.compose.ui.platform.LocalContext.current
+                    val sharedPhotos = remember(entry) {
+                        entry.savedStateHandle.get<ArrayList<android.net.Uri>>(SHARED_PHOTOS_KEY).orEmpty()
+                    }
                     MealCaptureScreen(
                         mode = mode,
+                        initialPhotos = sharedPhotos,
                         onAnalyze = { m, count ->
                             when (m) {
                                 CaptureMode.ChatPhoto -> {
@@ -524,19 +583,8 @@ fun FatLossTrackNavGraph(
                         AppLogger.instance?.user("Camera opened: mode=log")
                         navController.navigate("capture/log")
                     },
-                    onTextMealAnalyzed = { _ ->
-                        navController.navigate("analysis/text")
-                    },
-                    onChatOpen = { message ->
-                        com.fatlosstrack.data.local.PendingChatStore.store(message)
-                        navController.navigate(Tab.Chat.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+                    onTextMealAnalyzed = openTextMealAnalysis,
+                    onChatOpen = openChatWith,
                 )
             }
         }
