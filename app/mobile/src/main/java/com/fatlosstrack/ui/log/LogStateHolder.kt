@@ -7,6 +7,7 @@ import com.fatlosstrack.data.local.db.BookmarkedMealDao
 import com.fatlosstrack.data.local.db.DailyLogDao
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.remote.OpenAiService
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -28,8 +29,8 @@ class LogStateHolder @Inject constructor(
     val preferencesManager get() = _preferencesManager
 
     // ── DAO Flow accessors ──
-    fun allMeals() = _mealDao.getAllMeals()
-    fun allLogs() = _dailyLogDao.getAllLogs()
+    fun mealsSince(from: LocalDate) = _mealDao.getMealsSince(from)
+    fun logsSince(from: LocalDate) = _dailyLogDao.getLogsSince(from)
 
     // ── Passthrough for LogSheetHost ──
     val mealDao get() = _mealDao
