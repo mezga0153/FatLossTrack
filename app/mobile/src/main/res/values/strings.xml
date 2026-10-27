@@ -202,6 +202,10 @@
     <string name="hc_sync_now">Sync now</string>
     <string name="hc_permissions_granted">Permissions granted — tap Sync now</string>
     <string name="hc_sync_started">Sync started</string>
+    <string name="hc_write_meals_title">Write meals to Health Connect</string>
+    <string name="hc_write_meals_description">Saves logged meals as nutrition records (calories, protein, carbs, fat) so apps like Fit and Samsung Health can see them.</string>
+    <string name="hc_write_meals_backfill_started">Writing your existing meals to Health Connect…</string>
+    <string name="hc_write_meals_denied">Permission to write nutrition was not granted</string>
     <string name="settings_section_language">Language</string>
     <string name="settings_section_theme">Theme</string>
     <string name="theme_dark">Dark</string>

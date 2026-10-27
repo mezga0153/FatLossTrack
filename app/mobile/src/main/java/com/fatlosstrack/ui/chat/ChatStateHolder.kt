@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingChatStore
 import com.fatlosstrack.data.local.db.ChatMessage
@@ -46,6 +47,7 @@ class ChatStateHolder @Inject constructor(
     private val openAiService: OpenAiService,
     private val chatContextUseCase: ChatContextUseCase,
     private val daySummaryGenerator: DaySummaryGenerator,
+    private val mealHealthWriter: MealHealthConnectWriter,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     /** All persisted messages (Room Flow — collect in composable). */
@@ -104,17 +106,17 @@ class ChatStateHolder @Inject constructor(
                 val fatG = obj["fat_g"]?.jsonPrimitive?.intOrNull ?: 0
                 val itemsArr = obj["items"]?.toString()
                 val today = java.time.LocalDate.now()
-                mealDao.insert(
-                    MealEntry(
-                        date = today,
-                        description = description,
-                        itemsJson = itemsArr,
-                        totalKcal = kcal,
-                        totalProteinG = proteinG,
-                        totalCarbsG = carbsG,
-                        totalFatG = fatG,
-                    ),
+                val meal = MealEntry(
+                    date = today,
+                    description = description,
+                    itemsJson = itemsArr,
+                    totalKcal = kcal,
+                    totalProteinG = proteinG,
+                    totalCarbsG = carbsG,
+                    totalFatG = fatG,
                 )
+                val id = mealDao.insert(meal)
+                mealHealthWriter.launchUpsert(meal.copy(id = id), "Chat:mealLogged")
                 AppLogger.instance?.meal("Logged from chat: $description — $kcal kcal")
                 daySummaryGenerator.launchForDate(today, "Chat:mealLogged")
                 com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
@@ -127,7 +129,8 @@ class ChatStateHolder @Inject constructor(
     /** Save a meal entry (used by the review sheet after user edits). */
     fun saveMeal(entry: MealEntry) {
         appScope.launch {
-            mealDao.insert(entry)
+            val id = mealDao.insert(entry)
+            mealHealthWriter.launchUpsert(entry.copy(id = id), "Chat:mealReviewed")
             AppLogger.instance?.meal("Logged from chat review: ${entry.description.take(50)} — ${entry.totalKcal} kcal")
             daySummaryGenerator.launchForDate(entry.date, "Chat:mealReviewed")
             com.fatlosstrack.data.backup.AutoBackupManager.instance?.runBackup()
@@ -158,20 +161,20 @@ class ChatStateHolder @Inject constructor(
                     })
                 }
             }.toString()
-            mealDao.insert(
-                MealEntry(
-                    date = date,
-                    description = analysisResult.description,
-                    itemsJson = itemsJson,
-                    totalKcal = analysisResult.totalCalories,
-                    totalProteinG = analysisResult.totalProteinG,
-                    totalCarbsG = analysisResult.totalCarbsG,
-                    totalFatG = analysisResult.totalFatG,
-                    coachNote = analysisResult.aiNote,
-                    category = category,
-                    mealType = mealType,
-                ),
+            val meal = MealEntry(
+                date = date,
+                description = analysisResult.description,
+                itemsJson = itemsJson,
+                totalKcal = analysisResult.totalCalories,
+                totalProteinG = analysisResult.totalProteinG,
+                totalCarbsG = analysisResult.totalCarbsG,
+                totalFatG = analysisResult.totalFatG,
+                coachNote = analysisResult.aiNote,
+                category = category,
+                mealType = mealType,
             )
+            val id = mealDao.insert(meal)
+            mealHealthWriter.launchUpsert(meal.copy(id = id), "Chat:mealAnalysisLogged")
             AppLogger.instance?.meal(
                 "Logged from chat analysis: ${analysisResult.description.take(50)} — " +
                     "${analysisResult.totalCalories} kcal, date=$date",

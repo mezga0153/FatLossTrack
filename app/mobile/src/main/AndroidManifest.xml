@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.health.READ_LEAN_BODY_MASS" />
     <uses-permission android:name="android.permission.health.READ_BONE_MASS" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE" />
+    <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
 
     <application
         android:name=".FatLossTrackApp"

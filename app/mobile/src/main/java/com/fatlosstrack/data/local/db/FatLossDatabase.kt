@@ -16,7 +16,7 @@ import androidx.room.TypeConverters
         BookmarkedMeal::class,
         BloodGlucoseEntry::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)

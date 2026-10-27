@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.*
 import com.fatlosstrack.data.backup.AutoBackupManager
 import com.fatlosstrack.data.health.HealthConnectSyncService
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
@@ -96,12 +97,16 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var autoBackupManager: AutoBackupManager
 
+    @Inject
+    lateinit var mealHealthWriter: MealHealthConnectWriter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
         CoroutineScope(Dispatchers.IO).launch {
             autoBackupManager.runBackup()
         }
+        mealHealthWriter.launchStartupSync()
         enableEdgeToEdge()
         setContent {
             val themePresetName by preferencesManager.themePreset.collectAsState(initial = "PURPLE_DARK")

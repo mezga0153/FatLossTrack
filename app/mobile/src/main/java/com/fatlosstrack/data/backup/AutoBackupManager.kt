@@ -3,6 +3,7 @@ package com.fatlosstrack.data.backup
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.db.FatLossDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -156,6 +157,9 @@ class AutoBackupManager @Inject constructor(
                     entry = zip.nextEntry
                 }
             }
+
+            // Restored meals no longer match what was written to Health Connect
+            MealHealthConnectWriter.markFullResyncPending(context)
 
             appLogger.user("AutoBackup: restored from zip")
             Result.success(Unit)

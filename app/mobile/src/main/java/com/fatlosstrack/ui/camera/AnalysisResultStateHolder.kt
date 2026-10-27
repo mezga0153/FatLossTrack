@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.fatlosstrack.data.CruelCoachNoteGenerator
 import com.fatlosstrack.data.DaySummaryGenerator
+import com.fatlosstrack.data.health.MealHealthConnectWriter
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.CapturedPhotoStore
 import com.fatlosstrack.data.local.PendingTextMealStore
@@ -70,6 +71,7 @@ class AnalysisResultStateHolder @Inject constructor(
     private val mealDao: MealDao,
     private val daySummaryGenerator: DaySummaryGenerator,
     private val cruelCoachNote: CruelCoachNoteGenerator,
+    private val mealHealthWriter: MealHealthConnectWriter,
     @ApplicationContext private val context: Context,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
@@ -322,24 +324,24 @@ class AnalysisResultStateHolder @Inject constructor(
                     })
                 }
             }.toString()
-            mealDao.insert(
-                MealEntry(
-                    date = effectiveDate,
-                    description = analysisResult.description,
-                    itemsJson = itemsJson,
-                    totalKcal = analysisResult.totalCalories,
-                    totalProteinG = analysisResult.totalProteinG,
-                    totalCarbsG = analysisResult.totalCarbsG,
-                    totalFatG = analysisResult.totalFatG,
-                    coachNote = analysisResult.aiNote,
-                    category = category,
-                    mealType = mealType,
-                    loggedAt = effectiveTime?.let {
-                        java.time.LocalDateTime.of(effectiveDate, it)
-                            .atZone(java.time.ZoneId.systemDefault()).toInstant()
-                    },
-                ),
+            val meal = MealEntry(
+                date = effectiveDate,
+                description = analysisResult.description,
+                itemsJson = itemsJson,
+                totalKcal = analysisResult.totalCalories,
+                totalProteinG = analysisResult.totalProteinG,
+                totalCarbsG = analysisResult.totalCarbsG,
+                totalFatG = analysisResult.totalFatG,
+                coachNote = analysisResult.aiNote,
+                category = category,
+                mealType = mealType,
+                loggedAt = effectiveTime?.let {
+                    java.time.LocalDateTime.of(effectiveDate, it)
+                        .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                },
             )
+            val id = mealDao.insert(meal)
+            mealHealthWriter.launchUpsert(meal.copy(id = id), "AnalysisResult:cameraMealLogged")
             AppLogger.instance?.meal(
                 "Logged via AI: ${analysisResult.description.take(50)} — " +
                     "${analysisResult.totalCalories} kcal, cat=$category, type=$mealType, date=$effectiveDate",

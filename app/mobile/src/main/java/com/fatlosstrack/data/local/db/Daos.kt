@@ -54,6 +54,16 @@ interface MealDao {
 
     @Delete
     suspend fun delete(entry: MealEntry)
+
+    /** Targeted write so it never clobbers a concurrent edit of the meal's other fields. */
+    @Query("UPDATE meal_entries SET hcRecordId = :hcRecordId WHERE id = :id")
+    suspend fun setHcRecordId(id: Long, hcRecordId: String?)
+
+    @Query("UPDATE meal_entries SET hcRecordId = NULL")
+    suspend fun clearHcRecordIds()
+
+    @Query("SELECT * FROM meal_entries WHERE hcRecordId IS NULL")
+    suspend fun getMealsWithoutHcRecord(): List<MealEntry>
 }
 
 @Dao

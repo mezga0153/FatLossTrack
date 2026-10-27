@@ -34,6 +34,7 @@ data class MealEntry(
     val note: String? = null,
     val createdAt: Instant = Instant.now(),
     val loggedAt: Instant? = null,   // user-set meal time; null means use createdAt
+    val hcRecordId: String? = null,  // Health Connect NutritionRecord id once written; null = not written yet
 )
 
 /** Effective display timestamp: user-set time if available, otherwise creation time. */
