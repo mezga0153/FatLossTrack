@@ -49,6 +49,27 @@ interface MealDao {
     @Query("SELECT * FROM meal_entries ORDER BY date DESC, createdAt DESC")
     fun getAllMeals(): Flow<List<MealEntry>>
 
+    /**
+     * Latest entry of each meal (grouped by case-insensitive description) logged since [since]
+     * that was either repeated at least [minUses] times or eaten on [yesterday].
+     * Most-repeated first — feeds the one-tap repeat chips above the AI bar.
+     */
+    @Query(
+        """
+        SELECT m.* FROM meal_entries m
+        JOIN (
+            SELECT MAX(id) AS latestId, COUNT(*) AS uses, MAX(date) AS lastDate
+            FROM meal_entries
+            WHERE date >= :since AND TRIM(description) != ''
+            GROUP BY LOWER(TRIM(description))
+            HAVING uses >= :minUses OR SUM(date = :yesterday) > 0
+        ) g ON m.id = g.latestId
+        ORDER BY g.uses DESC, g.lastDate DESC
+        LIMIT :limit
+        """
+    )
+    fun getFrequentMeals(since: LocalDate, yesterday: LocalDate, minUses: Int, limit: Int): Flow<List<MealEntry>>
+
     @Update
     suspend fun update(entry: MealEntry)
 

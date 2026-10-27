@@ -21,6 +21,7 @@ import com.fatlosstrack.ui.trends.TrendsStateHolder
 import com.fatlosstrack.ui.log.LogStateHolder
 import com.fatlosstrack.ui.settings.SettingsStateHolder
 import com.fatlosstrack.ui.components.AiBarStateHolder
+import com.fatlosstrack.ui.components.QuickLogStateHolder
 import com.fatlosstrack.ui.theme.FatLossTrackTheme
 import com.fatlosstrack.ui.theme.ThemePreset
 import com.fatlosstrack.ui.theme.buildAppColors
@@ -96,6 +97,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var autoBackupManager: AutoBackupManager
 
+    @Inject
+    lateinit var quickLogStateHolder: QuickLogStateHolder
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
@@ -139,6 +143,7 @@ class MainActivity : AppCompatActivity() {
                         logStateHolder = logStateHolder,
                         settingsStateHolder = settingsStateHolder,
                         bookmarkedMealDao = bookmarkedMealDao,
+                        quickLogStateHolder = quickLogStateHolder,
                     )
                 }
             }

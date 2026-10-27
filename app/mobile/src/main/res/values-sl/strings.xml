@@ -505,6 +505,12 @@
     <string name="bookmarks_empty_hint">Dolgo pritisni na obrok in tapni \'Zaznamek\', da ga shraniš</string>
     <string name="bookmark_rename_title">Preimenuj zaznamek</string>
 
+    <!-- Quick log (one-tap repeat chips above the AI bar) -->
+    <string name="quick_log_logged">Zabeleženo: %1$s (%2$d kcal)</string>
+    <string name="quick_log_undo">Razveljavi</string>
+    <string name="quick_log_action_log">Ponovno zabeleži zdaj</string>
+    <string name="quick_log_action_edit">Uredi pred beleženjem</string>
+
     <!-- Log viewer -->
     <string name="log_viewer_files_heading">Datoteke dnevnika (zadnjih 7 dni)</string>
     <string name="log_viewer_no_files">(ni datotek dnevnika)</string>

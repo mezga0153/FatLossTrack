@@ -391,6 +391,12 @@
     <string name="ai_bar_placeholder">Kérdezz bármit…</string>
     <string name="error_something_went_wrong">Valami hiba történt</string>
 
+    <!-- Quick log (one-tap repeat chips above the AI bar) -->
+    <string name="quick_log_logged">Naplózva: %1$s (%2$d kcal)</string>
+    <string name="quick_log_undo">Visszavonás</string>
+    <string name="quick_log_action_log">Újra naplózás most</string>
+    <string name="quick_log_action_edit">Szerkesztés naplózás előtt</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Edző</string>
     <string name="chat_empty_title">Kérdezz bármit</string>
