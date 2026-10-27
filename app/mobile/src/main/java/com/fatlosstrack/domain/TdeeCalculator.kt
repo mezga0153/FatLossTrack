@@ -70,6 +70,22 @@ object TdeeCalculator {
     }
 
     /**
+     * [dailyTarget] for a profile that may be incomplete.
+     * Returns `null` when sex, age, height, or weight is missing.
+     */
+    fun dailyTargetOrNull(
+        weightKg: Float?,
+        heightCm: Int?,
+        age: Int?,
+        sex: String?,
+        activityLevel: String,
+        weeklyRateKg: Float,
+    ): Int? {
+        if (weightKg == null || heightCm == null || age == null || sex == null) return null
+        return dailyTarget(weightKg, heightCm, age, sex, activityLevel, weeklyRateKg)
+    }
+
+    /**
      * Derive daily macro targets from calorie target.
      *
      * When lean mass is known (from Health Connect or estimation), protein is set at

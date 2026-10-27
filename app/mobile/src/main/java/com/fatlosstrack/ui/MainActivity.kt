@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
@@ -14,6 +15,7 @@ import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.AiUsageDao
 import com.fatlosstrack.data.local.db.BookmarkedMealDao
+import com.fatlosstrack.data.reminders.ReminderDeepLink
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.camera.AnalysisResultStateHolder
 import com.fatlosstrack.ui.home.HomeStateHolder
@@ -99,6 +101,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
+        // Reminder notification tap; skipped on recreation so the sheet doesn't reopen
+        if (savedInstanceState == null) ReminderDeepLink.handleIntent(intent)
         CoroutineScope(Dispatchers.IO).launch {
             autoBackupManager.runBackup()
         }
@@ -143,5 +147,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        ReminderDeepLink.handleIntent(intent)
     }
 }

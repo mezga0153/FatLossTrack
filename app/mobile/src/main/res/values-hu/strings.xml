@@ -166,6 +166,30 @@
     <string name="activity_light_desc">Könnyű edzés heti 1–3 alkalommal</string>
     <string name="activity_moderate_desc">Mérsékelt edzés heti 3–5 alkalommal</string>
     <string name="activity_active_desc">Intenzív edzés heti 6–7 alkalommal</string>
+    <!-- Reminders -->
+    <string name="settings_section_reminders">Emlékeztetők</string>
+    <string name="reminders_description">Helyi emlékeztetők a naplózott adataid alapján. AI nélkül.</string>
+    <string name="reminder_meal_gap_label">Étkezés emlékeztető</string>
+    <string name="reminder_meal_gap_desc">Ha eddig semmit sem naplóztál</string>
+    <string name="reminder_weigh_in_label">Reggeli mérlegelés</string>
+    <string name="reminder_weigh_in_desc">Ha mára még nincs testsúly</string>
+    <string name="reminder_budget_label">Esti keret</string>
+    <string name="reminder_budget_desc">Mennyi maradt a mai célból</string>
+    <string name="reminders_pick_time">Emlékeztető időpontja</string>
+    <string name="reminders_permission_denied">Az értesítések le vannak tiltva. Az emlékeztetőkhöz engedélyezd őket a rendszerbeállításokban.</string>
+    <string name="reminders_channel_name">Naplózási emlékeztetők</string>
+    <string name="reminders_channel_desc">Étkezés, mérlegelés és esti keret emlékeztetők</string>
+    <string name="notif_meal_gap_title">Ma még semmit sem naplóztál</string>
+    <string name="notif_meal_gap_text">Koppints, és add hozzá, amit eddig ettél.</string>
+    <string name="notif_weigh_in_title">Ideje mérlegelni</string>
+    <string name="notif_weigh_in_text">Mára még nincs rögzített testsúly. Koppints a hozzáadáshoz.</string>
+    <string name="notif_budget_kcal_left">Ma még %1$d kcal maradt</string>
+    <string name="notif_budget_kcal_over">%1$d kcal-val a mai cél felett</string>
+    <string name="notif_budget_kcal_eaten">Eddig %1$d / %2$d kcal.</string>
+    <string name="notif_budget_carbs_left">Ma még %1$d g szénhidrát maradt</string>
+    <string name="notif_budget_carbs_over">%1$d g szénhidráttal a mai korlát felett</string>
+    <string name="notif_budget_carbs_eaten">Eddig %1$d / %2$d g szénhidrát.</string>
+
     <string name="settings_section_coach_tone">Edző stílusa</string>
     <string name="tone_honest">Őszinte</string>
     <string name="tone_supportive">Támogató</string>

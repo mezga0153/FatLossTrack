@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
+import com.fatlosstrack.data.reminders.ReminderDeepLink
+import com.fatlosstrack.data.reminders.ReminderType
 import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
@@ -89,6 +91,16 @@ fun LogScreen(
     var editingDate by sheetState::editingDate
     var selectedMeal by sheetState::selectedMeal
     var addMealForDate by sheetState::addMealForDate
+
+    // Opened from a reminder notification: show the sheet that fixes what it nagged about
+    val pendingReminder by ReminderDeepLink.pending.collectAsState()
+    LaunchedEffect(pendingReminder) {
+        when (ReminderDeepLink.take()) {
+            ReminderType.MEAL_GAP -> addMealForDate = LocalDate.now()
+            ReminderType.WEIGH_IN -> editingDate = LocalDate.now()
+            ReminderType.EVENING_BUDGET, null -> {}
+        }
+    }
 
     val visibleDates = remember(windowStart, today) {
         generateSequence(today) { it.minusDays(1) }

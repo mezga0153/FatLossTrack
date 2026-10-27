@@ -471,6 +471,13 @@ fun SettingsScreen(
             }
         }
 
+        // -- Reminders --
+        RemindersSection(
+            preferencesManager = preferencesManager,
+            reminderScheduler = state.reminderScheduler,
+            reminderNotifier = state.reminderNotifier,
+        )
+
         // -- Data sources --
         SettingsSection(stringResource(R.string.settings_section_hc)) {
             if (!hcAvailable) {
@@ -1050,7 +1057,7 @@ fun SettingsScreen(
 // ---- Composable building blocks ----
 
 @Composable
-private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()

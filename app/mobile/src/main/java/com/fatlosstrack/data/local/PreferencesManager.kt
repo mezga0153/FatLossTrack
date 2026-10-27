@@ -3,6 +3,7 @@ package com.fatlosstrack.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -40,6 +41,10 @@ class PreferencesManager @Inject constructor(
         private val KEY_MAX_CARBS_PER_MEAL = intPreferencesKey("max_carbs_per_meal") // grams
         private val KEY_MAX_CARBS_PER_DAY = intPreferencesKey("max_carbs_per_day") // grams
         private val KEY_USE_METRIC = androidx.datastore.preferences.core.booleanPreferencesKey("use_metric")
+
+        // Reminder keys are built per reminder id, e.g. "reminder_meal_gap_enabled"
+        private fun reminderEnabledKey(id: String) = booleanPreferencesKey("reminder_${id}_enabled")
+        private fun reminderMinutesKey(id: String) = intPreferencesKey("reminder_${id}_minutes") // minutes after midnight
     }
 
     val openAiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
@@ -222,6 +227,29 @@ class PreferencesManager @Inject constructor(
     suspend fun setUseMetric(metric: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_USE_METRIC] = metric
+        }
+    }
+
+    /** Whether the reminder with [id] is switched on. Reminders default to off. */
+    fun reminderEnabled(id: String): Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[reminderEnabledKey(id)] ?: false
+    }
+
+    /** Time of day for the reminder with [id], in minutes after midnight. */
+    fun reminderMinutes(id: String, defaultMinutes: Int): Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[reminderMinutesKey(id)] ?: defaultMinutes
+    }
+
+    suspend fun setReminderEnabled(id: String, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[reminderEnabledKey(id)] = enabled
+        }
+    }
+
+    suspend fun setReminderMinutes(id: String, minutes: Int) {
+        require(minutes in 0 until 24 * 60) { "Reminder time must be within a day, got $minutes" }
+        context.dataStore.edit { prefs ->
+            prefs[reminderMinutesKey(id)] = minutes
         }
     }
 }
