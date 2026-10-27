@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealType
+import com.fatlosstrack.ui.components.PortionScaleSelector
 import com.fatlosstrack.ui.theme.*
 
 /**
@@ -99,6 +100,8 @@ fun AnalysisResultScreen(
                 onDateChanged = { state.updateEffectiveDate(it) },
                 effectiveTime = state.effectiveTime,
                 onTimeChanged = { state.updateEffectiveTime(it) },
+                portionScale = state.portionScale,
+                onPortionScaleChanged = { state.updatePortionScale(it) },
                 onDone = {
                     state.cleanup()
                     onDone()
@@ -202,6 +205,8 @@ internal fun ResultContent(
     onDateChanged: (java.time.LocalDate) -> Unit = {},
     effectiveTime: java.time.LocalTime? = null,
     onTimeChanged: (java.time.LocalTime) -> Unit = {},
+    portionScale: Double = 1.0,
+    onPortionScaleChanged: ((Double) -> Unit)? = null,
     onDone: () -> Unit,
     onLog: (AnalysisResult, MealCategory, MealType?) -> Unit,
     onCorrection: (String) -> Unit,
@@ -302,6 +307,28 @@ internal fun ResultContent(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // ── Portion scale (local, no AI call) ──
+            if (mode == CaptureMode.LogMeal && onPortionScaleChanged != null &&
+                (result.items.isNotEmpty() || result.totalCalories > 0)
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = CardSurface),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(stringResource(R.string.portion_title), style = MaterialTheme.typography.labelLarge, color = OnSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.portion_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PortionScaleSelector(scale = portionScale, onScaleChange = onPortionScaleChanged)
                     }
                 }
             }

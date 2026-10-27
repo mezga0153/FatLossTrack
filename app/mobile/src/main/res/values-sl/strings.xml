@@ -372,6 +372,15 @@
     <string name="analysis_something_wrong">Nekaj narobe?</string>
     <string name="analysis_correction_desc">Povej AI-ju, kaj popraviti, in bo ponovil analizo</string>
     <string name="analysis_correction_placeholder">npr. \"To je puran, ne piščanec\"</string>
+
+    <!-- Portion scale (analysis screen + meal edit sheet) -->
+    <string name="portion_title">Porcija</string>
+    <string name="portion_desc">Pomnoži vse sestavine in skupne vrednosti, brez AI</string>
+    <string name="portion_custom">Po meri</string>
+    <string name="portion_custom_title">Porcija po meri</string>
+    <string name="portion_custom_label">Množitelj (npr. 1.25)</string>
+    <string name="portion_custom_error">Vnesi število od 0.1 do 10</string>
+
     <string name="cd_re_analyze">Ponovi analizo</string>
     <string name="button_log_meal">Zabeleži ta obrok</string>
     <string name="button_sounds_good">Zveni dobro!</string>
