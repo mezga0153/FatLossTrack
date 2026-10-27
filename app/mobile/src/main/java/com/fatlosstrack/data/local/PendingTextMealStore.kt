@@ -1,6 +1,11 @@
 package com.fatlosstrack.data.local
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 import java.time.LocalDate
+
+/** AI-parsed text meal JSON and the day it should be logged on. */
+data class PendingTextMeal(val json: String, val date: LocalDate)
 
 /**
  * In-memory store for passing AI-parsed text meal data from AiBar
@@ -8,27 +13,16 @@ import java.time.LocalDate
  * Cleared after consumption.
  */
 object PendingTextMealStore {
-    var rawJson: String? = null
-        private set
-    var targetDate: LocalDate? = null
-        private set
+    private val pending = MutableStateFlow<PendingTextMeal?>(null)
 
-    @Synchronized
     fun store(json: String, date: LocalDate) {
-        rawJson = json
-        targetDate = date
+        pending.value = PendingTextMeal(json, date)
     }
 
-    @Synchronized
-    fun consume(): Pair<String, LocalDate>? {
-        val json = rawJson ?: return null
-        val date = targetDate ?: LocalDate.now()
-        return json to date
-    }
+    /** Returns the pending meal and clears it in one atomic step. */
+    fun take(): PendingTextMeal? = pending.getAndUpdate { null }
 
-    @Synchronized
     fun clear() {
-        rawJson = null
-        targetDate = null
+        pending.value = null
     }
 }

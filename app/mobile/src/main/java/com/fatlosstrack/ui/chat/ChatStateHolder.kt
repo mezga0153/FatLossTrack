@@ -197,15 +197,14 @@ class ChatStateHolder @Inject constructor(
      * Should be called once when the screen first appears.
      */
     fun consumePending() {
-        val pending = PendingChatStore.consume()
-        val pendingImages = PendingChatStore.consumeImages()
-        if (!pending.isNullOrBlank()) {
+        val pending = PendingChatStore.take()
+        if (pending != null && pending.message.isNotBlank()) {
             com.fatlosstrack.data.local.CapturedPhotoStore.clear()
             isLoading = true
             appScope.launch {
-                val urisString = if (pendingImages.isNotEmpty()) pendingImages.joinToString(",") { it.toString() } else null
-                chatMessageDao.insert(ChatMessage(role = "user", content = pending, imageUris = urisString))
-                streamResponse(pendingImages)
+                val urisString = if (pending.images.isNotEmpty()) pending.images.joinToString(",") { it.toString() } else null
+                chatMessageDao.insert(ChatMessage(role = "user", content = pending.message, imageUris = urisString))
+                streamResponse(pending.images)
                 isLoading = false
             }
         }

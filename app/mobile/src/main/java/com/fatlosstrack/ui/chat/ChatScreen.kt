@@ -48,6 +48,7 @@ import com.fatlosstrack.ui.camera.NutritionRow
 import com.fatlosstrack.ui.camera.ResultContent
 import com.fatlosstrack.ui.camera.parseAnalysisJson
 import com.fatlosstrack.ui.theme.*
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.*
@@ -68,14 +69,14 @@ fun ChatScreen(state: ChatStateHolder, onNavigateToCamera: () -> Unit = {}) {
     // Image attachment state
     val attachedImages = remember { mutableStateListOf<Uri>() }
 
-    // Consume photos from CapturedPhotoStore when version changes
-    val photoStoreVersion = CapturedPhotoStore.version.intValue
-    LaunchedEffect(photoStoreVersion) {
-        val photos = CapturedPhotoStore.peek()
-        if (photos.isNotEmpty()) {
-            attachedImages.clear()
-            attachedImages.addAll(photos)
-            CapturedPhotoStore.clear()
+    // Attach photos captured via the chat camera button as they arrive
+    LaunchedEffect(Unit) {
+        CapturedPhotoStore.captured.filterNotNull().collect {
+            val photos = CapturedPhotoStore.take()?.photos.orEmpty()
+            if (photos.isNotEmpty()) {
+                attachedImages.clear()
+                attachedImages.addAll(photos)
+            }
         }
     }
 
