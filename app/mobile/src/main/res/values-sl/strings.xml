@@ -413,6 +413,19 @@
     <string name="ai_bar_placeholder">Vprašaj karkoli…</string>
     <string name="error_something_went_wrong">Nekaj je šlo narobe</string>
 
+    <!-- Home screen widget + launcher shortcuts -->
+    <string name="widget_name">Kalorije danes</string>
+    <string name="widget_description">Preostale kalorije za danes in gumba za fotografiranje ali vpis obroka</string>
+    <string name="widget_left_today">Preostanek danes</string>
+    <string name="widget_over_today">Danes preseženo</string>
+    <string name="widget_eaten_today">Danes pojedeno</string>
+    <string name="widget_eaten_of_target">Pojedeno %1$d od %2$d kcal</string>
+    <string name="widget_no_target">Za cilj izpolni profil</string>
+    <string name="shortcut_snap_meal_short">Slikaj obrok</string>
+    <string name="shortcut_snap_meal_long">Fotografiraj obrok</string>
+    <string name="shortcut_log_meal_short">Vpiši obrok</string>
+    <string name="shortcut_log_meal_long">Opiši obrok</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Trener</string>
     <string name="chat_empty_title">Vprašaj me karkoli</string>

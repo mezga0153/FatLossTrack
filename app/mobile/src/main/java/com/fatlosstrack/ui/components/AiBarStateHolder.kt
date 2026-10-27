@@ -43,6 +43,18 @@ class AiBarStateHolder @Inject constructor(
     var mealLogged: Boolean by mutableStateOf(false)
         private set
 
+    /** Set by the "Log meal" widget / shortcut action; [AiBar] focuses its field and clears it. */
+    var focusRequested: Boolean by mutableStateOf(false)
+        private set
+
+    fun requestFocus() {
+        focusRequested = true
+    }
+
+    fun onFocusHandled() {
+        focusRequested = false
+    }
+
     private suspend fun buildRecentMealsContext(): String? {
         val today = LocalDate.now()
         val yesterday = today.minusDays(1)

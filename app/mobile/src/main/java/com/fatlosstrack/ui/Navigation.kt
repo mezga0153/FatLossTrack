@@ -84,6 +84,8 @@ fun FatLossTrackNavGraph(
     logStateHolder: LogStateHolder,
     settingsStateHolder: SettingsStateHolder,
     bookmarkedMealDao: BookmarkedMealDao,
+    quickAction: QuickAction? = null,
+    onQuickActionHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -103,15 +105,43 @@ fun FatLossTrackNavGraph(
     val hasCheckedGoal = goalWeight != -1f  // -1f = still loading
     val hasCheckedKey = apiKey != "\u0000"
     var dismissedKeyNudge by remember { mutableStateOf(false) }
-    LaunchedEffect(hasCheckedGoal, goalWeight, hasCheckedKey, apiKey) {
+    // Widget / launcher shortcut actions wait for the same checks, and are dropped when
+    // onboarding takes over so they don't fire halfway through it
+    LaunchedEffect(hasCheckedGoal, goalWeight, hasCheckedKey, apiKey, quickAction) {
         if (hasCheckedGoal && goalWeight == null) {
             navController.navigate("onboarding/welcome") {
                 launchSingleTop = true
             }
+            if (quickAction != null) onQuickActionHandled()
         } else if (hasCheckedGoal && hasCheckedKey && goalWeight != null && apiKey.isBlank() && !dismissedKeyNudge) {
             dismissedKeyNudge = true
             navController.navigate("onboarding/apikey") {
                 launchSingleTop = true
+            }
+            if (quickAction != null) onQuickActionHandled()
+        } else if (hasCheckedGoal && hasCheckedKey && quickAction != null) {
+            onQuickActionHandled()
+            when (quickAction) {
+                QuickAction.SnapMeal -> {
+                    AppLogger.instance?.user("Camera opened: mode=log (quick action)")
+                    navController.navigate("capture/log") {
+                        launchSingleTop = true
+                    }
+                }
+                QuickAction.LogMeal -> {
+                    // The AI bar only floats over the main tabs (not Chat) — go Home from anywhere else
+                    val aiBarTabs = setOf(Tab.Home.route, Tab.Trends.route, Tab.Log.route, Tab.Settings.route)
+                    if (navController.currentDestination?.route !in aiBarTabs) {
+                        navController.navigate(Tab.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                    aiBarStateHolder.requestFocus()
+                }
             }
         }
     }

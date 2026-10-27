@@ -98,6 +98,9 @@ dependencies {
     implementation(libs.work.hilt)
     ksp(libs.work.hilt.compiler)
 
+    // Glance (home screen widget)
+    implementation(libs.glance.appwidget)
+
     // Ktor HTTP client
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
