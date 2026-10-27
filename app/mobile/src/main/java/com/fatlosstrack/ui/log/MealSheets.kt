@@ -24,6 +24,8 @@ import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.data.local.db.displayTime
 import com.fatlosstrack.data.remote.OpenAiService
+import com.fatlosstrack.domain.PortionScale
+import com.fatlosstrack.ui.components.PortionScaleSelector
 import com.fatlosstrack.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
@@ -399,6 +401,8 @@ internal fun MealEditSheet(
     var selectedCategory by remember { mutableStateOf(meal.category) }
     var selectedMealType by remember { mutableStateOf(meal.mealType) }
     var note by remember { mutableStateOf(meal.note ?: "") }
+    // Portion multiplier, always applied to the saved meal's values so taps don't compound
+    var portionScale by remember { mutableStateOf(1.0) }
     var editing by remember { mutableStateOf(false) }
     var aiEditing by remember { mutableStateOf(false) }
     var aiPrompt by remember { mutableStateOf("") }
@@ -516,6 +520,18 @@ internal fun MealEditSheet(
                 shape = RoundedCornerShape(10.dp),
             )
 
+            Text(stringResource(R.string.portion_title), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = OnSurface)
+            PortionScaleSelector(
+                scale = portionScale,
+                onScaleChange = { factor ->
+                    portionScale = factor
+                    kcalStr = PortionScale.scale(meal.totalKcal, factor).toString()
+                    proteinStr = PortionScale.scale(meal.totalProteinG, factor).toString()
+                    carbsStr = PortionScale.scale(meal.totalCarbsG, factor).toString()
+                    fatStr = PortionScale.scale(meal.totalFatG, factor).toString()
+                },
+            )
+
             EditField(
                 icon = Icons.Default.LocalFireDepartment,
                 label = stringResource(R.string.field_calories_kcal),
@@ -605,6 +621,7 @@ internal fun MealEditSheet(
                         proteinStr = meal.totalProteinG.toString()
                         carbsStr = meal.totalCarbsG.toString()
                         fatStr = meal.totalFatG.toString()
+                        portionScale = 1.0
                         selectedCategory = meal.category
                         selectedMealType = meal.mealType
                         note = meal.note ?: ""
@@ -625,6 +642,7 @@ internal fun MealEditSheet(
                             totalProteinG = proteinStr.toIntOrNull() ?: meal.totalProteinG,
                             totalCarbsG = carbsStr.toIntOrNull() ?: meal.totalCarbsG,
                             totalFatG = fatStr.toIntOrNull() ?: meal.totalFatG,
+                            itemsJson = PortionScale.scaleItemsJson(meal.itemsJson, portionScale),
                             category = selectedCategory,
                             mealType = selectedMealType,
                             note = note.ifBlank { null },

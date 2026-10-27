@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,6 +20,7 @@ import com.fatlosstrack.data.local.db.MealEntry
 import com.fatlosstrack.data.local.db.MealType
 import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
+import com.fatlosstrack.domain.PortionScale
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,8 +77,19 @@ class AnalysisResultStateHolder @Inject constructor(
 ) {
     var analyzing: Boolean by mutableStateOf(false)
         private set
-    var result: AnalysisResult? by mutableStateOf(null)
+    /** Result as the AI returned it, before [portionScale] is applied. */
+    private var baseResult: AnalysisResult? by mutableStateOf(null)
+
+    /**
+     * Local portion multiplier (1.0 = as analyzed). Always applied to [baseResult], so taps
+     * don't compound. Resets to 1× whenever the AI returns a new result — including text
+     * corrections, which are sent the scaled meal and so already account for the portion.
+     */
+    var portionScale: Double by mutableStateOf(1.0)
         private set
+
+    /** What the screen shows and what gets logged: [baseResult] scaled by [portionScale]. */
+    val result: AnalysisResult? by derivedStateOf { baseResult?.scaledBy(portionScale) }
     var errorMessage: String? by mutableStateOf(null)
         private set
     var effectiveDate: LocalDate by mutableStateOf(LocalDate.now())
@@ -92,6 +105,17 @@ class AnalysisResultStateHolder @Inject constructor(
     /** Allow the UI to change the meal time before logging. */
     fun updateEffectiveTime(time: LocalTime?) {
         effectiveTime = time
+    }
+
+    /** Scale the current result locally (no AI call); 1.0 restores the original values. */
+    fun updatePortionScale(factor: Double) {
+        portionScale = PortionScale.normalize(factor)
+    }
+
+    /** Show a fresh AI result at 1×. */
+    private fun showResult(newResult: AnalysisResult?) {
+        baseResult = newResult
+        portionScale = 1.0
     }
 
     private val bitmaps = mutableListOf<Bitmap>()
@@ -121,7 +145,7 @@ class AnalysisResultStateHolder @Inject constructor(
             val (raw, date) = pending
             effectiveDate = date
             try {
-                result = parseAnalysisJson(raw)
+                showResult(parseAnalysisJson(raw))
                 effectiveTime = result?.mealTime
             } catch (e: Exception) {
                 Log.e("Analysis", "Text meal parse failed: $raw", e)
@@ -190,15 +214,17 @@ class AnalysisResultStateHolder @Inject constructor(
                             cruelCoachNote.applyTo(analysisRaw, effectiveDate, userComment.takeIf { it.isNotBlank() })
                         } else analysisRaw
                         try {
-                            result = parseAnalysisJson(raw)
+                            showResult(parseAnalysisJson(raw))
                             effectiveTime = result?.mealTime ?: photoTime
                         } catch (e: Exception) {
                             Log.e("Analysis", "JSON parse failed, raw: $raw", e)
-                            result = AnalysisResult(
-                                description = raw,
-                                items = emptyList(),
-                                totalCalories = 0,
-                                aiNote = "",
+                            showResult(
+                                AnalysisResult(
+                                    description = raw,
+                                    items = emptyList(),
+                                    totalCalories = 0,
+                                    aiNote = "",
+                                ),
                             )
                         }
                         analyzing = false
@@ -239,6 +265,7 @@ class AnalysisResultStateHolder @Inject constructor(
 
     /** Correct the current result via text-only AI edit (no photo re-send). */
     private fun runTextCorrection(correction: String) {
+        // Scaled result: the AI corrects what the user sees, and its answer becomes the new 1×
         val currentResult = result ?: return
         analyzing = true
         errorMessage = null
@@ -254,7 +281,7 @@ class AnalysisResultStateHolder @Inject constructor(
                             cruelCoachNote.applyTo(correctedRaw, effectiveDate, correction)
                         } else correctedRaw
                         try {
-                            result = parseAnalysisJson(raw)
+                            showResult(parseAnalysisJson(raw))
                         } catch (e: Exception) {
                             Log.e("Analysis", "Correction JSON parse failed: $raw", e)
                         }
@@ -362,7 +389,7 @@ class AnalysisResultStateHolder @Inject constructor(
 
     private fun reset() {
         analyzing = false
-        result = null
+        showResult(null)
         errorMessage = null
         effectiveTime = null
         photoTime = null

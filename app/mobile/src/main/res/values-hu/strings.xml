@@ -350,6 +350,15 @@
     <string name="analysis_something_wrong">Valami nem stimmel?</string>
     <string name="analysis_correction_desc">Mondd el az AI-nak mit javítson, és újraelemzi</string>
     <string name="analysis_correction_placeholder">pl. \"Az pulyka, nem csirke\"</string>
+
+    <!-- Portion scale (analysis screen + meal edit sheet) -->
+    <string name="portion_title">Adag</string>
+    <string name="portion_desc">Az összes tétel és az összesítés arányos módosítása, AI nélkül</string>
+    <string name="portion_custom">Egyéni</string>
+    <string name="portion_custom_title">Egyéni adag</string>
+    <string name="portion_custom_label">Szorzó (pl. 1.25)</string>
+    <string name="portion_custom_error">Adj meg egy számot 0.1 és 10 között</string>
+
     <string name="cd_re_analyze">Újraelemzés</string>
     <string name="button_log_meal">Étkezés naplózása</string>
     <string name="button_sounds_good">Jól hangzik!</string>

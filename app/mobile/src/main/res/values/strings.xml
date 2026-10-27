@@ -400,6 +400,15 @@
     <string name="analysis_something_wrong">Something wrong?</string>
     <string name="analysis_correction_desc">Tell the AI what to fix and it will re-analyze</string>
     <string name="analysis_correction_placeholder">e.g. \"That\'s turkey, not chicken\"</string>
+
+    <!-- Portion scale (analysis screen + meal edit sheet) -->
+    <string name="portion_title">Portion</string>
+    <string name="portion_desc">Scale every item and the totals, no AI needed</string>
+    <string name="portion_custom">Custom</string>
+    <string name="portion_custom_title">Custom portion</string>
+    <string name="portion_custom_label">Multiplier (e.g. 1.25)</string>
+    <string name="portion_custom_error">Enter a number from 0.1 to 10</string>
+
     <string name="cd_re_analyze">Re-analyze</string>
     <string name="button_log_meal">Log this meal</string>
     <string name="button_sounds_good">Sounds good!</string>
