@@ -139,4 +139,7 @@ dependencies {
 
     // OSS Licenses
     implementation(libs.play.services.oss.licenses)
+
+    // Testing
+    testImplementation(libs.junit)
 }
