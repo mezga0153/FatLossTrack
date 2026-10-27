@@ -121,7 +121,7 @@ fatloss_track/
             │   ├── HomeScreen.kt            # Goal progress, trend chart, N-day stats, AI period summary
             │   └── HomeStateHolder.kt       # Period stats + cached AI period summary
             ├── log/
-            │   ├── LogScreen.kt             # Day timeline + today summary
+            │   ├── LogScreen.kt             # Day timeline (loads 30-day pages on scroll) + today summary
             │   ├── LogStateHolder.kt
             │   ├── DayCard.kt               # DayCard + StatChip composables
             │   ├── DailyLogSheet.kt         # Daily log edit bottom sheet (weight/steps lock toggles)

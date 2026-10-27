@@ -3,11 +3,13 @@ package com.fatlosstrack.ui.log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,7 +21,15 @@ import com.fatlosstrack.ui.components.rememberDailyTargetKcal
 import com.fatlosstrack.ui.components.rememberLatestLeanMassKg
 import com.fatlosstrack.ui.theme.*
 import com.fatlosstrack.ui.trends.TrendMetric
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import java.time.LocalDate
+
+/** Days added to the timeline per page. */
+private const val PAGE_DAYS = 30
+
+/** Start loading the next page when the last visible item is this close to the end. */
+private const val LOAD_AHEAD_ITEMS = 10
 
 // ── Main Screen ──
 
@@ -56,8 +66,17 @@ fun LogScreen(
         return
     }
 
-    val meals by state.allMeals().collectAsState(initial = emptyList())
-    val dailyLogs by state.allLogs().collectAsState(initial = emptyList())
+    // Paging: only the newest [loadedDays] days are built and queried. Scrolling
+    // near the bottom extends the window by another page, down to the start date.
+    val today = remember { LocalDate.now() }
+    var loadedDays by rememberSaveable { mutableIntStateOf(PAGE_DAYS) }
+    val windowStart = maxOf(startDate, today.minusDays(loadedDays - 1L))
+    val hasMore by rememberUpdatedState(windowStart.isAfter(startDate))
+
+    // Remembered per window so collection survives recomposition; collectAsState
+    // keeps the previous list until the wider query emits, so cards don't flash empty.
+    val meals by remember(windowStart) { state.mealsSince(windowStart) }.collectAsState(initial = emptyList())
+    val dailyLogs by remember(windowStart) { state.logsSince(windowStart) }.collectAsState(initial = emptyList())
 
     // TDEE / daily target
     val dailyTargetKcal = rememberDailyTargetKcal(state.preferencesManager)
@@ -71,19 +90,32 @@ fun LogScreen(
     var selectedMeal by sheetState::selectedMeal
     var addMealForDate by sheetState::addMealForDate
 
-    val today = remember { LocalDate.now() }
-    val allDates = remember(startDate, today) {
-        generateSequence(startDate) { it.plusDays(1) }
-            .takeWhile { !it.isAfter(today) }
+    val visibleDates = remember(windowStart, today) {
+        generateSequence(today) { it.minusDays(1) }
+            .takeWhile { !it.isBefore(windowStart) }
             .toList()
-            .reversed()
     }
     val mealsByDate = remember(meals) { meals.groupBy { it.date } }
     val logsByDate = remember(dailyLogs) { dailyLogs.associateBy { it.date } }
 
+    val listState = rememberLazyListState()
+    LaunchedEffect(listState) {
+        // Emits the item count once each time the last visible item gets within
+        // LOAD_AHEAD_ITEMS of the end, so a fast fling keeps loading page after page.
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            val lastVisible = layout.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow null
+            layout.totalItemsCount.takeIf { lastVisible >= it - LOAD_AHEAD_ITEMS }
+        }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { if (hasMore) loadedDays += PAGE_DAYS }
+    }
+
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
@@ -118,7 +150,7 @@ fun LogScreen(
             }
         }
 
-        items(allDates, key = { it.toString() }) { date ->
+        items(visibleDates, key = { it.toString() }) { date ->
             DayCard(
                 date = date,
                 log = logsByDate[date],
