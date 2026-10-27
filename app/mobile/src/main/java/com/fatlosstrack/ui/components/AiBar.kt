@@ -1,9 +1,14 @@
 package com.fatlosstrack.ui.components
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -21,6 +26,8 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,16 +50,19 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
 import java.time.LocalDate
 
 /**
  * Floating AI bar — persistent pill above bottom nav.
- * Text input + send/camera. Shows AI response in a card above.
+ * Text input + mic/send/camera. Shows AI response in a card above.
  *
  * Pure UI — all logic lives in [AiBarStateHolder].
  */
@@ -120,6 +130,62 @@ fun AiBar(
     }
     DisposableEffect(window) {
         onDispose { setResizeMode(false) }
+    }
+
+    // Voice input: the transcript is appended to whatever was already typed and lands in the
+    // field for review — nothing is sent until the user taps send.
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val voice = rememberVoiceInputState()
+    val appLanguage by state.language.collectAsState(initial = "en")
+    var showMicRationale by remember { mutableStateOf(false) }
+    val micDeniedMessage = stringResource(R.string.voice_permission_denied)
+    fun startVoice() {
+        // Drop focus so the keyboard gets out of the way and the cursor doesn't stay behind the transcript
+        focusManager.clearFocus()
+        if (state.aiError != null) state.dismiss()
+        val prefix = text.trim()
+        voice.start(
+            languageTag = speechLanguageTag(appLanguage),
+            onTranscript = { heard -> text = if (prefix.isEmpty()) heard else "$prefix $heard" },
+            onFailure = { error -> voiceErrorMessage(error)?.let { state.showError(context.getString(it)) } },
+        )
+    }
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) startVoice() else state.showError(micDeniedMessage) }
+    val activity = LocalActivity.current
+    fun onMicClick() {
+        when {
+            voice.isListening -> voice.stop()
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED -> startVoice()
+            activity?.shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO) == true ->
+                showMicRationale = true
+            else -> micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    if (showMicRationale) {
+        AlertDialog(
+            onDismissRequest = { showMicRationale = false },
+            title = { Text(stringResource(R.string.voice_permission_title)) },
+            text = { Text(stringResource(R.string.voice_permission_rationale)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showMicRationale = false
+                    micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                }) {
+                    Text(stringResource(R.string.button_grant_permission))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMicRationale = false }) {
+                    Text(stringResource(R.string.button_cancel))
+                }
+            },
+            containerColor = CardSurface,
+        )
     }
 
     Column(modifier = modifier.then(if (focused) Modifier.imePadding() else Modifier)) {
@@ -294,6 +360,8 @@ fun AiBar(
                             focused = it.isFocused
                             setResizeMode(it.isFocused)
                         }
+                        // Tapping into the field to edit ends dictation, keeping what was heard
+                        if (it.isFocused && voice.isListening) voice.stop()
                     },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = OnSurface),
                 cursorBrush = SolidColor(primaryColor),
@@ -306,7 +374,9 @@ fun AiBar(
                     ) {
                         if (text.isEmpty()) {
                             Text(
-                                stringResource(R.string.ai_bar_placeholder),
+                                stringResource(
+                                    if (voice.isListening) R.string.ai_bar_listening else R.string.ai_bar_placeholder
+                                ),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = OnSurfaceVariant,
                                 maxLines = 1,
@@ -319,6 +389,54 @@ fun AiBar(
 
             Spacer(Modifier.width(4.dp))
 
+            // Mic: hidden when the device has no speech recognition service
+            if (voice.isAvailable) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = !state.isLoading) { onMicClick() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Crossfade(targetState = voice.isListening, label = "aiBarMic") { listening ->
+                        if (listening) {
+                            // Pulsing gradient dot while listening; tap again to stop
+                            val pulse = rememberInfiniteTransition(label = "aiBarMicPulse").animateFloat(
+                                initialValue = 0.9f,
+                                targetValue = 1.1f,
+                                animationSpec = infiniteRepeatable(tween(durationMillis = 700), RepeatMode.Reverse),
+                                label = "aiBarMicPulseScale",
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .graphicsLayer {
+                                        scaleX = pulse.value
+                                        scaleY = pulse.value
+                                    }
+                                    .clip(CircleShape)
+                                    .background(actionGradient),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Default.Mic,
+                                    contentDescription = stringResource(R.string.cd_stop_listening),
+                                    tint = onPrimaryColor,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        } else {
+                            Icon(
+                                Icons.Outlined.Mic,
+                                contentDescription = stringResource(R.string.cd_voice_input),
+                                tint = OnSurfaceVariant,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
             // Right: quiet camera icon when empty, filled gradient send button once there's text
             Box(
                 modifier = Modifier
@@ -326,6 +444,7 @@ fun AiBar(
                     .clip(CircleShape)
                     .clickable(enabled = !state.isLoading) {
                         if (hasText) {
+                            voice.cancel()
                             val query = text.trim()
                             text = ""
                             state.submit(query, errorFallback, onTextMealAnalyzed, onChatOpen)

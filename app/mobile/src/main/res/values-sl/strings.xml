@@ -413,6 +413,17 @@
     <string name="ai_bar_placeholder">Vprašaj karkoli…</string>
     <string name="error_something_went_wrong">Nekaj je šlo narobe</string>
 
+    <!-- AiBar voice input -->
+    <string name="ai_bar_listening">Poslušam…</string>
+    <string name="cd_voice_input">Glasovni vnos</string>
+    <string name="cd_stop_listening">Ustavi poslušanje</string>
+    <string name="voice_permission_title">Dostop do mikrofona</string>
+    <string name="voice_permission_rationale">Glasovni vnos uporablja mikrofon samo med narekovanjem v vrstico AI. Povedano se pretvori v besedilo, ki ga lahko pred pošiljanjem preveriš.</string>
+    <string name="voice_permission_denied">Za glasovni vnos je potrebno dovoljenje za mikrofon. Omogočiš ga lahko v sistemskih nastavitvah.</string>
+    <string name="voice_error_no_match">Nisem razumel — poskusi znova</string>
+    <string name="voice_error_language">Glasovni vnos v tem jeziku ni na voljo</string>
+    <string name="voice_error_generic">Glasovni vnos ni uspel</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Trener</string>
     <string name="chat_empty_title">Vprašaj me karkoli</string>

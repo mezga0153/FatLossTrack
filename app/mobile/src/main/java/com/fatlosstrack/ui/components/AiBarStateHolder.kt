@@ -8,6 +8,7 @@ import com.fatlosstrack.data.CruelCoachNoteGenerator
 import com.fatlosstrack.data.DaySummaryGenerator
 import com.fatlosstrack.data.local.AppLogger
 import com.fatlosstrack.data.local.PendingTextMealStore
+import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.MealCategory
 import com.fatlosstrack.data.local.db.MealDao
 import com.fatlosstrack.data.local.db.MealEntry
@@ -15,6 +16,7 @@ import com.fatlosstrack.data.remote.OpenAiService
 import com.fatlosstrack.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,6 +34,7 @@ class AiBarStateHolder @Inject constructor(
     private val mealDao: MealDao,
     private val daySummaryGenerator: DaySummaryGenerator,
     private val cruelCoachNote: CruelCoachNoteGenerator,
+    preferencesManager: PreferencesManager,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     var isLoading: Boolean by mutableStateOf(false)
@@ -42,6 +45,9 @@ class AiBarStateHolder @Inject constructor(
         private set
     var mealLogged: Boolean by mutableStateOf(false)
         private set
+
+    /** App language code ("en", "sl", "hu") — voice input listens in this language. */
+    val language: Flow<String> = preferencesManager.language
 
     private suspend fun buildRecentMealsContext(): String? {
         val today = LocalDate.now()
@@ -60,6 +66,14 @@ class AiBarStateHolder @Inject constructor(
         aiResponse = null
         aiError = null
         mealLogged = false
+    }
+
+    /** Show a message in the response card (e.g. voice input problems). */
+    fun showError(message: String) {
+        if (isLoading) return
+        aiResponse = null
+        mealLogged = false
+        aiError = message
     }
 
     /**

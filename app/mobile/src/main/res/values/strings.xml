@@ -442,6 +442,17 @@
     <string name="ai_bar_placeholder">Ask AI about your day…</string>
     <string name="error_something_went_wrong">Something went wrong</string>
 
+    <!-- AiBar voice input -->
+    <string name="ai_bar_listening">Listening…</string>
+    <string name="cd_voice_input">Voice input</string>
+    <string name="cd_stop_listening">Stop listening</string>
+    <string name="voice_permission_title">Microphone access</string>
+    <string name="voice_permission_rationale">Voice input uses the microphone only while you dictate into the AI bar. What you say is turned into text you can check before sending.</string>
+    <string name="voice_permission_denied">Voice input needs microphone permission. You can allow it in the system settings.</string>
+    <string name="voice_error_no_match">Didn\'t catch that — try again</string>
+    <string name="voice_error_language">Voice input isn\'t available in this language</string>
+    <string name="voice_error_generic">Voice input failed</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Coach</string>
     <string name="chat_empty_title">Ask me anything</string>
