@@ -481,9 +481,9 @@ fun FatLossTrackNavGraph(
                     val modeStr = entry.arguments?.getString("mode") ?: "LogMeal"
                     val count = entry.arguments?.getInt("count") ?: 1
                     val targetDateStr = entry.arguments?.getString("targetDate") ?: ""
-                    val targetDate = if (targetDateStr.isNotEmpty()) {
-                        try { java.time.LocalDate.parse(targetDateStr) } catch (_: Exception) { java.time.LocalDate.now() }
-                    } else java.time.LocalDate.now()
+                    // Null when no day was picked, so the photo's capture date can be used
+                    val targetDate = targetDateStr.takeIf { it.isNotEmpty() }
+                        ?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
                     val mode = if (modeStr == "SuggestMeal") CaptureMode.SuggestMeal else CaptureMode.LogMeal
                     AnalysisResultScreen(
                         state = analysisResultStateHolder,

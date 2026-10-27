@@ -95,12 +95,18 @@ class AnalysisResultStateHolder @Inject constructor(
     private val bitmaps = mutableListOf<Bitmap>()
     private var currentMode: CaptureMode = CaptureMode.LogMeal
     private var userComment: String = ""
+    private var dateFromCaller: Boolean = false
+    private var photoTime: LocalTime? = null
 
-    /** Initialize for photo analysis. Resets state and starts analysis. */
-    fun startPhotoAnalysis(mode: CaptureMode, targetDate: LocalDate) {
+    /**
+     * Initialize for photo analysis. Resets state and starts analysis.
+     * [targetDate] is null when no day was picked — the photo's capture date is used then.
+     */
+    fun startPhotoAnalysis(mode: CaptureMode, targetDate: LocalDate?) {
         reset()
         currentMode = mode
-        effectiveDate = targetDate
+        dateFromCaller = targetDate != null
+        effectiveDate = targetDate ?: LocalDate.now()
         runAnalysis()
     }
 
@@ -163,6 +169,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     }
                     bitmaps.addAll(loaded)
                     userComment = CapturedPhotoStore.peekComment()
+                    applyPhotoTakenAt(photoUris)
                 }
 
                 val modeStr = if (currentMode == CaptureMode.SuggestMeal) "suggest" else "log"
@@ -177,7 +184,7 @@ class AnalysisResultStateHolder @Inject constructor(
                     onSuccess = { raw ->
                         try {
                             result = parseAnalysisJson(raw)
-                            effectiveTime = result?.mealTime
+                            effectiveTime = result?.mealTime ?: photoTime
                         } catch (e: Exception) {
                             Log.e("Analysis", "JSON parse failed, raw: $raw", e)
                             result = AnalysisResult(
@@ -199,6 +206,17 @@ class AnalysisResultStateHolder @Inject constructor(
                 analyzing = false
             }
         }
+    }
+
+    /** Prefill meal time (and date, unless the caller picked a day) from the earliest photo. */
+    private suspend fun applyPhotoTakenAt(photoUris: List<android.net.Uri>) {
+        val takenAt = withContext(Dispatchers.IO) {
+            photoUris.mapNotNull { photoTakenAt(context, it) }.minOrNull()
+        } ?: return
+        photoTime = takenAt.toLocalTime().withSecond(0).withNano(0)
+        if (!dateFromCaller) effectiveDate = takenAt.toLocalDate()
+        effectiveTime = photoTime
+        AppLogger.instance?.meal("Photo taken at $takenAt (date ${if (dateFromCaller) "kept $effectiveDate" else "prefilled"})")
     }
 
     private suspend fun buildRecentMealsContext(): String? {
@@ -336,6 +354,7 @@ class AnalysisResultStateHolder @Inject constructor(
         result = null
         errorMessage = null
         effectiveTime = null
+        photoTime = null
         bitmaps.clear()
     }
 }
