@@ -445,10 +445,11 @@
     <!-- Home screen widget + launcher shortcuts -->
     <string name="widget_name">Kcal today</string>
     <string name="widget_description">Calories left today, with buttons to snap or type a meal</string>
-    <string name="widget_left_today">Left today</string>
-    <string name="widget_over_today">Over today</string>
-    <string name="widget_eaten_today">Eaten today</string>
-    <string name="widget_eaten_of_target">%1$d of %2$d kcal eaten</string>
+    <string name="widget_ring_left">left</string>
+    <string name="widget_ring_over">over</string>
+    <string name="widget_ring_eaten">eaten</string>
+    <string name="widget_kcal_of_target">%1$d / %2$d kcal</string>
+    <string name="widget_protein_of_target">Protein %1$d / %2$d g</string>
     <string name="widget_no_target">Set up your profile for a target</string>
     <string name="shortcut_snap_meal_short">Snap meal</string>
     <string name="shortcut_snap_meal_long">Snap a meal photo</string>

@@ -2,8 +2,16 @@ package com.fatlosstrack.widget
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.SweepGradient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -12,14 +20,18 @@ import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -36,6 +48,7 @@ import androidx.glance.unit.ColorProvider
 import com.fatlosstrack.R
 import com.fatlosstrack.data.local.PreferencesManager
 import com.fatlosstrack.data.local.db.MealDao
+import com.fatlosstrack.domain.TdeeCalculator
 import com.fatlosstrack.domain.dailyTargetKcalFlow
 import com.fatlosstrack.ui.QuickAction
 import com.fatlosstrack.ui.theme.AppColors
@@ -47,6 +60,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 /** Hilt access for the widget, which isn't an injectable Android component. */
 @EntryPoint
@@ -56,21 +70,26 @@ interface KcalWidgetEntryPoint {
     fun preferencesManager(): PreferencesManager
 }
 
-/** What the widget shows: today's eaten kcal against the TDEE-based target. */
+/** What the widget shows: today's eaten kcal and protein against the TDEE-based targets. */
 private data class KcalWidgetData(
     val eatenKcal: Int,
     val targetKcal: Int?,
+    val eatenProteinG: Int,
+    val proteinTargetG: Int?,
     val colors: AppColors,
 )
 
 /**
- * Home screen widget: kcal left today (TDEE target minus today's meals),
- * plus "Snap meal" and "Log meal" quick actions.
+ * Home screen widget: a progress ring with kcal left today (TDEE target minus today's meals),
+ * protein vs target when wide enough, plus "Snap meal" and "Log meal" icon buttons.
  *
  * Data is read once per update; [KcalWidgetUpdater] and [KcalWidgetReceiver]
  * trigger updates when meals/profile change and at midnight.
  */
 class KcalWidget : GlanceAppWidget() {
+
+    // Compact layout for 2×1, detail column once there's room for it
+    override val sizeMode = SizeMode.Responsive(setOf(COMPACT, WIDE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = loadData(context)
@@ -82,15 +101,24 @@ class KcalWidget : GlanceAppWidget() {
     private suspend fun loadData(context: Context): KcalWidgetData {
         val entryPoint = EntryPointAccessors.fromApplication(context, KcalWidgetEntryPoint::class.java)
         val prefs = entryPoint.preferencesManager()
-        val eaten = entryPoint.mealDao().getMealsForDate(LocalDate.now()).first().sumOf { it.totalKcal }
+        val meals = entryPoint.mealDao().getMealsForDate(LocalDate.now()).first()
         val target = prefs.dailyTargetKcalFlow().first()
+        val proteinTarget = target?.let {
+            TdeeCalculator.macroTargets(it, goalBodyWeightKg = prefs.goalWeight.first()?.takeIf { w -> w > 0f }).first
+        }
         // Follow the app's theme preset so the widget matches the app
         val preset = try {
             ThemePreset.valueOf(prefs.themePreset.first())
         } catch (_: Exception) {
             ThemePreset.PURPLE_DARK
         }
-        return KcalWidgetData(eaten, target, buildAppColors(preset.accentHue, preset.mode))
+        return KcalWidgetData(
+            eatenKcal = meals.sumOf { it.totalKcal },
+            targetKcal = target,
+            eatenProteinG = meals.sumOf { it.totalProteinG },
+            proteinTargetG = proteinTarget,
+            colors = buildAppColors(preset.accentHue, preset.mode),
+        )
     }
 }
 
@@ -100,29 +128,27 @@ private fun KcalWidgetContent(data: KcalWidgetData) {
     val colors = data.colors
     val target = data.targetKcal
     val left = target?.let { it - data.eatenKcal }
+    val wide = LocalSize.current.width >= WIDE.width
 
-    val label: String
-    val value: String
-    val valueColor: Color
-    val detail: String
+    // Number in the ring: kcal left, kcal over, or kcal eaten when there's no target
+    val ringValue: Int
+    val ringLabel: String
+    val ringValueColor: Color
     when {
-        target == null || left == null -> {
-            label = context.getString(R.string.widget_eaten_today)
-            value = context.getString(R.string.format_kcal, data.eatenKcal)
-            valueColor = colors.onSurface
-            detail = context.getString(R.string.widget_no_target)
+        left == null -> {
+            ringValue = data.eatenKcal
+            ringLabel = context.getString(R.string.widget_ring_eaten)
+            ringValueColor = colors.onSurface
         }
         left >= 0 -> {
-            label = context.getString(R.string.widget_left_today)
-            value = context.getString(R.string.format_kcal, left)
-            valueColor = colors.primary
-            detail = context.getString(R.string.widget_eaten_of_target, data.eatenKcal, target)
+            ringValue = left
+            ringLabel = context.getString(R.string.widget_ring_left)
+            ringValueColor = colors.onSurface
         }
         else -> {
-            label = context.getString(R.string.widget_over_today)
-            value = context.getString(R.string.format_kcal, -left)
-            valueColor = colors.error
-            detail = context.getString(R.string.widget_eaten_of_target, data.eatenKcal, target)
+            ringValue = -left
+            ringLabel = context.getString(R.string.widget_ring_over)
+            ringValueColor = colors.error
         }
     }
 
@@ -130,82 +156,77 @@ private fun KcalWidgetContent(data: KcalWidgetData) {
     val openApp = context.packageManager.getLaunchIntentForPackage(context.packageName)
         ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    Column(
+    Row(
         modifier = GlanceModifier
             .fillMaxSize()
-            .cornerRadius(20.dp)
+            .cornerRadius(24.dp)
             .background(ColorProvider(colors.cardSurface))
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
             .then(if (openApp != null) GlanceModifier.clickable(actionStartActivity(openApp)) else GlanceModifier),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 12.sp),
-            maxLines = 1,
-        )
-        Text(
-            text = value,
-            style = TextStyle(
-                color = ColorProvider(valueColor),
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-            ),
-            maxLines = 1,
-        )
-        Text(
-            text = detail,
-            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 12.sp),
-            maxLines = 1,
-        )
-        Spacer(GlanceModifier.height(10.dp))
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
+        Box(
+            modifier = GlanceModifier.size(RING_SIZE),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                provider = ImageProvider(
+                    ringBitmap(context, data.eatenKcal, target, colors),
+                ),
+                contentDescription = null,
+                modifier = GlanceModifier.size(RING_SIZE),
+            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = ringValue.toString(),
+                    style = TextStyle(
+                        color = ColorProvider(ringValueColor),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    maxLines = 1,
+                )
+                Text(
+                    text = ringLabel,
+                    style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 9.sp),
+                    maxLines = 1,
+                )
+            }
+        }
+
+        if (wide) {
+            Spacer(GlanceModifier.width(12.dp))
+            DetailColumn(data, colors, GlanceModifier.defaultWeight())
+        } else {
+            Spacer(GlanceModifier.defaultWeight())
+        }
+
+        Column {
             QuickActionButton(
                 iconRes = R.drawable.ic_widget_camera,
-                label = context.getString(R.string.shortcut_snap_meal_short),
+                description = context.getString(R.string.shortcut_snap_meal_short),
                 action = actionStartActivity(QuickAction.SnapMeal.intent(context)),
                 colors = colors,
-                modifier = GlanceModifier.defaultWeight(),
             )
-            Spacer(GlanceModifier.width(8.dp))
+            Spacer(GlanceModifier.height(6.dp))
             QuickActionButton(
                 iconRes = R.drawable.ic_widget_edit,
-                label = context.getString(R.string.shortcut_log_meal_short),
+                description = context.getString(R.string.shortcut_log_meal_short),
                 action = actionStartActivity(QuickAction.LogMeal.intent(context)),
                 colors = colors,
-                modifier = GlanceModifier.defaultWeight(),
             )
         }
     }
 }
 
+/** Kcal and protein against target, shown next to the ring when the widget is wide enough. */
 @Composable
-private fun QuickActionButton(
-    iconRes: Int,
-    label: String,
-    action: Action,
-    colors: AppColors,
-    modifier: GlanceModifier = GlanceModifier,
-) {
-    Row(
-        modifier = modifier
-            .height(40.dp)
-            .cornerRadius(20.dp)
-            .background(ColorProvider(colors.primaryContainer))
-            .padding(horizontal = 10.dp)
-            .clickable(action),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Image(
-            provider = ImageProvider(iconRes),
-            contentDescription = null,
-            colorFilter = ColorFilter.tint(ColorProvider(colors.primary)),
-            modifier = GlanceModifier.size(18.dp),
-        )
-        Spacer(GlanceModifier.width(6.dp))
+private fun DetailColumn(data: KcalWidgetData, colors: AppColors, modifier: GlanceModifier) {
+    val context = LocalContext.current
+    val target = data.targetKcal
+    Column(modifier = modifier) {
         Text(
-            text = label,
+            text = context.getString(R.string.widget_name),
             style = TextStyle(
                 color = ColorProvider(colors.onSurface),
                 fontSize = 13.sp,
@@ -213,5 +234,99 @@ private fun QuickActionButton(
             ),
             maxLines = 1,
         )
+        if (target == null) {
+            Text(
+                text = context.getString(R.string.widget_no_target),
+                style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 11.sp),
+                maxLines = 2,
+            )
+            return@Column
+        }
+        Text(
+            text = context.getString(R.string.widget_kcal_of_target, data.eatenKcal, target),
+            style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 11.sp),
+            maxLines = 1,
+        )
+        data.proteinTargetG?.takeIf { it > 0 }?.let { proteinTarget ->
+            Spacer(GlanceModifier.height(6.dp))
+            Text(
+                text = context.getString(R.string.widget_protein_of_target, data.eatenProteinG, proteinTarget),
+                style = TextStyle(color = ColorProvider(colors.onSurfaceVariant), fontSize = 11.sp),
+                maxLines = 1,
+            )
+            Spacer(GlanceModifier.height(3.dp))
+            LinearProgressIndicator(
+                progress = (data.eatenProteinG.toFloat() / proteinTarget).coerceIn(0f, 1f),
+                modifier = GlanceModifier.fillMaxWidth().height(4.dp),
+                color = ColorProvider(colors.secondary),
+                backgroundColor = ColorProvider(colors.onSurface.copy(alpha = 0.10f)),
+            )
+        }
     }
 }
+
+/** Round icon-only button; labels didn't fit at small widget sizes. */
+@Composable
+private fun QuickActionButton(
+    iconRes: Int,
+    description: String,
+    action: Action,
+    colors: AppColors,
+) {
+    Box(
+        modifier = GlanceModifier
+            .size(30.dp)
+            .cornerRadius(15.dp)
+            .background(ColorProvider(colors.primaryContainer))
+            .clickable(action),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            provider = ImageProvider(iconRes),
+            contentDescription = description,
+            colorFilter = ColorFilter.tint(ColorProvider(colors.primary)),
+            modifier = GlanceModifier.size(16.dp),
+        )
+    }
+}
+
+/**
+ * Progress ring drawn to a bitmap, since Glance has no arc primitive. Primary→accent
+ * sweep while under target, a full error-colored ring once over, just the track without one.
+ */
+private fun ringBitmap(context: Context, eatenKcal: Int, targetKcal: Int?, colors: AppColors): Bitmap {
+    val px = (RING_SIZE.value * context.resources.displayMetrics.density).roundToInt()
+    val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val stroke = px * 0.11f
+    val inset = stroke / 2f
+    val bounds = RectF(inset, inset, px - inset, px - inset)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = stroke
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    paint.color = colors.onSurface.copy(alpha = 0.10f).toArgb()
+    canvas.drawArc(bounds, 0f, 360f, false, paint)
+    if (targetKcal == null || targetKcal <= 0 || eatenKcal <= 0) return bitmap
+
+    val fraction = eatenKcal.toFloat() / targetKcal
+    if (fraction > 1f) {
+        paint.color = colors.error.toArgb()
+        canvas.drawArc(bounds, 0f, 360f, false, paint)
+    } else {
+        val center = px / 2f
+        paint.shader = SweepGradient(
+            center, center,
+            intArrayOf(colors.primary.toArgb(), colors.accent.toArgb(), colors.primary.toArgb()),
+            null,
+        ).apply { setLocalMatrix(Matrix().apply { setRotate(-90f, center, center) }) }
+        canvas.drawArc(bounds, -90f, 360f * fraction, false, paint)
+    }
+    return bitmap
+}
+
+private val RING_SIZE = 60.dp
+private val COMPACT = DpSize(110.dp, 50.dp)
+private val WIDE = DpSize(220.dp, 50.dp)

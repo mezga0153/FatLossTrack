@@ -394,10 +394,11 @@
     <!-- Home screen widget + launcher shortcuts -->
     <string name="widget_name">Mai kalória</string>
     <string name="widget_description">A mára maradt kalória, gombokkal étkezés fotózásához vagy beírásához</string>
-    <string name="widget_left_today">Mára maradt</string>
-    <string name="widget_over_today">Mai túllépés</string>
-    <string name="widget_eaten_today">Ma elfogyasztva</string>
-    <string name="widget_eaten_of_target">%1$d / %2$d kcal elfogyasztva</string>
+    <string name="widget_ring_left">maradt</string>
+    <string name="widget_ring_over">többlet</string>
+    <string name="widget_ring_eaten">bevitt</string>
+    <string name="widget_kcal_of_target">%1$d / %2$d kcal</string>
+    <string name="widget_protein_of_target">Fehérje %1$d / %2$d g</string>
     <string name="widget_no_target">Cél megadásához töltsd ki a profilt</string>
     <string name="shortcut_snap_meal_short">Étel fotó</string>
     <string name="shortcut_snap_meal_long">Étkezés fotózása</string>
