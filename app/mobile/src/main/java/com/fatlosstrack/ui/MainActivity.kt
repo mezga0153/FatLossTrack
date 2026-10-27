@@ -1,5 +1,6 @@
 package com.fatlosstrack.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
@@ -96,9 +97,20 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var autoBackupManager: AutoBackupManager
 
+    /** Widget / launcher shortcut action waiting for the nav graph to handle it. */
+    private var pendingQuickAction by mutableStateOf<QuickAction?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         appLogger.user("App opened")
+        // Only on a fresh start — a recreated activity already handled its launch intent, and
+        // reopening from Recents replays the task's original (possibly quick action) intent
+        val fromRecents = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (savedInstanceState == null && !fromRecents) {
+            pendingQuickAction = QuickAction.fromIntent(intent)?.also {
+                appLogger.user("Quick action: ${it.name}")
+            }
+        }
         CoroutineScope(Dispatchers.IO).launch {
             autoBackupManager.runBackup()
         }
@@ -139,9 +151,19 @@ class MainActivity : AppCompatActivity() {
                         logStateHolder = logStateHolder,
                         settingsStateHolder = settingsStateHolder,
                         bookmarkedMealDao = bookmarkedMealDao,
+                        quickAction = pendingQuickAction,
+                        onQuickActionHandled = { pendingQuickAction = null },
                     )
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        QuickAction.fromIntent(intent)?.let {
+            appLogger.user("Quick action: ${it.name}")
+            pendingQuickAction = it
         }
     }
 }

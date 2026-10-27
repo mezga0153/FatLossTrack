@@ -391,6 +391,20 @@
     <string name="ai_bar_placeholder">Kérdezz bármit…</string>
     <string name="error_something_went_wrong">Valami hiba történt</string>
 
+    <!-- Home screen widget + launcher shortcuts -->
+    <string name="widget_name">Mai kalória</string>
+    <string name="widget_description">A mára maradt kalória, gombokkal étkezés fotózásához vagy beírásához</string>
+    <string name="widget_ring_left">maradt</string>
+    <string name="widget_ring_over">többlet</string>
+    <string name="widget_ring_eaten">bevitt</string>
+    <string name="widget_kcal_of_target">%1$d / %2$d kcal</string>
+    <string name="widget_protein_of_target">Fehérje %1$d / %2$d g</string>
+    <string name="widget_no_target">Cél megadásához töltsd ki a profilt</string>
+    <string name="shortcut_snap_meal_short">Étel fotó</string>
+    <string name="shortcut_snap_meal_long">Étkezés fotózása</string>
+    <string name="shortcut_log_meal_short">Étel beírása</string>
+    <string name="shortcut_log_meal_long">Étkezés beírása</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Edző</string>
     <string name="chat_empty_title">Kérdezz bármit</string>

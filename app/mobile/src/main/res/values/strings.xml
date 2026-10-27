@@ -442,6 +442,20 @@
     <string name="ai_bar_placeholder">Ask AI about your day…</string>
     <string name="error_something_went_wrong">Something went wrong</string>
 
+    <!-- Home screen widget + launcher shortcuts -->
+    <string name="widget_name">Kcal today</string>
+    <string name="widget_description">Calories left today, with buttons to snap or type a meal</string>
+    <string name="widget_ring_left">left</string>
+    <string name="widget_ring_over">over</string>
+    <string name="widget_ring_eaten">eaten</string>
+    <string name="widget_kcal_of_target">%1$d / %2$d kcal</string>
+    <string name="widget_protein_of_target">Protein %1$d / %2$d g</string>
+    <string name="widget_no_target">Set up your profile for a target</string>
+    <string name="shortcut_snap_meal_short">Snap meal</string>
+    <string name="shortcut_snap_meal_long">Snap a meal photo</string>
+    <string name="shortcut_log_meal_short">Log meal</string>
+    <string name="shortcut_log_meal_long">Type a meal</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Coach</string>
     <string name="chat_empty_title">Ask me anything</string>

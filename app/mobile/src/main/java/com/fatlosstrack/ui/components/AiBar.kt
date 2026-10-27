@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -43,11 +45,14 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.theme.*
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 
 /**
@@ -120,6 +125,19 @@ fun AiBar(
     }
     DisposableEffect(window) {
         onDispose { setResizeMode(false) }
+    }
+
+    // "Log meal" widget / shortcut: focus the field and raise the keyboard. On a cold start
+    // the window isn't focused yet and the IME won't open until it is, so wait for that first.
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val windowInfo = LocalWindowInfo.current
+    LaunchedEffect(state.focusRequested) {
+        if (!state.focusRequested) return@LaunchedEffect
+        snapshotFlow { windowInfo.isWindowFocused }.first { it }
+        focusRequester.requestFocus()
+        keyboardController?.show()
+        state.onFocusHandled()
     }
 
     Column(modifier = modifier.then(if (focused) Modifier.imePadding() else Modifier)) {
@@ -289,6 +307,7 @@ fun AiBar(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 40.dp)
+                    .focusRequester(focusRequester)
                     .onFocusChanged {
                         if (it.isFocused != focused) {
                             focused = it.isFocused
