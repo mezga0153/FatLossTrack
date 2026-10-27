@@ -391,6 +391,17 @@
     <string name="ai_bar_placeholder">Kérdezz bármit…</string>
     <string name="error_something_went_wrong">Valami hiba történt</string>
 
+    <!-- AiBar voice input -->
+    <string name="ai_bar_listening">Figyelek…</string>
+    <string name="cd_voice_input">Hangbevitel</string>
+    <string name="cd_stop_listening">Hallgatás leállítása</string>
+    <string name="voice_permission_title">Mikrofon-hozzáférés</string>
+    <string name="voice_permission_rationale">A hangbevitel csak akkor használja a mikrofont, amikor az AI sávba diktálsz. Amit mondasz, szöveggé alakul, és küldés előtt ellenőrizheted.</string>
+    <string name="voice_permission_denied">A hangbevitelhez mikrofon engedély szükséges. A rendszerbeállításokban engedélyezheted.</string>
+    <string name="voice_error_no_match">Nem értettem — próbáld újra</string>
+    <string name="voice_error_language">A hangbevitel ezen a nyelven nem érhető el</string>
+    <string name="voice_error_generic">A hangbevitel nem sikerült</string>
+
     <!-- ChatScreen -->
     <string name="chat_title">AI Edző</string>
     <string name="chat_empty_title">Kérdezz bármit</string>
