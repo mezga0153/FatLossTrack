@@ -39,6 +39,8 @@ import com.fatlosstrack.ui.chat.ChatScreen
 import com.fatlosstrack.ui.chat.ChatStateHolder
 import com.fatlosstrack.ui.components.AiBar
 import com.fatlosstrack.ui.components.AiBarStateHolder
+import com.fatlosstrack.ui.components.QuickLogBar
+import com.fatlosstrack.ui.components.QuickLogStateHolder
 import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.log.LogScreen
@@ -84,6 +86,7 @@ fun FatLossTrackNavGraph(
     logStateHolder: LogStateHolder,
     settingsStateHolder: SettingsStateHolder,
     bookmarkedMealDao: BookmarkedMealDao,
+    quickLogStateHolder: QuickLogStateHolder,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -515,29 +518,36 @@ fun FatLossTrackNavGraph(
                 }
             }
 
-            // Floating AI bar (hidden on camera/chat screens)
+            // Floating AI bar (hidden on camera/chat screens), with one-tap repeat chips above it
             if (!hideAiBar) {
-                AiBar(
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    state = aiBarStateHolder,
-                    onCameraClick = {
-                        AppLogger.instance?.user("Camera opened: mode=log")
-                        navController.navigate("capture/log")
-                    },
-                    onTextMealAnalyzed = { _ ->
-                        navController.navigate("analysis/text")
-                    },
-                    onChatOpen = { message ->
-                        com.fatlosstrack.data.local.PendingChatStore.store(message)
-                        navController.navigate(Tab.Chat.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                    QuickLogBar(
+                        state = quickLogStateHolder,
+                        // Only where meals are logged, and not while the bar shows a response
+                        visible = (currentRoute == Tab.Home.route || currentRoute == Tab.Log.route) &&
+                            !aiBarStateHolder.isLoading && aiBarStateHolder.aiResponse == null && aiBarStateHolder.aiError == null,
+                    )
+                    AiBar(
+                        state = aiBarStateHolder,
+                        onCameraClick = {
+                            AppLogger.instance?.user("Camera opened: mode=log")
+                            navController.navigate("capture/log")
+                        },
+                        onTextMealAnalyzed = { _ ->
+                            navController.navigate("analysis/text")
+                        },
+                        onChatOpen = { message ->
+                            com.fatlosstrack.data.local.PendingChatStore.store(message)
+                            navController.navigate(Tab.Chat.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
+                        },
+                    )
+                }
             }
         }
     }

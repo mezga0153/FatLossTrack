@@ -687,7 +687,7 @@ fun HomeScreen(
             )
         }
 
-        Spacer(Modifier.height(80.dp))
+        Spacer(Modifier.height(128.dp)) // clearance for floating AI bar + quick-log chips
     }
 
     LogSheetHost(

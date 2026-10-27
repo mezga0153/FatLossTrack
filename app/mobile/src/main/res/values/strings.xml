@@ -255,6 +255,11 @@
     <string name="bookmarks_empty">No bookmarks yet</string>
     <string name="bookmarks_empty_hint">Long-tap any meal and tap \'Bookmark\' to save it</string>
     <string name="bookmark_rename_title">Rename bookmark</string>
+    <!-- Quick log (one-tap repeat chips above the AI bar) -->
+    <string name="quick_log_logged">Logged: %1$s (%2$d kcal)</string>
+    <string name="quick_log_undo">Undo</string>
+    <string name="quick_log_action_log">Log again now</string>
+    <string name="quick_log_action_edit">Edit before logging</string>
     <string name="ai_usage_title">AI Usage</string>
     <string name="ai_usage_overview">Overview</string>
     <string name="ai_usage_total_requests">Total requests</string>

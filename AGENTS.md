@@ -165,6 +165,8 @@ fatloss_track/
             └── components/
                 ├── AiBar.kt                 # Floating AI input pill (rainbow border)
                 ├── AiBarStateHolder.kt      # Text → meal parse, else open chat
+                ├── QuickLogBar.kt           # One-tap repeat chips above the AiBar + undo snackbar
+                ├── QuickLogStateHolder.kt   # Bookmarks + frequent recent meals, copy/undo
                 ├── TrendChart.kt            # Canvas-based weight chart
                 ├── SimpleLineChart.kt       # Generic line chart with reference zones
                 ├── MultiSeriesLineChart.kt  # Multi-series line chart with toggleable series (e.g. macros)
@@ -256,6 +258,11 @@ The **AiBar** floats above the bottom nav on main screens. It handles:
 - Text input → `parseTextMeal()`; if it's a meal → `PendingTextMealStore` → `analysis/text`, otherwise → `PendingChatStore` → Chat tab
 - Camera button → `capture/log`
 
+On Home and Log, `QuickLogBar` sits above it: chips for bookmarked meals and meals repeated in the last
+30 days (or eaten yesterday, via `MealDao.getFrequentMeals()`). Tap logs a copy to today at the current
+time with no AI call and an undo snackbar; long-press opens `AddMealSheet` prefilled. The chips hide while
+the keyboard is up or the AiBar shows a response.
+
 Camera modes:
 - `log` → `analysis/LogMeal/{count}`
 - `suggest` → photos + suggestion prompt handed to Chat via `PendingChatStore`
@@ -298,7 +305,7 @@ Coach tones (`CoachTone.instruction()`): `honest` (default), `supportive`, `insu
 ### Day summaries trigger on:
 - Health Connect sync (for changed dates)
 - Manual daily log edit
-- Meal add/edit/delete (Log/Home sheets, analysis screen, AiBar, chat edits)
+- Meal add/edit/delete (Log/Home sheets, analysis screen, AiBar, quick-log chips and their undo, chat edits)
 - Coach tone change (today + yesterday)
 
 `launchForDate()` writes the `"⏳"` placeholder immediately (shows loading indicator), then generates
