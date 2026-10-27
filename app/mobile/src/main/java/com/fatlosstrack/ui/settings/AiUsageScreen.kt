@@ -99,6 +99,7 @@ private fun featureLabel(feature: String): String = when (feature) {
     "meal_edit" -> "Meal corrections"
     "day_summary" -> "Day summaries"
     "period_summary" -> "Period summaries"
+    "weekly_recap" -> "Weekly recaps"
     else -> feature
 }
 

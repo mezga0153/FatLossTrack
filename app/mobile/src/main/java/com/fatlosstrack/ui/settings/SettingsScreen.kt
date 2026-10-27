@@ -33,6 +33,7 @@ import com.fatlosstrack.auth.AuthManager
 import com.fatlosstrack.data.backup.DriveBackupManager
 import com.fatlosstrack.data.health.HealthConnectManager
 import com.fatlosstrack.data.local.PreferencesManager
+import com.fatlosstrack.ui.recap.WeeklyRecapSettings
 import com.fatlosstrack.ui.theme.CardSurface
 import com.fatlosstrack.ui.theme.OnSurfaceVariant
 import com.fatlosstrack.ui.theme.Primary
@@ -75,6 +76,7 @@ fun SettingsScreen(
     onManageBookmarks: (() -> Unit)? = null,
     onManageBackups: (() -> Unit)? = null,
     onToneChanged: (() -> Unit)? = null,
+    onViewWeeklyRecap: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -338,6 +340,11 @@ fun SettingsScreen(
                     showCruelConfirm = true
                 }
             }
+        }
+
+        // -- Weekly recap --
+        SettingsSection(stringResource(R.string.recap_settings_section)) {
+            WeeklyRecapSettings(preferencesManager, onViewRecap = onViewWeeklyRecap)
         }
 
         // -- Language --

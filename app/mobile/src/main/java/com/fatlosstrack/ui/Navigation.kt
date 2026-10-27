@@ -43,6 +43,9 @@ import com.fatlosstrack.ui.home.HomeScreen
 import com.fatlosstrack.ui.home.HomeStateHolder
 import com.fatlosstrack.ui.log.LogScreen
 import com.fatlosstrack.ui.log.LogStateHolder
+import com.fatlosstrack.data.recap.WeeklyRecapNotifier
+import com.fatlosstrack.ui.recap.WeeklyRecapScreen
+import com.fatlosstrack.ui.recap.WeeklyRecapStateHolder
 import com.fatlosstrack.R
 import com.fatlosstrack.ui.settings.LogViewerScreen
 import com.fatlosstrack.ui.settings.SetGoalScreen
@@ -84,6 +87,9 @@ fun FatLossTrackNavGraph(
     logStateHolder: LogStateHolder,
     settingsStateHolder: SettingsStateHolder,
     bookmarkedMealDao: BookmarkedMealDao,
+    weeklyRecapStateHolder: WeeklyRecapStateHolder,
+    notificationRoute: String? = null,
+    onNotificationRouteHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -116,6 +122,16 @@ fun FatLossTrackNavGraph(
         }
     }
 
+    // Notification tap: open its screen once we know the user is past onboarding
+    LaunchedEffect(notificationRoute, hasCheckedGoal, goalWeight) {
+        val route = notificationRoute ?: return@LaunchedEffect
+        if (!hasCheckedGoal) return@LaunchedEffect
+        if (goalWeight != null) {
+            navController.navigate(route) { launchSingleTop = true }
+        }
+        onNotificationRouteHandled()
+    }
+
     // Hide bottom bar + AI bar on camera/analysis/goal/log viewer screens
     val hideChrome = currentRoute?.startsWith("capture") == true ||
             currentRoute?.startsWith("analysis") == true ||
@@ -128,7 +144,8 @@ fun FatLossTrackNavGraph(
             currentRoute == "backup_manager" ||
             currentRoute == "ai_usage" ||
             currentRoute == "model_selector" ||
-            currentRoute == "bookmarks"
+            currentRoute == "bookmarks" ||
+            currentRoute?.startsWith(WeeklyRecapNotifier.ROUTE) == true
 
     // Hide AiBar on chat tab too (it has its own input)
     val hideAiBar = hideChrome || currentRoute == Tab.Chat.route
@@ -247,6 +264,7 @@ fun FatLossTrackNavGraph(
                         onViewWelcome = { navController.navigate("onboarding/welcome?first=false") },
                         onManageBookmarks = { navController.navigate("bookmarks") },
                         onManageBackups = { navController.navigate("backup_manager") },
+                        onViewWeeklyRecap = { navController.navigate(WeeklyRecapNotifier.recapRoute()) },
                         onToneChanged = {
                             val today = java.time.LocalDate.now()
                             homeStateHolder.daySummaryGenerator.launchForDates(
@@ -312,6 +330,25 @@ fun FatLossTrackNavGraph(
                 composable("backup_manager") {
                     BackupManagerScreen(
                         autoBackupManager = settingsStateHolder.autoBackupManager,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+
+                // Weekly recap (from the recap notification or Settings)
+                composable(
+                    route = "${WeeklyRecapNotifier.ROUTE}?end={end}",
+                    arguments = listOf(
+                        navArgument("end") { type = NavType.StringType; defaultValue = "" },
+                    ),
+                ) { entry ->
+                    val end = remember(entry) {
+                        entry.arguments?.getString("end")
+                            ?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
+                            ?: java.time.LocalDate.now()
+                    }
+                    WeeklyRecapScreen(
+                        state = weeklyRecapStateHolder,
+                        end = end,
                         onBack = { navController.popBackStack() },
                     )
                 }
