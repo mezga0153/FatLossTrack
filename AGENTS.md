@@ -40,6 +40,13 @@ cd app && JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :mobile:assembleDebug
 
 APK output: `app/mobile/build/outputs/apk/debug/mobile-debug.apk`
 
+### Unit tests
+
+JVM tests (JUnit 4) live in `app/mobile/src/test/java/`:
+```bash
+cd app && JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew :mobile:testDebugUnitTest
+```
+
 ### Release
 
 - Bump `versionCode` / `versionName` in `app/mobile/build.gradle.kts` (one commit per Play release).
@@ -112,7 +119,7 @@ fatloss_track/
         ├── domain/
         │   ├── ChatContextUseCase.kt        # Last-7-days data block for chat prompts
         │   ├── TdeeCalculator.kt            # TDEE / BMR / macro targets
-        │   └── trend/TrendEngine.kt         # EMA + linear projection
+        │   └── trend/TrendEngine.kt         # EMA + linear projection (currently unused)
         └── ui/
             ├── MainActivity.kt              # Entry point, Hilt injections, auto-backup on open
             ├── Navigation.kt                # FatLossTrackNavGraph: NavHost + bottom bar + floating AiBar + onboarding redirect
@@ -411,7 +418,7 @@ clears in `cleanup()`.
 13. **Model ids are duplicated**: when adding/changing an OpenAI model, update `ModelSelectorScreen` (list + prices), `AiUsageScreen` (pricing), and the default in `PreferencesManager` + the `collectAsState(initial = ...)` in `SettingsScreen` / `ModelSelectorScreen`
 14. **Reasoning models** can spend the whole completion budget on reasoning tokens and return empty content — `OpenAiService` guards against this; keep that in mind when lowering token limits
 15. **Coach notes for the cruel tone** must come from `CruelCoachNoteGenerator`, not the meal-parse prompt — the parse prompt knows nothing about the user and the model can dodge the roast with `{"is_meal": false}`
-16. **No unit tests exist yet** (`app/mobile/src/test` is absent). Verify changes by building and running on device
+16. **Unit tests only cover `TdeeCalculator` and `TrendEngine`** — they pin current behaviour, so update them when you change that math on purpose. Everything else still needs verifying by building and running on device
 
 ---
 
